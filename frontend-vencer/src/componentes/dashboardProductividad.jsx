@@ -11,6 +11,7 @@ import TableroParamedicos from './TableroParamedicos';
 import TableroUrgencias from './TableroUrgencias';
 import { exportarReporteCompleto } from './exportarReporteCompleto';
 import TableroCirugias from './TableroCirugias';
+import TableroHospitalizacion from './TableroHospitalizacion';
 // Registrar componentes de Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement);
 
@@ -187,6 +188,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const [datosParamedicos, setDatosParamedicos] = useState([]);
     const [datosUrgencias, setDatosUrgencias] = useState([]);
     const [datosCirugias, setDatosCirugias] = useState([]);
+    const [datosHospitalizacion, setDatosHospitalizacion] = useState([]);
 
     // ==========================================
     // CARGA DE DATOS 
@@ -1208,7 +1210,7 @@ return (
                         width: '100%'
                     }}>
                         <TableroHospitalizacion
-                            datos={hospitalizacionParaTablero}
+                            datos={datosHospitalizacion}
                             diccionarioDivisiones={diccionarioEspecialidades} l
                             diccionarioEspecialidades={diccionarioEspecialidades}
                             diccionarioCIE={diccionarioCIE}
@@ -1218,7 +1220,7 @@ return (
                     </div>
 
                     {/* MENSAJE DE EN CONSTRUCCIÓN */}
-                    {areaSidebar !== 'consulta_externa' && areaSidebar !== 'paramedicos' && areaSidebar !== 'urgencias' && areaSidebar !=='cirugias' && (
+                    {areaSidebar !== 'consulta_externa' && areaSidebar !== 'paramedicos' && areaSidebar !== 'urgencias' && areaSidebar !=='cirugias' &&  areaSidebar !== 'hospitalizacion' && (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 p-16 border-2 border-dashed border-slate-300 rounded-3xl bg-slate-100/50">
                             <Activity size={64} className="mb-6 opacity-40 text-[#822626]" />
                             <h2 className="text-2xl font-black text-slate-500 mb-2">Módulo en Construcción</h2>

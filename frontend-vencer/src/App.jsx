@@ -1,9 +1,9 @@
 import React from 'react';
-// Importamos los componentes desde la carpeta componentes
 import DashboardVencer from './componentes/dashboardVencer'; 
 import DashboardProductividad from './componentes/dashboardProductividad';
 import AdministradorUsuarios from './componentes/AdministradorUsuarios';
-import TableroCirugias from './componentes/TableroCirugias'; //
+import TableroCirugias from './componentes/TableroCirugias';
+import DashboardIndicadores from './componentes/DashboardIndicadores';
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
