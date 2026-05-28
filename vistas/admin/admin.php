@@ -42,17 +42,25 @@ try {
             box-sizing: border-box;
         }
 
+        html,
+        body {
+            min-height: 100%;
+        }
+
         body {
             margin: 0;
+            min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f4f6f9;
             color: #1f2933;
+            display: flex;
+            flex-direction: column;
         }
 
         .topbar {
             background: #7a123a;
             color: white;
-            height: 58px;
+            min-height: 58px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -64,6 +72,7 @@ try {
             font-weight: 800;
             font-size: 22px;
             letter-spacing: 1px;
+            white-space: nowrap;
         }
 
         .nav-center {
@@ -78,6 +87,7 @@ try {
             font-weight: 700;
             letter-spacing: .5px;
             font-size: 15px;
+            transition: .2s ease;
         }
 
         .nav-center a:hover {
@@ -89,6 +99,7 @@ try {
             align-items: center;
             gap: 12px;
             font-size: 14px;
+            white-space: nowrap;
         }
 
         .logout-btn {
@@ -96,7 +107,8 @@ try {
             text-decoration: none;
             border: 1px solid rgba(255, 255, 255, .8);
             padding: 7px 14px;
-            border-radius: 4px;
+            border-radius: 6px;
+            transition: .2s ease;
         }
 
         .logout-btn:hover {
@@ -105,6 +117,8 @@ try {
         }
 
         .main {
+            flex: 1;
+            width: 100%;
             max-width: 1440px;
             margin: 0 auto;
             padding: 42px 36px 70px;
@@ -118,8 +132,8 @@ try {
         .header h1 {
             color: #8a1746;
             font-size: 42px;
-            font-weight: 500;
-            letter-spacing: 8px;
+            font-weight: 600;
+            letter-spacing: 3px;
             margin: 0 0 12px;
         }
 
@@ -138,18 +152,35 @@ try {
         .module-card {
             background: white;
             min-height: 230px;
-            border-radius: 6px;
+            border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
             padding: 28px 24px;
             text-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            border: 1px solid rgba(0, 0, 0, .04);
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+        }
+
+        .module-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+            border-color: rgba(122, 18, 58, 0.14);
         }
 
         .module-card i {
             font-size: 46px;
             margin-bottom: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform .22s ease, opacity .22s ease;
+        }
+
+        .module-card:hover i {
+            transform: scale(1.08);
+            opacity: .95;
         }
 
         .module-card h3 {
@@ -170,88 +201,89 @@ try {
             display: block;
             text-decoration: none;
             border: 1px solid currentColor;
-            border-radius: 4px;
+            border-radius: 6px;
             padding: 9px 12px;
             font-size: 16px;
-            transition: .2s ease;
+            transition: background .2s ease, color .2s ease, transform .2s ease;
         }
 
         .module-card a:hover {
             color: white !important;
+            transform: translateY(-1px);
+        }
+
+        .center-card {
+            grid-column: 2 / 3;
         }
 
         .green {
             color: #0f8b67;
         }
 
-        .green:hover {
-            background: #0f8b67;
-        }
-
         .teal {
             color: #148f86;
-        }
-
-        .teal:hover {
-            background: #148f86;
         }
 
         .red {
             color: #e63946;
         }
 
-        .red:hover {
-            background: #e63946;
-        }
-
         .purple {
             color: #5947e8;
-        }
-
-        .purple:hover {
-            background: #5947e8;
         }
 
         .blue {
             color: #1f78ff;
         }
 
-        .blue:hover {
-            background: #1f78ff;
-        }
-
         .dark {
             color: #22272e;
-        }
-
-        .dark:hover {
-            background: #22272e;
         }
 
         .orange {
             color: #d97706;
         }
 
-        .orange:hover {
+        .module-card a.green:hover {
+            background: #0f8b67;
+        }
+
+        .module-card a.teal:hover {
+            background: #148f86;
+        }
+
+        .module-card a.red:hover {
+            background: #e63946;
+        }
+
+        .module-card a.purple:hover {
+            background: #5947e8;
+        }
+
+        .module-card a.blue:hover {
+            background: #1f78ff;
+        }
+
+        .module-card a.dark:hover {
+            background: #22272e;
+        }
+
+        .module-card a.orange:hover {
             background: #d97706;
         }
 
-        @media (max-width: 1000px) {
-            .cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .header h1 {
-                font-size: 34px;
-                letter-spacing: 5px;
-            }
-
-            .nav-center {
-                gap: 12px;
-            }
+        .admin-footer {
+            width: 100%;
+            background: #7a123a;
+            color: white;
+            text-align: center;
+            padding: 16px 18px;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: .5px;
         }
 
-        @media (max-width: 700px) {
+        @media (max-width: 1000px) {
             .topbar {
                 height: auto;
                 padding: 14px;
@@ -260,21 +292,61 @@ try {
             }
 
             .nav-center {
+                gap: 12px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .user-area {
                 flex-wrap: wrap;
                 justify-content: center;
             }
 
             .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .center-card {
+                grid-column: 1 / -1;
+                justify-self: center;
+                width: min(100%, 520px);
+            }
+
+            .header h1 {
+                font-size: 34px;
+                letter-spacing: 2px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .cards {
                 grid-template-columns: 1fr;
             }
 
+            .center-card {
+                grid-column: auto;
+                width: 100%;
+            }
+
             .main {
-                padding: 30px 18px;
+                padding: 30px 18px 54px;
+            }
+
+            .header {
+                margin-bottom: 34px;
             }
 
             .header h1 {
                 font-size: 28px;
-                letter-spacing: 3px;
+                letter-spacing: 1px;
+            }
+
+            .brand {
+                font-size: 19px;
+            }
+
+            .admin-footer {
+                font-size: 13px;
             }
         }
     </style>
@@ -320,7 +392,7 @@ try {
                 <i class="fa-solid fa-chart-line teal"></i>
                 <h3>Indicadores</h3>
                 <p>HOSP, Semanales, Mensual y Mensual Acumulado.</p>
-                <a class="teal" href="/graficos/index.html?modulo=indicadores&rol=admin">
+                <a class="teal" href="/graficos/index.html?modulo=productividad&vista=dashboard&tab=consulta_externa&rol=admin">
                     Ir a Tableros
                 </a>
             </div>
@@ -361,7 +433,7 @@ try {
                 </a>
             </div>
 
-            <div class="module-card">
+            <div class="module-card center-card">
                 <i class="fa-solid fa-building-user orange"></i>
                 <h3>Estructura</h3>
                 <p>Consulta y administración de la estructura organizacional.</p>
@@ -372,6 +444,10 @@ try {
 
         </section>
     </main>
+
+    <footer class="admin-footer">
+        UMAE 48 - Coordinación de Información Médica © 2026
+    </footer>
 
     <script src="../../js/bootstrap.bundle.min.js"></script>
 
