@@ -327,7 +327,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
     useEffect(() => {
         cargarDatos();
-        cargarDatosHospitalizacion(); // Disparar la carga paralela[cite: 8]
+        cargarDatosHospitalizacion(); // Disparar la carga paralela
         cargarDiccionario();
         cargarDiccionarioCIE(); 
         cargarDiccionarioEspecialidades();
@@ -1068,7 +1068,7 @@ export default function DashboardProductividad({ isAdmin }) {
                             </div>
                         )}
                         
-                        {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)[cite: 8] */}
+                        {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)*/}
                         {areaSidebar === 'hospitalizacion' && datosHospitalizacionBase.length > 0 && !cargandoHospitalizacion && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
                                 <Filter size={14} className="text-[#822626] ml-2 hidden sm:block"/>
@@ -1290,7 +1290,7 @@ export default function DashboardProductividad({ isAdmin }) {
                     </div>
 
                     {/* MENSAJE DE EN CONSTRUCCIÓN */}
-                    {areaSidebar !== 'consulta_externa' && areaSidebar !== 'paramedicos' && areaSidebar !== 'urgencias' && areaSidebar !=='cirugias' &&  areaSidebar !== 'hospitalizacion' && (
+                    {!['consulta_externa', 'paramedicos', 'urgencias', 'cirugias', 'hospitalizacion'].includes(areaSidebar) && (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 p-16 border-2 border-dashed border-slate-300 rounded-3xl bg-slate-100/50">
                             <Activity size={64} className="mb-6 opacity-40 text-[#822626]" />
                             <h2 className="text-2xl font-black text-slate-500 mb-2">Módulo en Construcción</h2>
