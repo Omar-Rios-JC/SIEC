@@ -178,12 +178,16 @@ export default function DashboardProductividad({ isAdmin }) {
     const [cargandoDatos, setCargandoDatos] = useState(false);
     const [error, setError] = useState(null);
     
+    // Estados para la inyección e IndexedDB de Hospitalización[cite: 8]
+    const [datosHospitalizacionBase, setDatosHospitalizacionBase] = useState([]);
+    const [cargandoHospitalizacion, setCargandoHospitalizacion] = useState(false);
+
     // DICCIONARIOS
     const [diccionarioMedicos, setDiccionarioMedicos] = useState({});
     const [diccionarioCIE, setDiccionarioCIE] = useState({});
     const [diccionarioEspecialidades, setDiccionarioEspecialidades] = useState({});
 
-    // Datos para descargar Excel 
+    // Datos para descargar Excel[cite: 8]
     const [datosExterna, setDatosExterna] = useState([]);
     const [datosParamedicos, setDatosParamedicos] = useState([]);
     const [datosUrgencias, setDatosUrgencias] = useState([]);
@@ -222,6 +226,36 @@ export default function DashboardProductividad({ isAdmin }) {
             setError("Modo sin conexión. Mostrando últimos datos guardados.");
         } finally {
             setCargandoDatos(false);
+        }
+    };
+
+    // Descarga y Sincronización Local de Hospitalización[cite: 8]
+    const cargarDatosHospitalizacion = async () => {
+        try {
+            const cacheHosp = await localforage.getItem('cache_hospitalizacion_vencer');
+            const versionLocal = await localforage.getItem('version_hospitalizacion_vencer') || "0";
+
+            if (cacheHosp && cacheHosp.length > 0) {
+                setDatosHospitalizacionBase(cacheHosp);
+            } else {
+                setCargandoHospitalizacion(true);
+            }
+
+            const resVersion = await axios.get('/api/api_check_update.php');
+            const versionServidor = String(resVersion.data.ultima_actualizacion);
+
+            if (versionServidor !== versionLocal || !cacheHosp) {
+                const resDatos = await axios.get('/api/api_hospitalizacion.php');
+                if (Array.isArray(resDatos.data)) {
+                    setDatosHospitalizacionBase(resDatos.data);
+                    await localforage.setItem('cache_hospitalizacion_vencer', resDatos.data);
+                    await localforage.setItem('version_hospitalizacion_vencer', versionServidor);
+                }
+            }
+        } catch (err) {
+            console.error("Error al cargar hospitalización:", err);
+        } finally {
+            setCargandoHospitalizacion(false);
         }
     };
 
@@ -293,6 +327,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
     useEffect(() => {
         cargarDatos();
+        cargarDatosHospitalizacion(); // Disparar la carga paralela[cite: 8]
         cargarDiccionario();
         cargarDiccionarioCIE(); 
         cargarDiccionarioEspecialidades();
@@ -482,6 +517,22 @@ export default function DashboardProductividad({ isAdmin }) {
         return aplicarFiltroFecha(soloUrgencias);
     }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin, diccionarioEspecialidades]);
 
+    // Segmentación analítica limpia para periodos IMSS de Hospitalización[cite: 8]
+    const datosHospitalizacionFiltrados = useMemo(() => {
+        return datosHospitalizacionBase.filter(item => {
+            const pasaAnio = anioSeleccionado === 'todos' || String(item.anio) === String(anioSeleccionado);
+            let pasaMes = true;
+            
+            if (mesSeleccionado === 'rango') {
+                const m = Number(item.mes) - 1; 
+                pasaMes = m >= mesInicio && m <= mesFin;
+            } else if (mesSeleccionado !== 'todos') {
+                pasaMes = (Number(item.mes) - 1) === Number(mesSeleccionado);
+            }
+            return pasaAnio && pasaMes;
+        });
+    }, [datosHospitalizacionBase, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+
     // ==========================================
     // DIVISIONES Y ESPECIALIDADES
     // ==========================================
@@ -596,7 +647,7 @@ export default function DashboardProductividad({ isAdmin }) {
         });
     }, [datosUrgenciasFiltrados, especialidadSeleccionada, diccionarioEspecialidades]);
 
-// ==========================================
+    // ==========================================
     // GRÁFICA DE METAS CON CALENDARIO DINÁMICO HISTÓRICO
     // ==========================================
     const chartMetas = useMemo(() => {
@@ -667,7 +718,6 @@ export default function DashboardProductividad({ isAdmin }) {
                 }
             ]
         };
-    // ¡AQUÍ ESTÁ LA MAGIA! Agregamos diccionarioEspecialidades a las dependencias
     }, [datosConsultaExterna, divisionSeleccionada, especialidadSeleccionada, mesGraficoMeta, anioGraficoMeta, diccionarioEspecialidades]);
 
     const chartOptionsLine = {
@@ -732,7 +782,6 @@ export default function DashboardProductividad({ isAdmin }) {
         if (!datosFiltrados || datosFiltrados.length === 0) return { labels: [], datasets: [], dataPV: [], dataSub: [] };
 
         const conteo = datosFiltrados.reduce((acc, curr) => {
-            // USANDO EL TRADUCTOR TAMBIÉN PARA LA GRÁFICA
             const esp = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD); 
 
             if (!acc[esp]) acc[esp] = { total: 0, pv: 0, sub: 0 };
@@ -754,8 +803,6 @@ export default function DashboardProductividad({ isAdmin }) {
         const conteo = datosFiltrados.reduce((acc, curr) => {
             const matriculaLimpia = String(curr.matricula_medico || 'Sin Matrícula').trim().replace('.0', '').replace(/\s/g, '');
             const nombreMedico = diccionarioMedicos[matriculaLimpia] || `Matr. ${curr.matricula_medico}`;
-            
-            // USANDO EL TRADUCTOR
             const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD);
 
             if (!acc[nombreMedico]) acc[nombreMedico] = { total: 0, pv: 0, sub: 0, especialidad: nombreEspecialidad };
@@ -799,46 +846,37 @@ export default function DashboardProductividad({ isAdmin }) {
     }, [datosFiltrados, diccionarioCIE]);
 
     const chartConsultorios = useMemo(() => {
-        // 1. Si no hay datos, devolvemos el objeto vacío con la estructura correcta
         if (!datosFiltrados || datosFiltrados.length === 0) {
             return { labels: [], datasets: [], dataPV: [], dataSub: [] };
         }
 
-        // 2. Reducimos los datos para contar totales, PV y Sub por Consultorio
         const conteo = datosFiltrados.reduce((acc, curr) => {
-            // Normalizamos el nombre del consultorio (manejamos mayúsculas/minúsculas)
             const cons = (curr.consultorio || curr.CONSULTORIO || "SIN ESPECIFICAR").toString().trim().toUpperCase();
 
             if (!acc[cons]) acc[cons] = { total: 0, pv: 0, sub: 0 };
             
             acc[cons].total++;
-            
-            // Lógica de Primera Vez vs Subsecuente
             if (curr.primera_vez === 'Primera Vez' || curr.PRIMERA_VEZ === 'Primera Vez') {
                 acc[cons].pv++;
             } else {
                 acc[cons].sub++;
             }
-            
             return acc;
         }, {});
 
-        // 3. Ordenamos de mayor a menor según el total de consultas
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
-
-        // 4. Retornamos la estructura lista para el gráfico
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{ 
                 label: 'Consultas por Consultorio', 
                 data: ordenados.map(item => item[1].total), 
-                backgroundColor: '#10b981', // Verde esmeralda para diferenciarlo de especialidades
+                backgroundColor: '#10b981', 
                 borderRadius: 4 
             }],
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados]); // Solo se recalcula si cambian los datos filtrados
+    }, [datosFiltrados]); 
 
     const anchoDinamico = (cantidadItems) => `max(100%, ${cantidadItems * 40}px)`; 
     
@@ -851,31 +889,28 @@ export default function DashboardProductividad({ isAdmin }) {
         }
     };
 
-        // Esta función es la que llamará al archivo exportarReporteCompleto.js 
     const handleDescargarTodo = async () => {
-        // Verificamos que al menos algo tenga datos
         if (dataExterna.length === 0 && dataParamedicos.length === 0 && dataUrgencias.length === 0) {
             alert("Navega por las pestañas para cargar los datos antes de exportar.");
             return;
         }
-        
         await exportarReporteCompleto(dataExterna, dataParamedicos, dataUrgencias);
     };
 
-    // Busca tu función handleDescargarExcel y reemplázala por esta:
     const handleDescargarExcel = async () => {
         try {
             console.log("Exportando datos:", { 
                 externa: datosFiltrados.length, 
                 param: datosParamedicos.length, 
-                urg: datosUrgencias.length 
+                urg: datosUrgencias.length,
+                hosp: datosHospitalizacion.length // Traza de hospitalización[cite: 8]
             });
 
-            // IMPORTANTE: Usamos los nombres de tus estados (líneas 126-128)
             await exportarReporteCompleto(
-                datosFiltrados,     // Tus datos de consulta externa filtrados
-                datosParamedicos,   // Lo que capturó el TableroParamedicos
-                datosUrgencias      // Lo que capturó el TableroUrgencias
+                datosFiltrados,     
+                datosParamedicos,   
+                datosUrgencias,      
+                datosHospitalizacion // Sincronizar columna Excel de hospitalización[cite: 8]
             );
         } catch (error) {
             console.error("Error en la exportación:", error);
@@ -895,7 +930,7 @@ export default function DashboardProductividad({ isAdmin }) {
         return <AdministradorCatalogos setVistaActiva={setVistaActiva} />;
     }
     
-return (
+    return (
         <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
             
             {/* PANEL LATERAL */}
@@ -907,32 +942,32 @@ return (
                 </div>
                 <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 overflow-x-hidden custom-scrollbar">
     
-    {/* Consulta Externa */}
-    <button onClick={() => setAreaSidebar('consulta_externa')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'consulta_externa' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-        <Stethoscope size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Consulta Externa Esp</span>}
-    </button>
-    
-    {/* Paramédicos */}
-    <button onClick={() => setAreaSidebar('paramedicos')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'paramedicos' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-        <Ambulance size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Paramédicos</span>}
-    </button>
-    
-    {/* Cirugías */}
-    <button onClick={() => setAreaSidebar('cirugias')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'cirugias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-        <Syringe size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Cirugías</span>}
-    </button>
-    
-    {/* Hospitalización */}
-    <button onClick={() => setAreaSidebar('hospitalizacion')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'hospitalizacion' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-        <Bed size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Hospitalización</span>}
-    </button>
-    
-    {/* Urgencias - UN SOLO BOTÓN */}
-    <button onClick={() => setAreaSidebar('urgencias')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'urgencias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-        <Siren size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Urgencias</span>}
-    </button>
-    
-</nav>
+                    {/* Consulta Externa */}
+                    <button onClick={() => setAreaSidebar('consulta_externa')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'consulta_externa' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
+                        <Stethoscope size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Consulta Externa Esp</span>}
+                    </button>
+                    
+                    {/* Paramédicos */}
+                    <button onClick={() => setAreaSidebar('paramedicos')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'paramedicos' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
+                        <Ambulance size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Paramédicos</span>}
+                    </button>
+                    
+                    {/* Cirugías */}
+                    <button onClick={() => setAreaSidebar('cirugias')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'cirugias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
+                        <Syringe size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Cirugías</span>}
+                    </button>
+                    
+                    {/* Hospitalización */}
+                    <button onClick={() => setAreaSidebar('hospitalizacion')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'hospitalizacion' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
+                        <Bed size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Hospitalización</span>}
+                    </button>
+                    
+                    {/* Urgencias */}
+                    <button onClick={() => setAreaSidebar('urgencias')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'urgencias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
+                        <Siren size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Urgencias</span>}
+                    </button>
+                    
+                </nav>
                 <div className="p-3 border-t border-[#6b1f1f] flex flex-col gap-2 shrink-0">
                     <button onClick={() => setMostrarTablas(!mostrarTablas)} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${mostrarTablas ? 'bg-[#5e1919] text-white shadow-inner' : 'hover:bg-[#962e2e] text-red-100'}`}>
                         <TableProperties size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap font-bold text-sm">{mostrarTablas ? 'Ocultar Tablas' : 'Mostrar Tablas'}</span>}
@@ -1032,12 +1067,47 @@ return (
                                 </select>
                             </div>
                         )}
+                        
+                        {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)[cite: 8] */}
+                        {areaSidebar === 'hospitalizacion' && datosHospitalizacionBase.length > 0 && !cargandoHospitalizacion && (
+                            <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
+                                <Filter size={14} className="text-[#822626] ml-2 hidden sm:block"/>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año IMSS:</span>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e=>setAnioSeleccionado(e.target.value)}>
+                                    <option value="todos">Todos</option>
+                                    {aniosDisponibles.map(a=><option key={a} value={a}>{a}</option>)}
+                                </select>
+                                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase">Mes IMSS:</span>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e=>setMesSeleccionado(e.target.value)}>
+                                    <option value="todos">Todos</option>
+                                    {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                    <option disabled>──────────</option>
+                                    <option value="rango">Rango...</option>
+                                </select>
+
+                                {mesSeleccionado === 'rango' && (
+                                    <>
+                                        <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                        <span className="font-bold text-slate-500 text-[10px] uppercase">De:</span>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesInicio} onChange={e=>setMesInicio(Number(e.target.value))}>
+                                            {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                        </select>
+                                        <span className="text-slate-400 font-bold">-</span>
+                                        <span className="font-bold text-slate-500 text-[10px] uppercase">A:</span>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesFin} onChange={e=>setMesFin(Number(e.target.value))}>
+                                            {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                        </select>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-slate-50">
                     
-                    {/* SECCIÓN 1: CONSULTA EXTERNA (ASEGURADA EN DOM) */}
+                    {/* SECCIÓN 1: CONSULTA EXTERNA */}
                     <div style={{ 
                         display: areaSidebar === 'consulta_externa' ? 'block' : 'none',
                         visibility: areaSidebar === 'consulta_externa' ? 'visible' : 'hidden',
@@ -1097,7 +1167,6 @@ return (
                                             </div>
                                         </div>
                                         
-                                        {/* CONTENEDOR DE FILTROS CORREGIDO (MES Y AÑO) */}
                                         <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-200">
                                             <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={mesGraficoMeta} onChange={e => setMesGraficoMeta(Number(e.target.value))}>
                                                 {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
@@ -1110,8 +1179,6 @@ return (
                                                 {!aniosDisponibles.includes('2025') && <option value="2025">2025</option>}
                                             </select>
                                         </div>
-                                        {/* FIN DE FILTROS */}
-
                                     </div>
                                     <div className="relative min-h-[300px] w-full"><Line data={chartMetas} options={chartOptionsLine} /></div>
                                 </div>
@@ -1201,7 +1268,7 @@ return (
                          />
                     </div>
 
-                    {/* SECCIÓN 5: HOSPITALIZACIÓN */}
+                    {/* SECCIÓN 5: HOSPITALIZACION CONFIGURADA EN SEGUNDO PLANO Y SIN PARÁMETROS BASURA[cite: 8, 9] */}
                     <div style={{
                         display: areaSidebar === 'hospitalizacion' ? 'block' : 'none',
                         visibility: areaSidebar === 'hospitalizacion' ? 'visible' : 'hidden',
@@ -1209,14 +1276,17 @@ return (
                         left: areaSidebar === 'hospitalizacion' ? '0' : '-9999px',
                         width: '100%'
                     }}>
-                        <TableroHospitalizacion
-                            datos={datosHospitalizacion}
-                            diccionarioDivisiones={diccionarioEspecialidades} l
-                            diccionarioEspecialidades={diccionarioEspecialidades}
-                            diccionarioCIE={diccionarioCIE}
-                            mostrarTablas={mostrarTablas}
-                            setExportData={setDatosHospitalizacion}
-                        />
+                        {cargandoHospitalizacion ? (
+                            <div className="flex justify-center items-center py-20 text-emerald-600 font-bold">
+                                <Activity className="animate-spin mr-3"/> Cargando registros de Hospitalización...
+                            </div>
+                        ) : (
+                            <TableroHospitalizacion
+                                datos={datosHospitalizacionFiltrados}
+                                mostrarTablas={mostrarTablas}
+                                setExportData={setDatosHospitalizacion}
+                            />
+                        )}
                     </div>
 
                     {/* MENSAJE DE EN CONSTRUCCIÓN */}

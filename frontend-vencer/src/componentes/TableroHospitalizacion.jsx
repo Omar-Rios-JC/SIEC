@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { Users, Clock, ClipboardList, TrendingUp, Filter, MapPin } from 'lucide-react';
+import { Users, Clock, ClipboardList, TrendingUp, Filter } from 'lucide-react';
 
 // =================================================================
 // SUB-COMPONENTE LOCAL: Tabla de Datos Estilo Producción Unificado
@@ -32,7 +32,7 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataDias, dataPromedios, t
                                     <td className="py-2 px-3 text-center text-slate-500 font-semibold">{dataDias[index].toLocaleString()}</td>
                                 )}
                                 {dataPromedios && dataPromedios[index] !== undefined && (
-                                    <td className="py-2 px-3 text-center text-emerald-600 font-bold bg-emerald-50/50">{dataPromedios[index]} d</td>
+                                    <td className="py-2 px-3 text-center text-emerald-600 font-bold bg-slate-50/50">{dataPromedios[index]} d</td>
                                 )}
                                 <td className="py-2 px-3 text-right font-black text-slate-700">{data[index]?.toLocaleString() || 0}</td>
                             </tr>
@@ -57,30 +57,21 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataDias, dataPromedios, t
 const anchoDinamico = (cantidad) => cantidad > 15 ? `${cantidad * 45}px` : '100%';
 
 // =================================================================
-// COMPONENTE PRINCIPAL: TABLERO HOSPITALIZACIÓN (ESTÁNDAR DE ARGUMENTOS)
+// COMPONENTE PRINCIPAL: TABLERO HOSPITALIZACIÓN (LIMPÌO Y NACIONAL)
 // =================================================================
-export default function TableroHospitalizacion({
-    datos,
-    diccionarioMedicos = {},
-    diccionarioCIE = {},
-    diccionarioEspecialidades = {},
-    mostrarTablas = false,
-    setExportData
-}) {
+export default function TableroHospitalizacion({ datos = [], mostrarTablas = false, setExportData }) {
     const [divisionSeleccionada, setDivisionSeleccionada] = useState("");
     const [especialidadSeleccionada, setEspecialidadSeleccionada] = useState("");
 
-    // 🚀 1. SINCRONIZACIÓN CON EL PADRE PARA EXCEL (Idéntico a Urgencias y Paramédicos)
+    // SINCRONIZACIÓN AUTOMÁTICA CON EL PADRE PARA EXCEL
     useEffect(() => {
         if (setExportData) {
             setExportData(datos || []);
         }
     }, [datos, setExportData]);
 
-    // Mapeo jerárquico basado en tu estructura unificada de datos
     const listaDeDivisiones = useMemo(() => {
         const divisionesUnicas = new Set();
-        if (!datos) return [];
         datos.forEach(item => {
             if (item.division) divisionesUnicas.add(item.division.toUpperCase().trim());
         });
@@ -88,8 +79,7 @@ export default function TableroHospitalizacion({
     }, [datos]);
 
     const listaDeEspecialidadesFiltradas = useMemo(() => {
-        const especUnicas = new Set();
-        if (!datos) return [];
+        const   especUnicas = new Set();
         datos.forEach(item => {
             const div = item.division ? item.division.toUpperCase().trim() : "";
             if (item.especialidad && (!divisionSeleccionada || div === divisionSeleccionada.toUpperCase().trim())) {
@@ -103,9 +93,6 @@ export default function TableroHospitalizacion({
         setEspecialidadSeleccionada("");
     }, [divisionSeleccionada]);
 
-    // =================================================================
-    // PROCESAMIENTO ANALÍTICO DE MÉTRICAS CLÍNICAS
-    // =================================================================
     const kpis = useMemo(() => {
         if (!datos || datos.length === 0) return { total: 0, promedioEstancia: '0.0', totalDias: 0 };
         const totalEgresos = datos.length;
@@ -162,7 +149,7 @@ export default function TableroHospitalizacion({
         const conteo = datos.reduce((acc, curr) => {
             let motivo = String(curr.motivo_egreso || '').trim().toUpperCase();
             if (motivo === '') motivo = "NO ESPECIFICADO";
-            if (motivo.includes('ABANDONO')) return acc; // Filtro directo
+            if (motivo.includes('ABANDONO')) return acc;
 
             acc[motivo] = (acc[motivo] || 0) + 1;
             return acc;
@@ -208,7 +195,7 @@ export default function TableroHospitalizacion({
 
     return (
         <div id="seccion-hospitalizacion-completa" className="w-full animate-in fade-in duration-500">
-            {/* 1. ENCABEZADO */}
+            {/* ENCABEZADO */}
             <div className="mb-8">
                 <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
                     <span className="text-emerald-600 bg-emerald-100 p-2 rounded-xl"><ClipboardList size={28} /></span>
@@ -216,7 +203,7 @@ export default function TableroHospitalizacion({
                 </h2>
             </div>
 
-            {/* 2. KPIs */}
+            {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
                     <div className="flex items-center gap-3 text-slate-500 mb-2"><Users size={18} /><h3 className="text-xs font-bold uppercase tracking-widest">Total Egresos</h3></div>
@@ -232,7 +219,7 @@ export default function TableroHospitalizacion({
                 </div>
             </div>
 
-            {/* 3. BLOQUE: DIVISIONES Y MOTIVOS */}
+            {/* DIVISIONES Y MOTIVOS */}
             <div className={`grid grid-cols-1 ${mostrarTablas ? 'lg:grid-cols-2' : ''} gap-6 mb-6 items-start`}>
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col h-full min-h-[300px]">
                     <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4 border-b border-slate-100 pb-2">Egresos por División Médica</h3>
@@ -247,7 +234,7 @@ export default function TableroHospitalizacion({
                 </div>
             </div>
 
-            {/* 4. BLOQUE: ESPECIALIDADES */}
+            {/* ESPECIALIDADES */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-slate-100 pb-3">
                     <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Egresos y Rendimiento por Especialidad</h3>
@@ -275,7 +262,7 @@ export default function TableroHospitalizacion({
                 </div>
             </div>
 
-            {/* 5. BLOQUE: DIAGNÓSTICOS CIE-10 */}
+            {/* DIAGNÓSTICOS CIE-10 */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-slate-100 pb-3">
                     <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2"><TrendingUp size={18} className="text-slate-500" /> Top 20 Diagnósticos de Egreso (CIE-10)</h3>
