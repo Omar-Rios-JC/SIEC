@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
-import { 
-    Users, Stethoscope, MapPin, ClipboardList, 
+import {
+    Users, Stethoscope, MapPin, ClipboardList,
     ChevronLeft, Menu, Pencil, Trash2, Plus, Loader2, X, UploadCloud
 } from 'lucide-react';
 
@@ -15,7 +15,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
     // ==========================================
     const [listaDiagnosticos, setListaDiagnosticos] = useState([]);
     const [listaEspecialidades, setListaEspecialidades] = useState([]);
-    const [listaConsultorios, setListaConsultorios] = useState([]); 
+    const [listaConsultorios, setListaConsultorios] = useState([]);
     const [listaMedicos, setListaMedicos] = useState([]);
     const [cargando, setCargando] = useState(false);
     const [modalMedico, setModalMedico] = useState(false);
@@ -34,7 +34,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
         try {
             const res = await axios.get(`/api/api_cie.php?t=${new Date().getTime()}`);
             if (Array.isArray(res.data)) setListaDiagnosticos(res.data);
-        } catch (error) { console.error("Error CIE-10:", error); } 
+        } catch (error) { console.error("Error CIE-10:", error); }
         finally { setCargando(false); }
     };
 
@@ -43,7 +43,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
         try {
             const res = await axios.get(`/api/api_crud_especialidades.php?t=${new Date().getTime()}`);
             if (Array.isArray(res.data)) setListaEspecialidades(res.data);
-        } catch (error) { console.error("Error Especialidades:", error); } 
+        } catch (error) { console.error("Error Especialidades:", error); }
         finally { setCargando(false); }
     };
 
@@ -52,23 +52,23 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
         try {
             const res = await axios.get(`/api/api_consultorios.php?t=${new Date().getTime()}`);
             if (Array.isArray(res.data)) setListaConsultorios(res.data);
-        } catch (error) { console.error("Error Consultorios:", error); } 
+        } catch (error) { console.error("Error Consultorios:", error); }
         finally { setCargando(false); }
     };
 
     const cargarListaMedicos = async () => {
-    setCargando(true);
-    try {
-        const res = await axios.get(`/api/api_medicos.php?t=${new Date().getTime()}`);
-        if (Array.isArray(res.data)) {
-            setListaMedicos(res.data);
+        setCargando(true);
+        try {
+            const res = await axios.get('/api/api_medicos.php');
+            if (Array.isArray(res.data)) {
+                setListaMedicos(res.data);
+            }
+        } catch (error) {
+            console.error("Error al cargar Médicos:", error);
+        } finally {
+            setCargando(false);
         }
-    } catch (error) {
-        console.error("Error al cargar Médicos:", error);
-    } finally {
-        setCargando(false);
-    }
-};
+    };
 
     // ==========================================
     // LÓGICA DE CRUD GLOBAL
@@ -76,7 +76,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
     const [modalAbierto, setModalAbierto] = useState(false);
     const [modoEdicion, setModoEdicion] = useState(false);
     const [guardando, setGuardando] = useState(false);
-    
+
     const [formCIE, setFormCIE] = useState({ codigo: '', descripcion: '' });
     const [formEspecialidad, setFormEspecialidad] = useState({ clave: '', nombre: '', division: '' });
     const [formConsultorio, setFormConsultorio] = useState({ id: '', nombre_consultorio: '' });
@@ -85,7 +85,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
         if (seccionCatalogo === 'diagnosticos') setFormCIE({ codigo: '', descripcion: '' });
         if (seccionCatalogo === 'especialidades') setFormEspecialidad({ clave: '', nombre: '', division: '' });
         if (seccionCatalogo === 'consultorios') setFormConsultorio({ id: '', nombre_consultorio: '' });
-        
+
         setModoEdicion(false);
         setModalAbierto(true);
     };
@@ -94,13 +94,13 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
         if (seccionCatalogo === 'diagnosticos') setFormCIE({ codigo: item.codigo, descripcion: item.descripcion });
         if (seccionCatalogo === 'especialidades') setFormEspecialidad({ clave: item.clave, nombre: item.nombre, division: item.division });
         if (seccionCatalogo === 'consultorios') setFormConsultorio({ id: item.id, nombre_consultorio: item.nombre_consultorio });
-        
+
         setModoEdicion(true);
         setModalAbierto(true);
     };
 
     const handleBorrar = async (identificador) => {
-        if(!window.confirm(`⚠️ ¿Estás totalmente seguro de eliminar este registro?`)) return;
+        if (!window.confirm(`⚠️ ¿Estás totalmente seguro de eliminar este registro?`)) return;
 
         try {
             let res;
@@ -133,7 +133,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
             let res;
             if (seccionCatalogo === 'diagnosticos') {
                 res = modoEdicion ? await axios.put('/api/api_crud_cie.php', formCIE) : await axios.post('/api/api_crud_cie.php', formCIE);
-            } 
+            }
             else if (seccionCatalogo === 'especialidades') {
                 res = modoEdicion ? await axios.put('/api/api_crud_especialidades.php', formEspecialidad) : await axios.post('/api/api_crud_especialidades.php', formEspecialidad);
             }
@@ -153,7 +153,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                     cargarListaConsultorios();
                 }
             } else { alert("Error al guardar: " + res.data.error); }
-        } catch (error) { alert("Error de conexión con el servidor."); } 
+        } catch (error) { alert("Error de conexión con el servidor."); }
         finally { setGuardando(false); }
     };
 
@@ -165,7 +165,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
     ];
     const seccionActiva = opciones.find(o => o.id === seccionCatalogo);
 
-        // Abrir el modal para editar
+    // Abrir el modal para editar
     const handleEditarMedico = (medico) => {
         // Quitamos el "Dr. " temporalmente para que el usuario edite solo el nombre
         const nombreSinPrefijo = medico.nombre.replace('Dr. ', '').replace('Lic. ', '');
@@ -196,7 +196,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                 // Crear (POST)
                 await axios.post('/api/api_medicos.php', medicoSeleccionado);
             }
-            
+
             setModalMedico(false);
             cargarListaMedicos(); // Refrescar la tabla
         } catch (error) {
@@ -205,28 +205,39 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
         }
     };
 
-    const handleSubidaMasivaMedicos = async (e) => {
+    const handleSubidaMasivaCatalogos = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!window.confirm(`¿Seguro que quieres importar los datos de este archivo?`)) return;
+        if (!window.confirm(`⚠️ ¿Seguro que quieres importar masivamente los datos de este archivo .csv al catálogo de ${seccionCatalogo}?`)) return;
 
         const formData = new FormData();
-        formData.append('archivo_medicos', file);
+        // Cambiamos el nombre del campo dinámicamente según la sección activa
+        formData.append('archivo_csv', file);
+        formData.append('seccion', seccionCatalogo);
 
         setCargando(true);
         try {
-            const res = await axios.post('/api/api_medicos.php', formData, {
+            // Invoca al nuevo archivo unificado de carga masiva en el backend
+            const res = await axios.post('/api/api_carga_masiva_catalogos.php', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
+
             if (res.data.success) {
-                alert("¡Importación exitosa!");
-                cargarListaMedicos(); // Refrescamos la tabla
+                alert(`¡Importación exitosa! ${res.data.message}`);
+
+                // Refrescamos la tabla correspondiente
+                if (seccionCatalogo === 'diagnosticos') {
+                    await localforage.removeItem('cache_cie_vencer');
+                    cargarListaDiagnosticos();
+                }
+                if (seccionCatalogo === 'especialidades') cargarListaEspecialidades();
+                if (seccionCatalogo === 'medicos') cargarListaMedicos();
             } else {
-                alert("Error: " + res.data.error);
+                alert("Error en el servidor: " + res.data.error);
             }
         } catch (error) {
-            alert("Error al subir el archivo.");
+            alert("Error crítico de conexión al subir el archivo.");
         } finally {
             setCargando(false);
         }
@@ -268,69 +279,79 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                 </header>
 
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 min-h-[600px] flex flex-col">
-                    
-                {/* MÓDULO DE MÉDICOS (ACTUALIZADO CON CARGA MASIVA) */}
-                {seccionCatalogo === 'medicos' && (
-                    <div className="animate-in fade-in duration-300 flex-1 flex flex-col h-full">
-                        <div className="flex justify-between items-center mb-6 pb-4 border-b">
-                            <div>
-                                <h3 className="text-xl font-bold text-slate-700">Listado de Médicos</h3>
-                                <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">Gestiona el personal o importa desde CSV</p>
-                            </div>
-                            <div className="flex gap-2">
-                                {/* Botón de Carga Masiva */}
-                                <label className="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
-                                    <UploadCloud size={16} />
-                                    Subir Excel (CSV)
-                                    <input type="file" accept=".csv" className="hidden" onChange={(e) => handleSubidaMasivaMedicos(e)} />
-                                </label>
-                                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-bold flex items-center">
-                                    Total: {listaMedicos.length}
-                                </span>
-                            </div>
-                        </div>
 
-                        <div className="flex-1 overflow-auto border border-slate-200 rounded-2xl shadow-sm mb-6 max-h-[500px]">
-                            {cargando ? (
-                                <div className="h-full flex items-center justify-center text-slate-400"><Loader2 className="animate-spin mr-2" /> Cargando plantilla...</div>
-                            ) : (
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-50 sticky top-0 z-10">
-                                        <tr>
-                                            <th className="p-4 text-slate-500 font-bold border-b w-32">Matrícula</th>
-                                            <th className="p-4 text-slate-500 font-bold border-b">Nombre del Médico</th>
-                                            <th className="p-4 text-center w-32 border-b">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {listaMedicos.map((med) => (
-                                            <tr key={med.matricula} className="hover:bg-slate-50 border-b group">
-                                                <td className="p-4 font-black text-slate-400">{med.matricula}</td>
-                                                <td className="p-4 text-slate-700 font-black uppercase">{med.nombre}</td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => handleEditarMedico(med)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Pencil size={18} /></button>
-                                                        <button onClick={() => handleBorrar(med.matricula)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={18} /></button>
-                                                    </div>
-                                                </td>
+                    {/* MÓDULO DE MÉDICOS (ACTUALIZADO CON CARGA MASIVA) */}
+                    {seccionCatalogo === 'medicos' && (
+                        <div className="animate-in fade-in duration-300 flex-1 flex flex-col h-full">
+                            <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-700">Listado de Médicos</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">Gestiona el personal o importa desde CSV</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    {/* Botón de Carga Masiva */}
+                                    <label className="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                                        <UploadCloud size={16} />
+                                        Subir Excel (CSV)
+                                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleSubidaMasivaCatalogos(e)} />
+                                    </label>
+                                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-bold flex items-center">
+                                        Total: {listaMedicos.length}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-auto border border-slate-200 rounded-2xl shadow-sm mb-6 max-h-[500px]">
+                                {cargando ? (
+                                    <div className="h-full flex items-center justify-center text-slate-400"><Loader2 className="animate-spin mr-2" /> Cargando plantilla...</div>
+                                ) : (
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-50 sticky top-0 z-10">
+                                            <tr>
+                                                <th className="p-4 text-slate-500 font-bold border-b w-32">Matrícula</th>
+                                                <th className="p-4 text-slate-500 font-bold border-b">Nombre del Médico</th>
+                                                <th className="p-4 text-center w-32 border-b">Acciones</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
+                                        </thead>
+                                        <tbody>
+                                            {listaMedicos.map((med) => (
+                                                <tr key={med.matricula} className="hover:bg-slate-50 border-b group">
+                                                    <td className="p-4 font-black text-slate-400">{med.matricula}</td>
+                                                    <td className="p-4 text-slate-700 font-black uppercase">{med.nombre}</td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button onClick={() => handleEditarMedico(med)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Pencil size={18} /></button>
+                                                            <button onClick={() => handleBorrar(med.matricula)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={18} /></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                            <button onClick={handleAbrirNuevo} className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 w-fit">
+                                <Plus size={20} /> Agregar Médico Manual
+                            </button>
                         </div>
-                        <button onClick={handleAbrirNuevo} className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 w-fit">
-                            <Plus size={20} /> Agregar Médico Manual
-                        </button>
-                    </div>
-                )}
+                    )}
 
                     {/* 2. MÓDULO DE ESPECIALIDADES */}
                     {seccionCatalogo === 'especialidades' && (
                         <div className="animate-in fade-in duration-300 flex-1 flex flex-col h-full">
                             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
-                                <h3 className="text-xl font-bold text-slate-700">Listado de Especialidades</h3>
-                                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-bold">Total: {listaEspecialidades.length}</span>
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-700">Listado de Especialidades</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">Gestiona las ramas médicas o importa desde CSV</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <label className="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                                        <UploadCloud size={16} />
+                                        Subir Especialidades (.csv)
+                                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleSubidaMasivaCatalogos(e)} />
+                                    </label>
+                                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-bold flex items-center">Total: {listaEspecialidades.length}</span>
+                                </div>
                             </div>
                             <div className="flex-1 overflow-auto border border-slate-200 rounded-2xl shadow-sm mb-6 max-h-[500px]">
                                 {cargando ? (
@@ -415,8 +436,18 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                     {seccionCatalogo === 'diagnosticos' && (
                         <div className="animate-in fade-in duration-300 flex-1 flex flex-col h-full">
                             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
-                                <h3 className="text-xl font-bold text-slate-700">Listado de Códigos CIE-10</h3>
-                                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-bold">Total: {listaDiagnosticos.length}</span>
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-700">Listado de Códigos CIE-10</h3>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">Catálogo de enfermedades oficiales. Carga masiva tolerante a 14,000 registros</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <label className="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                                        <UploadCloud size={16} />
+                                        Subir Catálogo México (.csv)
+                                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleSubidaMasivaCatalogos(e)} />
+                                    </label>
+                                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-bold flex items-center">Total: {listaDiagnosticos.length}</span>
+                                </div>
                             </div>
                             <div className="flex-1 overflow-auto border border-slate-200 rounded-2xl shadow-sm mb-6 max-h-[500px]">
                                 {cargando ? (
@@ -469,11 +500,11 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2">Código CIE-10</label>
-                                        <input type="text" value={formCIE.codigo} onChange={(e) => setFormCIE({...formCIE, codigo: e.target.value})} disabled={modoEdicion} placeholder="Ej. J00X" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-50" />
+                                        <input type="text" value={formCIE.codigo} onChange={(e) => setFormCIE({ ...formCIE, codigo: e.target.value })} disabled={modoEdicion} placeholder="Ej. J00X" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-50" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2">Descripción Oficial</label>
-                                        <textarea value={formCIE.descripcion} onChange={(e) => setFormCIE({...formCIE, descripcion: e.target.value})} placeholder="Descripción..." rows="3" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
+                                        <textarea value={formCIE.descripcion} onChange={(e) => setFormCIE({ ...formCIE, descripcion: e.target.value })} placeholder="Descripción..." rows="3" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
                                     </div>
                                 </>
                             )}
@@ -482,15 +513,15 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2">Clave</label>
-                                        <input type="text" value={formEspecialidad.clave} onChange={(e) => setFormEspecialidad({...formEspecialidad, clave: e.target.value})} disabled={modoEdicion} placeholder="Clave..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-black text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-50" />
+                                        <input type="text" value={formEspecialidad.clave} onChange={(e) => setFormEspecialidad({ ...formEspecialidad, clave: e.target.value })} disabled={modoEdicion} placeholder="Clave..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-black text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-50" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2">Nombre</label>
-                                        <input type="text" value={formEspecialidad.nombre} onChange={(e) => setFormEspecialidad({...formEspecialidad, nombre: e.target.value})} placeholder="Nombre..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-black text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                        <input type="text" value={formEspecialidad.nombre} onChange={(e) => setFormEspecialidad({ ...formEspecialidad, nombre: e.target.value })} placeholder="Nombre..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-black text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2">División</label>
-                                        <input type="text" value={formEspecialidad.division} onChange={(e) => setFormEspecialidad({...formEspecialidad, division: e.target.value})} placeholder="División..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-black text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                        <input type="text" value={formEspecialidad.division} onChange={(e) => setFormEspecialidad({ ...formEspecialidad, division: e.target.value })} placeholder="División..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-black text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none" />
                                     </div>
                                 </>
                             )}
@@ -498,7 +529,7 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                             {seccionCatalogo === 'consultorios' && (
                                 <div>
                                     <label className="block text-sm font-bold text-slate-600 mb-2">Nombre del Consultorio</label>
-                                    <input type="text" required value={formConsultorio.nombre_consultorio} onChange={(e) => setFormConsultorio({...formConsultorio, nombre_consultorio: e.target.value})} placeholder="Ej. Consultorio 05" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                    <input type="text" required value={formConsultorio.nombre_consultorio} onChange={(e) => setFormConsultorio({ ...formConsultorio, nombre_consultorio: e.target.value })} placeholder="Ej. Consultorio 05" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:ring-2 focus:ring-emerald-500 outline-none" />
                                 </div>
                             )}
 
@@ -520,39 +551,39 @@ export default function AdministradorCatalogos({ setVistaActiva }) {
                             <h3 className="text-xl font-black">{esEdicion ? 'Editar Médico' : 'Nuevo Médico'}</h3>
                             <button onClick={() => setModalMedico(false)} className="hover:bg-white/10 p-1 rounded-full"><X size={24} /></button>
                         </div>
-                        
+
                         <div className="p-8 space-y-6">
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Matrícula (No editable)</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     disabled={esEdicion}
                                     className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-black text-slate-700 outline-none focus:border-emerald-500 transition-all disabled:opacity-50"
                                     value={medicoSeleccionado.matricula}
-                                    onChange={(e) => setMedicoSeleccionado({...medicoSeleccionado, matricula: e.target.value})}
+                                    onChange={(e) => setMedicoSeleccionado({ ...medicoSeleccionado, matricula: e.target.value })}
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Nombre Completo</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     placeholder="Apellido Paterno/Materno/Nombre"
                                     className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all"
                                     value={medicoSeleccionado.nombre}
-                                    onChange={(e) => setMedicoSeleccionado({...medicoSeleccionado, nombre: e.target.value})}
+                                    onChange={(e) => setMedicoSeleccionado({ ...medicoSeleccionado, nombre: e.target.value })}
                                 />
                                 <p className="text-[10px] text-slate-400 mt-2">Usa barras (/) para separar apellidos si quieres que el sistema los limpie automáticamente.</p>
                             </div>
 
                             <div className="flex gap-3 pt-4">
-                                <button 
+                                <button
                                     onClick={() => setModalMedico(false)}
                                     className="flex-1 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
                                 >
                                     Cancelar
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleGuardarMedico}
                                     className="flex-1 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 shadow-lg shadow-emerald-200 transition-all"
                                 >

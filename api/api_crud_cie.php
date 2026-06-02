@@ -8,9 +8,9 @@ header('Content-Type: application/json; charset=utf-8');
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') { http_response_code(200); exit; }
 
 $host = 'sql112.infinityfree.com';
-$dbname = 'if0_41125231_vencer'; 
-$username = 'if0_41125231';
-$password = 'DEtK59bqZzA'; 
+$dbname = 'if0_41994851_siec'; 
+$username = 'if0_41994851';
+$password = 'BIguNSKaR7Wnk'; 
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);

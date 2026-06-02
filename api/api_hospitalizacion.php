@@ -1,5 +1,5 @@
 <?php
-// 1. ACTIVAR COMPRESIÓN GZIP (Reduce el tamaño del archivo un 90%)
+// 1. ACTIVAR COMPRESIÓN GZIP (Reduce el tamaño de la transferencia un 90%)
 if (substr_count($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip')) {
     ob_start("ob_gzhandler");
 } else {
@@ -15,27 +15,22 @@ set_time_limit(300);
 $host = 'sql112.infinityfree.com';
 $dbname = 'if0_41994851_siec'; 
 $username = 'if0_41994851';
-$password = 'BIguNSKaR7Wnk'; // Pon tu contraseña real aquí
+$password = 'BIguNSKaR7Wnk';
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // 2. OPTIMIZACIÓN DE CONSULTA: Solo pedimos lo que React usa.
-    // Ignoramos columnas basura o de control para que el JSON pese mucho menos.
+    // 2. CONSULTA OPTIMIZADA: Traemos los campos limpios que React necesita procesar
     $sql = "SELECT 
                 division, 
                 especialidad, 
-                matricula_medico, 
-                consultorio, 
-                fecha_atencion, 
-                mes, 
                 anio, 
-                turno, 
-                citado, 
-                primera_vez, 
-                diagnostico_principal 
-            FROM productividad_externa";
+                mes, 
+                dias_estancia, 
+                diagnostico_egreso, 
+                motivo_egreso 
+            FROM hospitalizacion_externa";
             
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
@@ -43,7 +38,7 @@ try {
     echo '['; 
     $primeraFila = true;
     
-    // FETCH_ASSOC con Streaming
+    // FETCH_ASSOC con Streaming directo para no saturar el servidor
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if (!$primeraFila) {
             echo ','; 
@@ -56,7 +51,7 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Error de BD: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Error de BD Hospitalización: ' . $e->getMessage()]);
 }
 
 // Enviar el buffer comprimido al navegador

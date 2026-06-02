@@ -10,10 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // --- CONFIGURACIÓN DE BASE DE DATOS ---
-$host = "sql112.infinityfree.com";
-$dbname = "if0_41125231_vencer";
-$user = "if0_41125231";
-$pass = "DEtK59bqZzA";
+$host = 'sql112.infinityfree.com';
+$dbname = 'if0_41994851_siec'; 
+$username = 'if0_41994851';
+$password = 'BIguNSKaR7Wnk';
 
 try {
     // Forzamos charset utf8mb4 para que la BD acepte acentos y Ñ
