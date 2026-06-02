@@ -1,7 +1,34 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
-import { UploadCloud, Activity, Users, CalendarCheck, Clock, ArrowLeft, BarChart2, Database, TableProperties, Stethoscope, Ambulance, Bed, Syringe, Siren, ChevronLeft, ChevronRight, Download, Filter, Menu, Award, Target, BookOpen, MapPin, ClipboardList, FileSpreadsheet} from 'lucide-react';
+import {
+    UploadCloud,
+    Activity,
+    Users,
+    CalendarCheck,
+    Clock,
+    BarChart2,
+    Database,
+    TableProperties,
+    Stethoscope,
+    Ambulance,
+    Bed,
+    Syringe,
+    Siren,
+    Download,
+    Filter,
+    Award,
+    Target,
+    BookOpen,
+    MapPin,
+    ClipboardList,
+    FileSpreadsheet,
+    Home,
+    Menu,
+    PanelLeftOpen,
+    PanelLeftClose,
+    X
+} from 'lucide-react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 import AdministradorCatalogos from './AdministradorCatalogos';
@@ -157,6 +184,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const [areaSidebar, setAreaSidebar] = useState('consulta_externa'); 
     const [mostrarTablas, setMostrarTablas] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
     // ESTADOS DE FILTROS GLOBALES
     const [anioSeleccionado, setAnioSeleccionado] = useState('todos');
@@ -327,7 +355,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
     useEffect(() => {
         cargarDatos();
-        cargarDatosHospitalizacion(); // Disparar la carga paralela[cite: 8]
+        cargarDatosHospitalizacion(); // Disparar la carga paralela
         cargarDiccionario();
         cargarDiccionarioCIE(); 
         cargarDiccionarioEspecialidades();
@@ -918,9 +946,66 @@ export default function DashboardProductividad({ isAdmin }) {
         }
     };
 
+    const rolURL = new URLSearchParams(window.location.search).get('rol');
+
+    const usuarioEsAdmin =
+        isAdmin === true ||
+        isAdmin === 1 ||
+        isAdmin === '1' ||
+        isAdmin === 'true' ||
+        isAdmin === 'admin' ||
+        isAdmin === 'administrador' ||
+        rolURL === 'admin' ||
+        rolURL === '1';
+
+    const sidebarSoloIconos = sidebarCollapsed && !sidebarMobileOpen;
+    const mostrarTextoSidebar = !sidebarSoloIconos;
+
+    const irAlPortalPrincipal = () => {
+        const esLocal =
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1';
+
+        if (esLocal) {
+            window.location.href = 'http://siec.infinityfreeapp.com/vistas/roles/index.php';
+            return;
+        }
+
+        window.location.href = '/vistas/roles/index.php';
+    };
+
+    const manejarSidebar = () => {
+        if (window.innerWidth < 768) {
+            setSidebarMobileOpen(prev => !prev);
+            return;
+        }
+
+        setSidebarCollapsed(prev => !prev);
+    };
+
+    const cerrarSidebarMobile = () => {
+        setSidebarMobileOpen(false);
+    };
+
+    const cambiarAreaSidebar = (area) => {
+        setAreaSidebar(area);
+        setSidebarMobileOpen(false);
+    };
+
+    const abrirMenuPrincipal = () => {
+    setSidebarMobileOpen(false);
+    setVistaActiva('menu');
+};
+
     if (vistaActiva === 'menu') {
-        return <MenuPrincipal setVistaActiva={setVistaActiva} isAdmin={isAdmin} setMensaje={setMensaje} />;
-    }
+    return (
+        <MenuPrincipal
+            setVistaActiva={setVistaActiva}
+            isAdmin={usuarioEsAdmin}
+            setMensaje={setMensaje}
+        />
+    );
+}
 
     if (vistaActiva === 'subir') {
         return <ModuloCarga setVistaActiva={setVistaActiva} setMensaje={setMensaje} mensaje={mensaje} cargarDatos={cargarDatos} />;
@@ -931,82 +1016,174 @@ export default function DashboardProductividad({ isAdmin }) {
     }
     
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
-            
-            {/* PANEL LATERAL */}
-            <aside className={`bg-[#822626] text-slate-100 flex flex-col hidden md:flex shrink-0 shadow-xl z-20 transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
-                <div className="h-16 flex items-center justify-center border-b border-[#6b1f1f] shrink-0">
-                    <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="w-full h-full flex items-center justify-center hover:bg-[#6b1f1f] transition-colors text-white">
-                        {sidebarCollapsed ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
-                    </button>
-                </div>
-                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 overflow-x-hidden custom-scrollbar">
+    <div className="flex min-h-screen md:h-screen bg-slate-50 overflow-x-hidden md:overflow-hidden font-sans relative">
+
+        {/* FONDO OSCURO EN MÓVIL */}
+        {sidebarMobileOpen && (
+            <div
+                className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 md:hidden"
+                onClick={cerrarSidebarMobile}
+            />
+        )}
+        
+        {/* PANEL LATERAL */}
+        <aside
+            className={`
+                bg-[#822626] text-slate-100 flex flex-col shrink-0 shadow-xl
+                fixed md:relative inset-y-0 left-0 z-40 md:z-20
+                transition-all duration-300 ease-in-out
+                w-72 ${sidebarSoloIconos ? 'md:w-20' : 'md:w-64'}
+                ${sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}
+        >
+                <div className="h-16 flex items-center justify-between border-b border-[#6b1f1f] shrink-0 px-3">
+    <button
+        onClick={irAlPortalPrincipal}
+        className={`
+            h-11 rounded-xl flex items-center transition-all text-white
+            hover:bg-[#6b1f1f] font-bold text-sm
+            ${sidebarSoloIconos ? 'w-full justify-center px-0' : 'flex-1 justify-start px-3 gap-3'}
+        `}
+        title="Volver al inicio"
+    >
+        <Home size={20} className="shrink-0" />
+        {mostrarTextoSidebar && (
+            <span className="whitespace-nowrap">Volver al Inicio</span>
+        )}
+    </button>
+
+    <button
+        onClick={cerrarSidebarMobile}
+        className="md:hidden ml-2 h-11 w-11 flex items-center justify-center rounded-xl hover:bg-[#6b1f1f] transition-colors text-white"
+        title="Cerrar menú"
+    >
+        <X size={20} />
+    </button>
+</div>
+               <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 overflow-x-hidden custom-scrollbar">
+
+    {/* Consulta Externa */}
+    <button
+        onClick={() => cambiarAreaSidebar('consulta_externa')}
+        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'consulta_externa' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+    >
+        <Stethoscope size={20} className="shrink-0" />
+        {mostrarTextoSidebar && (
+            <span className="whitespace-nowrap">Consulta Externa Esp</span>
+        )}
+    </button>
     
-                    {/* Consulta Externa */}
-                    <button onClick={() => setAreaSidebar('consulta_externa')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'consulta_externa' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-                        <Stethoscope size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Consulta Externa Esp</span>}
-                    </button>
-                    
-                    {/* Paramédicos */}
-                    <button onClick={() => setAreaSidebar('paramedicos')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'paramedicos' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-                        <Ambulance size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Paramédicos</span>}
-                    </button>
-                    
-                    {/* Cirugías */}
-                    <button onClick={() => setAreaSidebar('cirugias')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'cirugias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-                        <Syringe size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Cirugías</span>}
-                    </button>
-                    
-                    {/* Hospitalización */}
-                    <button onClick={() => setAreaSidebar('hospitalizacion')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'hospitalizacion' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-                        <Bed size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Hospitalización</span>}
-                    </button>
-                    
-                    {/* Urgencias */}
-                    <button onClick={() => setAreaSidebar('urgencias')} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'urgencias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}>
-                        <Siren size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Urgencias</span>}
-                    </button>
-                    
-                </nav>
+    {/* Paramédicos */}
+    <button
+        onClick={() => cambiarAreaSidebar('paramedicos')}
+        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'paramedicos' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+    >
+        <Ambulance size={20} className="shrink-0" />
+        {mostrarTextoSidebar && (
+            <span className="whitespace-nowrap">Paramédicos</span>
+        )}
+    </button>
+    
+    {/* Cirugías */}
+    <button
+        onClick={() => cambiarAreaSidebar('cirugias')}
+        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'cirugias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+    >
+        <Syringe size={20} className="shrink-0" />
+        {mostrarTextoSidebar && (
+            <span className="whitespace-nowrap">Cirugías</span>
+        )}
+    </button>
+    
+    {/* Hospitalización */}
+    <button
+        onClick={() => cambiarAreaSidebar('hospitalizacion')}
+        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'hospitalizacion' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+    >
+        <Bed size={20} className="shrink-0" />
+        {mostrarTextoSidebar && (
+            <span className="whitespace-nowrap">Hospitalización</span>
+        )}
+    </button>
+    
+    {/* Urgencias */}
+    <button
+        onClick={() => cambiarAreaSidebar('urgencias')}
+        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'urgencias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+    >
+        <Siren size={20} className="shrink-0" />
+        {mostrarTextoSidebar && (
+            <span className="whitespace-nowrap">Urgencias</span>
+        )}
+    </button>
+    
+</nav>
                 <div className="p-3 border-t border-[#6b1f1f] flex flex-col gap-2 shrink-0">
-                    <button onClick={() => setMostrarTablas(!mostrarTablas)} className={`w-full flex items-center rounded-xl transition-all ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${mostrarTablas ? 'bg-[#5e1919] text-white shadow-inner' : 'hover:bg-[#962e2e] text-red-100'}`}>
-                        <TableProperties size={20} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap font-bold text-sm">{mostrarTablas ? 'Ocultar Tablas' : 'Mostrar Tablas'}</span>}
+                    <button
+                        onClick={() => setMostrarTablas(!mostrarTablas)}
+                        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${mostrarTablas ? 'bg-[#5e1919] text-white shadow-inner' : 'hover:bg-[#962e2e] text-red-100'}`}
+                        title={mostrarTablas ? 'Ocultar tablas' : 'Mostrar tablas'}
+                    >
+                        <TableProperties size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap font-bold text-sm">
+                                {mostrarTablas ? 'Ocultar Tablas' : 'Mostrar Tablas'}
+                            </span>
+                        )}
                     </button>
+
                     <button
                         onClick={handleDescargarExcel}
-                        className={`
-                            flex items-center group mb-4 transition-all duration-300 ease-in-out
-                            bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md
-                            ${!sidebarCollapsed 
-                            ? 'mx-4 px-4 h-10 w-[calc(100%-2rem)]' 
-                            : 'mx-auto w-12 h-10 justify-center' 
-                            }
-                        `}
-                        title="Descargar Reporte"
+                        className={`flex items-center transition-all duration-300 ease-in-out bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md ${
+                            sidebarSoloIconos
+                                ? 'justify-center p-3'
+                                : 'justify-start gap-3 px-4 py-3'
+                        }`}
+                        title="Descargar reporte"
                     >
-                        <Download 
-                            size={20} 
-                            className={`flex-shrink-0 ${!sidebarCollapsed ? 'mr-3' : 'mr-0'}`} 
-                        />
-                        <span className={`
-                            font-bold text-sm whitespace-nowrap overflow-hidden transition-all duration-300
-                            ${!sidebarCollapsed ? 'opacity-100 w-auto' : 'opacity-0 w-0'}
-                        `}>
-                            Descargar Reporte
-                        </span>
+                        <Download size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="font-bold text-sm whitespace-nowrap">
+                                Descargar Reporte
+                            </span>
+                        )}
                     </button>
-                    <button onClick={() => setVistaActiva('menu')} className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm mt-2 ${sidebarCollapsed ? 'justify-center p-3' : 'justify-center gap-2 p-3'}`}>
-                        <ArrowLeft size={16} className="shrink-0" /> {!sidebarCollapsed && <span className="whitespace-nowrap">Volver al Inicio</span>}
-                    </button>
+
+                    {usuarioEsAdmin && (
+                        <button
+                            onClick={abrirMenuPrincipal}
+                            className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${
+                                sidebarSoloIconos
+                                    ? 'justify-center p-3'
+                                    : 'justify-start gap-3 px-4 py-3'
+                            }`}
+                            title="Cambiar bases de datos"
+                        >
+                            <Database size={20} className="shrink-0" />
+                            {mostrarTextoSidebar && (
+                                <span className="whitespace-nowrap">Cambiar bases de datos</span>
+                            )}
+                        </button>
+                    )}
                 </div>
             </aside>
 
             {/* ÁREA PRINCIPAL */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-h-screen md:h-screen overflow-hidden relative">
                 <header className="bg-white border-b border-slate-200 shrink-0 px-4 md:px-8 py-3 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 z-10 transition-all duration-300 min-h-[70px]">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors hidden md:block">
-                            <Menu size={20} />
+                        <button
+                            onClick={manejarSidebar}
+                            className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                            title={sidebarMobileOpen ? 'Cerrar menú lateral' : sidebarSoloIconos ? 'Expandir menú lateral' : 'Abrir o contraer menú lateral'}
+                        >
+                            <span className="md:hidden flex items-center">
+                                {sidebarMobileOpen ? <X size={22} /> : <Menu size={22} />}
+                            </span>
+
+                            <span className="hidden md:flex items-center">
+                                {sidebarSoloIconos ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
+                            </span>
                         </button>
                         <div>
                             <h1 className="text-xl md:text-2xl font-black text-slate-800 capitalize">{areaSidebar.replace('_', ' ')}</h1>
@@ -1068,7 +1245,7 @@ export default function DashboardProductividad({ isAdmin }) {
                             </div>
                         )}
                         
-                        {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)[cite: 8] */}
+                        {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)*/}
                         {areaSidebar === 'hospitalizacion' && datosHospitalizacionBase.length > 0 && !cargandoHospitalizacion && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
                                 <Filter size={14} className="text-[#822626] ml-2 hidden sm:block"/>
@@ -1288,9 +1465,9 @@ export default function DashboardProductividad({ isAdmin }) {
                             />
                         )}
                     </div>
-
+                    
                     {/* MENSAJE DE EN CONSTRUCCIÓN */}
-                    {areaSidebar !== 'consulta_externa' && areaSidebar !== 'paramedicos' && areaSidebar !== 'urgencias' && areaSidebar !=='cirugias' &&  areaSidebar !== 'hospitalizacion' && (
+                    {!['consulta_externa', 'paramedicos', 'urgencias', 'cirugias', 'hospitalizacion'].includes(areaSidebar) && (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 p-16 border-2 border-dashed border-slate-300 rounded-3xl bg-slate-100/50">
                             <Activity size={64} className="mb-6 opacity-40 text-[#822626]" />
                             <h2 className="text-2xl font-black text-slate-500 mb-2">Módulo en Construcción</h2>
