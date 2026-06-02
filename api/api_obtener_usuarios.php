@@ -12,9 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 $host = 'sql112.infinityfree.com';
-$dbname = 'if0_41125231_vencer'; 
-$username = 'if0_41125231';
-$password = 'DEtK59bqZzA';
+$dbname = 'if0_41994851_siec'; 
+$username = 'if0_41994851';
+$password = 'BIguNSKaR7Wnk';
 
 try {
     // 4. Conexión a la base de datos con PDO
