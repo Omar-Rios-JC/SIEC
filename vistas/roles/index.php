@@ -68,117 +68,117 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
             padding-bottom: 36px;
         }
 
-/* ================= NAVBAR ================= */
+        /* ================= NAVBAR ================= */
 
-.main-navbar {
-    width: min(1220px, calc(100% - 32px));
-    margin: 18px auto 0;
-    padding: 13px 18px;
-    border-radius: 28px;
-    border: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 18px 48px rgba(0, 61, 41, 0.09);
-    position: relative;
-    z-index: 50;
-}
+        .main-navbar {
+            width: min(1220px, calc(100% - 32px));
+            margin: 18px auto 0;
+            padding: 13px 18px;
+            border-radius: 28px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 48px rgba(0, 61, 41, 0.09);
+            position: relative;
+            z-index: 50;
+        }
 
-.navbar-inner {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-}
+        .navbar-inner {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+        }
 
-.brand-box {
-    display: flex;
-    align-items: center;
-    gap: 13px;
-    text-decoration: none;
-    min-width: 0;
-}
+        .brand-box {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            text-decoration: none;
+            min-width: 0;
+        }
 
-.brand-logo {
-    width: 64px;
-    height: 64px;
-    border-radius: 22px;
-    background: var(--imss-soft);
-    border: 1px solid rgba(0, 99, 65, 0.18);
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    flex: 0 0 auto;
-}
+        .brand-logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 22px;
+            background: var(--imss-soft);
+            border: 1px solid rgba(0, 99, 65, 0.18);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            flex: 0 0 auto;
+        }
 
-.brand-logo img {
-    width: 56px;
-    height: 56px;
-    object-fit: contain;
-    display: block;
-}
+        .brand-logo img {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
+            display: block;
+        }
 
-.brand-kicker {
-    margin: 0;
-    color: var(--imss);
-    font-size: 11px;
-    font-weight: 950;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-}
+        .brand-kicker {
+            margin: 0;
+            color: var(--imss);
+            font-size: 11px;
+            font-weight: 950;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
 
-.brand-title {
-    margin: 2px 0 0;
-    color: var(--slate);
-    font-size: 17px;
-    line-height: 1.1;
-    font-weight: 950;
-    letter-spacing: -0.02em;
-}
+        .brand-title {
+            margin: 2px 0 0;
+            color: var(--slate);
+            font-size: 17px;
+            line-height: 1.1;
+            font-weight: 950;
+            letter-spacing: -0.02em;
+        }
 
-.login-btn {
-    border-radius: 999px;
-    padding: 13px 22px;
-    color: white !important;
-    background: var(--imss);
-    font-weight: 850;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    box-shadow: 0 12px 30px rgba(0, 99, 65, 0.22);
-    white-space: nowrap;
-}
+        .login-btn {
+            border-radius: 999px;
+            padding: 13px 22px;
+            color: white !important;
+            background: var(--imss);
+            font-weight: 850;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 12px 30px rgba(0, 99, 65, 0.22);
+            white-space: nowrap;
+        }
 
-.login-btn:hover {
-    color: white !important;
-    background: var(--imss-dark);
-}
+        .login-btn:hover {
+            color: white !important;
+            background: var(--imss-dark);
+        }
 
-@media (max-width: 640px) {
-    .navbar-inner {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+        @media (max-width: 640px) {
+            .navbar-inner {
+                align-items: flex-start;
+                flex-direction: column;
+            }
 
-    .login-btn {
-        width: 100%;
-    }
+            .login-btn {
+                width: 100%;
+            }
 
-    .brand-title {
-        font-size: 16px;
-    }
+            .brand-title {
+                font-size: 16px;
+            }
 
-    .brand-logo {
-        width: 58px;
-        height: 58px;
-    }
+            .brand-logo {
+                width: 58px;
+                height: 58px;
+            }
 
-    .brand-logo img {
-        width: 50px;
-        height: 50px;
-    }
-}
+            .brand-logo img {
+                width: 50px;
+                height: 50px;
+            }
+        }
 
         /* ================= CARRUSEL PRINCIPAL ================= */
 
@@ -216,17 +216,17 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
             z-index: 2;
             pointer-events: none;
             background:
-                radial-gradient(circle at 75% 25%, rgba(255, 255, 255, 0.16), transparent 24%),
-                linear-gradient(90deg, rgba(0, 41, 28, 0.90) 0%, rgba(0, 64, 43, 0.68) 45%, rgba(0, 0, 0, 0.10) 100%),
-                linear-gradient(180deg, transparent 42%, rgba(0, 41, 28, 0.72) 100%);
+                radial-gradient(circle at 75% 25%, rgba(255, 255, 255, 0.12), transparent 24%),
+                linear-gradient(90deg, rgba(0, 41, 28, 0.72) 0%, rgba(0, 64, 43, 0.46) 38%, rgba(0, 0, 0, 0.04) 100%),
+                linear-gradient(180deg, transparent 48%, rgba(0, 41, 28, 0.50) 100%);
         }
 
         .carousel-main-content {
             position: absolute;
             z-index: 4;
-            left: 58px;
-            bottom: 58px;
-            width: min(720px, calc(100% - 80px));
+            left: 48px;
+            bottom: 48px;
+            width: min(540px, calc(100% - 80px));
             color: white;
         }
 
@@ -234,40 +234,33 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
             width: fit-content;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 9px 14px;
+            gap: 8px;
+            padding: 7px 12px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.14);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            font-size: 12px;
-            font-weight: 950;
-            letter-spacing: 0.12em;
+            background: rgba(255, 255, 255, 0.13);
+            border: 1px solid rgba(255, 255, 255, 0.20);
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.10em;
             text-transform: uppercase;
-            margin-bottom: 22px;
-        }
-
-        .system-chip span {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #55efc4;
-            box-shadow: 0 0 0 6px rgba(85, 239, 196, 0.13);
+            margin-bottom: 16px;
         }
 
         .carousel-main-content h1 {
             margin: 0;
-            font-size: clamp(44px, 6vw, 82px);
-            line-height: 0.93;
-            letter-spacing: -0.075em;
+            font-size: clamp(34px, 4.2vw, 56px);
+            line-height: 1;
+            letter-spacing: -0.055em;
             font-weight: 950;
+            max-width: 520px;
         }
 
         .carousel-main-content p {
-            margin: 24px 0 0;
-            max-width: 660px;
-            font-size: 18px;
-            line-height: 1.7;
-            color: rgba(255, 255, 255, 0.84);
+            margin: 16px 0 0;
+            max-width: 500px;
+            font-size: 15px;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.82);
         }
 
         .carousel-actions {
@@ -480,10 +473,10 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
         }
 
         .main-modules-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-}
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
 
         .main-module-card {
             min-height: 440px;
@@ -516,7 +509,7 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
             z-index: 0;
         }
 
-        .main-module-card > * {
+        .main-module-card>* {
             position: relative;
             z-index: 2;
         }
@@ -528,10 +521,10 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
         }
 
         .module-purple {
-    --module-main: #64748b;
-    --module-dark: #475569;
-    --module-soft: #f1f5f9;
-}
+            --module-main: #64748b;
+            --module-dark: #475569;
+            --module-soft: #f1f5f9;
+        }
 
         .module-gold {
             --module-main: var(--gold);
@@ -640,24 +633,24 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
         }
 
         .module-arrow {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    color: white;
-    background: var(--module-main);
-    font-size: 23px;
-    font-weight: 900;
-    line-height: 1;
-    transition: 0.22s ease;
-}
+            width: 46px;
+            height: 46px;
+            min-width: 46px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            color: white;
+            background: var(--module-main);
+            font-size: 23px;
+            font-weight: 900;
+            line-height: 1;
+            transition: 0.22s ease;
+        }
 
-.main-module-card:hover .module-arrow {
-    transform: translateX(4px);
-    background: var(--module-dark);
-}
+        .main-module-card:hover .module-arrow {
+            transform: translateX(4px);
+            background: var(--module-dark);
+        }
 
         /* ================= BANNER ================= */
 
@@ -722,6 +715,7 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
         /* ================= RESPONSIVE ================= */
 
         @media (max-width: 1050px) {
+
             .main-carousel-card,
             .main-carousel-card .carousel,
             .main-carousel-card .carousel-inner,
@@ -762,6 +756,7 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
         }
 
         @media (max-width: 720px) {
+
             .main-carousel-card,
             .main-carousel-card .carousel,
             .main-carousel-card .carousel-inner,
@@ -770,29 +765,39 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
                 min-height: 540px;
                 height: 540px;
             }
+
             .main-modules-grid {
-        grid-template-columns: 1fr;
-    }
+                grid-template-columns: 1fr;
+            }
 
             .main-carousel-card {
                 border-radius: 30px;
             }
 
             .carousel-main-content {
-                left: 26px;
-                right: 26px;
-                bottom: 42px;
+                left: 24px;
+                right: 24px;
+                bottom: 34px;
                 width: auto;
             }
 
             .carousel-main-content h1 {
-                font-size: 42px;
+                font-size: 34px;
+                line-height: 1;
             }
 
             .carousel-main-content p {
-                font-size: 16px;
+                font-size: 14px;
+                line-height: 1.45;
+                max-width: 100%;
             }
-            
+
+            .system-chip {
+                font-size: 9px;
+                padding: 6px 10px;
+                margin-bottom: 12px;
+            }
+
 
             .carousel-control-prev,
             .carousel-control-next {
@@ -830,67 +835,69 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
     <div class="portal-shell">
 
         <nav class="main-navbar">
-    <div class="navbar-inner">
-        <a class="brand-box" href="../roles/index.php">
-            <div class="brand-logo">
-    <img src="../../img/umae-48.jpg" alt="Logo UMAE 48">
-</div>
-            <div>
-                <p class="brand-kicker">IMSS · UMAE HGP 48</p>
-                <h1 class="brand-title">Portal Institucional</h1>
-            </div>
-        </a>
-
-        <div>
-            <?php if ($adminName && $rol === 'admin'): ?>
-                <div class="dropdown">
-                    <a class="login-btn dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i>
-                        <?php echo $adminName; ?>
-                    </a>
-
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item" href="../admin/admin.php">
-                                <i class="bi bi-speedometer2 me-1"></i>Volver al panel
-                            </a>
-                        </li>
-
-                        <li><hr class="dropdown-divider"></li>
-
-                        <li>
-                            <a class="dropdown-item text-danger" href="../admin/logout.php">
-                                <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-            <?php elseif ($adminName): ?>
-                <div class="dropdown">
-                    <a class="login-btn dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i>
-                        <?php echo $adminName; ?>
-                    </a>
-
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item text-danger" href="../admin/logout.php">
-                                <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-            <?php else: ?>
-                <a class="login-btn" href="../admin/login.php">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                    Iniciar sesión
+            <div class="navbar-inner">
+                <a class="brand-box" href="../roles/index.php">
+                    <div class="brand-logo">
+                        <img src="../../img/umae-48.jpg" alt="Logo UMAE 48">
+                    </div>
+                    <div>
+                        <p class="brand-kicker">IMSS · UMAE HGP 48</p>
+                        <h1 class="brand-title">Portal Institucional</h1>
+                    </div>
                 </a>
-            <?php endif; ?>
-        </div>
-    </div>
-</nav>
+
+                <div>
+                    <?php if ($adminName && $rol === 'admin'): ?>
+                        <div class="dropdown">
+                            <a class="login-btn dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i>
+                                <?php echo $adminName; ?>
+                            </a>
+
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="../admin/admin.php">
+                                        <i class="bi bi-speedometer2 me-1"></i>Volver al panel
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item text-danger" href="../admin/logout.php">
+                                        <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                    <?php elseif ($adminName): ?>
+                        <div class="dropdown">
+                            <a class="login-btn dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i>
+                                <?php echo $adminName; ?>
+                            </a>
+
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item text-danger" href="../admin/logout.php">
+                                        <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                    <?php else: ?>
+                        <a class="login-btn" href="../admin/login.php">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            Iniciar sesión
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </nav>
 
         <section class="main-carousel-section">
             <div class="main-carousel-card">
@@ -917,22 +924,29 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
                         </div>
                     </div>
 
-                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselInstitucional" data-bs-slide="prev">
+                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselInstitucional"
+                        data-bs-slide="prev">
                         <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                         <span class="visually-hidden">Anterior</span>
                     </button>
 
-                    <button class="carousel-control-next" type="button" data-bs-target="#carouselInstitucional" data-bs-slide="next">
+                    <button class="carousel-control-next" type="button" data-bs-target="#carouselInstitucional"
+                        data-bs-slide="next">
                         <span class="carousel-control-next-icon" aria-hidden="true"></span>
                         <span class="visually-hidden">Siguiente</span>
                     </button>
 
                     <div class="carousel-indicators">
-                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
-                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="1" aria-label="Slide 2"></button>
-                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="2" aria-label="Slide 3"></button>
-                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="3" aria-label="Slide 4"></button>
-                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="4" aria-label="Slide 5"></button>
+                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="0"
+                            class="active" aria-current="true" aria-label="Slide 1"></button>
+                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="1"
+                            aria-label="Slide 2"></button>
+                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="2"
+                            aria-label="Slide 3"></button>
+                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="3"
+                            aria-label="Slide 4"></button>
+                        <button type="button" data-bs-target="#carouselInstitucional" data-bs-slide-to="4"
+                            aria-label="Slide 5"></button>
                     </div>
                 </div>
 
@@ -941,7 +955,7 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
                 <div class="carousel-main-content">
                     <div class="system-chip">
                         <span></span>
-                        Plataforma institucional UMAE HGP  No.48
+                        Plataforma institucional UMAE HGP No.48
                     </div>
 
                     <h1>Portal de indicadores y seguimiento</h1>
@@ -994,128 +1008,133 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
             </div>
 
             <div class="main-modules-grid">
-    <a class="main-module-card module-green" href="/graficos/index.html?modulo=productividad&rol=<?php echo $rol; ?>">
-        <div class="main-module-bg-number">01</div>
+                <a class="main-module-card module-green"
+                    href="/graficos/index.html?modulo=productividad&rol=<?php echo $rol; ?>">
+                    <div class="main-module-bg-number">01</div>
 
-        <div class="module-top">
-            <div class="module-icon">
-                <i class="bi bi-graph-up-arrow"></i>
+                    <div class="module-top">
+                        <div class="module-icon">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <span class="module-badge">Activo</span>
+                    </div>
+
+                    <div class="main-module-content">
+                        <p class="module-kicker">Indicadores y reportes</p>
+                        <h3>Productividad</h3>
+                        <p>
+                            Tableros acerca de consulta externa, paramédicos, cirugías, hospitalización y urgencias.
+                        </p>
+                    </div>
+
+                    <div class="module-meta">
+                        <span>Gráficas</span>
+                        <span>Reportes</span>
+                        <span>Productividad</span>
+                    </div>
+
+                    <div class="module-footer">
+                        <span>Entrar al módulo</span>
+                        <div class="module-arrow">→</div>
+                    </div>
+                </a>
+
+                <a class="main-module-card module-gold"
+                    href="/graficos/index.html?modulo=vencer&rol=<?php echo $rol; ?>">
+                    <div class="main-module-bg-number">02</div>
+
+                    <div class="module-top">
+                        <div class="module-icon">
+                            <i class="bi bi-heart-pulse-fill"></i>
+                        </div>
+                        <span class="module-badge">Activo</span>
+                    </div>
+
+                    <div class="main-module-content">
+                        <p class="module-kicker">Seguimiento institucional</p>
+                        <h3>Vencer</h3>
+                        <p>
+                            Control general de eventos adversos, cuasifallas, centinelas y seguimiento institucional.
+                        </p>
+                    </div>
+
+                    <div class="module-meta">
+                        <span>Control</span>
+                        <span>Seguimiento</span>
+                        <span>Eventos</span>
+                    </div>
+
+                    <div class="module-footer">
+                        <span>Entrar al módulo</span>
+                        <div class="module-arrow">→</div>
+                    </div>
+                </a>
+
+                <a class="main-module-card module-purple"
+                    href="/graficos/index.html?modulo=indicadores&rol=<?php echo $rol; ?>">
+                    <div class="main-module-bg-number">03</div>
+
+                    <div class="module-top">
+                        <div class="module-icon">
+                            <i class="bi bi-clipboard-data-fill"></i>
+                        </div>
+                        <span class="module-badge">Activo</span>
+                    </div>
+
+                    <div class="main-module-content">
+                        <p class="module-kicker">Consulta externa</p>
+                        <h3>Indicadores</h3>
+                        <p>
+                            Consulta indicadores hospitalarios enfocados en datos de consulta externa y seguimiento
+                            operativo.
+                        </p>
+                    </div>
+
+                    <div class="module-meta">
+                        <span>Consulta externa</span>
+                        <span>Hospitalarios</span>
+                        <span>Análisis</span>
+                    </div>
+
+                    <div class="module-footer">
+                        <span>Entrar al módulo</span>
+                        <div class="module-arrow">→</div>
+                    </div>
+                </a>
+
+                <a class="main-module-card module-blue" href="/IFU/index.php?rol=consulta">
+                    <div class="main-module-bg-number">04</div>
+
+                    <div class="module-top">
+                        <div class="module-icon">
+                            <i class="bi bi-box-seam-fill"></i>
+                        </div>
+                        <span class="module-badge">Nuevo</span>
+                    </div>
+
+                    <div class="main-module-content">
+                        <p class="module-kicker">Almacén e IFU</p>
+                        <h3>IFU</h3>
+                        <p>
+                            Espacio enfocado en herramientas, stock, reintegración y renovación dentro del área de
+                            almacén.
+                        </p>
+                    </div>
+
+                    <div class="module-meta">
+                        <span>Stock</span>
+                        <span>Reintegración</span>
+                        <span>Almacén</span>
+                    </div>
+
+                    <div class="module-footer">
+                        <span>Entrar al módulo</span>
+                        <div class="module-arrow">→</div>
+                    </div>
+                </a>
+
+
             </div>
-            <span class="module-badge">Activo</span>
-        </div>
-
-        <div class="main-module-content">
-            <p class="module-kicker">Indicadores y reportes</p>
-            <h3>Productividad</h3>
-            <p>
-                Tableros acerca de consulta externa, paramédicos, cirugías, hospitalización y urgencias.
-            </p>
-        </div>
-
-        <div class="module-meta">
-            <span>Gráficas</span>
-            <span>Reportes</span>
-            <span>Productividad</span>
-        </div>
-
-        <div class="module-footer">
-            <span>Entrar al módulo</span>
-            <div class="module-arrow">→</div>
-        </div>
-    </a>
-
-    <a class="main-module-card module-gold" href="/graficos/index.html?modulo=vencer&rol=<?php echo $rol; ?>">
-        <div class="main-module-bg-number">02</div>
-
-        <div class="module-top">
-            <div class="module-icon">
-                <i class="bi bi-heart-pulse-fill"></i>
-            </div>
-            <span class="module-badge">Activo</span>
-        </div>
-
-        <div class="main-module-content">
-            <p class="module-kicker">Seguimiento institucional</p>
-            <h3>Vencer</h3>
-            <p>
-                Control general de eventos adversos, cuasifallas, centinelas y seguimiento institucional.
-            </p>
-        </div>
-
-        <div class="module-meta">
-            <span>Control</span>
-            <span>Seguimiento</span>
-            <span>Eventos</span>
-        </div>
-
-        <div class="module-footer">
-            <span>Entrar al módulo</span>
-            <div class="module-arrow">→</div>
-        </div>
-    </a>
-
-    <a class="main-module-card module-purple" href="/graficos/index.html?modulo=indicadores&rol=<?php echo $rol; ?>">
-    <div class="main-module-bg-number">03</div>
-
-    <div class="module-top">
-        <div class="module-icon">
-            <i class="bi bi-clipboard-data-fill"></i>
-        </div>
-        <span class="module-badge">Activo</span>
-    </div>
-
-    <div class="main-module-content">
-        <p class="module-kicker">Consulta externa</p>
-        <h3>Indicadores</h3>
-        <p>
-            Consulta indicadores hospitalarios enfocados en datos de consulta externa y seguimiento operativo.
-        </p>
-    </div>
-
-    <div class="module-meta">
-        <span>Consulta externa</span>
-        <span>Hospitalarios</span>
-        <span>Análisis</span>
-    </div>
-
-    <div class="module-footer">
-        <span>Entrar al módulo</span>
-        <div class="module-arrow">→</div>
-    </div>
-</a>
-
-    <a class="main-module-card module-blue" href="/IFU/index.php?rol=consulta">
-        <div class="main-module-bg-number">04</div>
-
-        <div class="module-top">
-            <div class="module-icon">
-                <i class="bi bi-box-seam-fill"></i>
-            </div>
-            <span class="module-badge">Nuevo</span>
-        </div>
-
-        <div class="main-module-content">
-            <p class="module-kicker">Almacén e IFU</p>
-            <h3>IFU</h3>
-            <p>
-                Espacio enfocado en herramientas, stock, reintegración y renovación dentro del área de almacén.
-            </p>
-        </div>
-
-        <div class="module-meta">
-            <span>Stock</span>
-            <span>Reintegración</span>
-            <span>Almacén</span>
-        </div>
-
-        <div class="module-footer">
-            <span>Entrar al módulo</span>
-            <div class="module-arrow">→</div>
-        </div>
-    </a>
-
-    
-</div>
         </section>
 
         <footer>
@@ -1126,20 +1145,20 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const carrusel = document.querySelector("#carouselInstitucional");
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const carrusel = document.querySelector("#carouselInstitucional");
 
-    if (carrusel && window.bootstrap) {
-        new bootstrap.Carousel(carrusel, {
-            interval: 5000,
-            ride: "carousel",
-            pause: false,
-            wrap: true
+            if (carrusel && window.bootstrap) {
+                new bootstrap.Carousel(carrusel, {
+                    interval: 5000,
+                    ride: "carousel",
+                    pause: false,
+                    wrap: true
+                });
+            }
         });
-    }
-});
-</script>
+    </script>
 </body>
 
 </html>
