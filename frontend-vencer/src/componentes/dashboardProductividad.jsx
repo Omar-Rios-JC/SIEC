@@ -2,38 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import {
-    UploadCloud,
-    Activity,
-    Users,
-    CalendarCheck,
-    Clock,
-    BarChart2,
-    Database,
-    TableProperties,
-    Stethoscope,
-    Ambulance,
-    Bed,
-    Syringe,
-    Siren,
-    Download,
-    Filter,
-    Award,
-    Target,
-    BookOpen,
-    MapPin,
-    ClipboardList,
-    FileSpreadsheet,
-    Home,
-    Menu,
-    PanelLeftOpen,
-    PanelLeftClose,
-    X
+    UploadCloud, Activity, Users, CalendarCheck, Clock,
+    BarChart2, Database, TableProperties, Stethoscope,
+    Ambulance, Bed, Syringe, Siren, Download, Filter,
+    Award, Target, BookOpen, MapPin, ClipboardList, FileSpreadsheet, Home,
+    Menu, PanelLeftOpen, PanelLeftClose, X
 } from 'lucide-react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 import AdministradorCatalogos from './AdministradorCatalogos';
 import MenuPrincipal from './MenuPrincipal';
-import ModuloCarga from './ModuloCarga'; 
+import MenuCarga from './MenuCarga';
+import ModuloCargaCE from './ModuloCargaCE';
+import ModuloCargaHosp from './ModuloCargaHosp';
 import TableroParamedicos from './TableroParamedicos';
 import TableroUrgencias from './TableroUrgencias';
 import { exportarReporteCompleto } from './exportarReporteCompleto';
@@ -69,10 +50,10 @@ const generarCalendarioIMSS = (mesSeleccionado, anioSeleccionado) => {
                 inicio: new Date(inicioSemana),
                 fin: finDeSemana
             });
-            
+
             numeroSemana++;
             inicioSemana = new Date(fechaActual);
-            inicioSemana.setDate(inicioSemana.getDate() + 1); 
+            inicioSemana.setDate(inicioSemana.getDate() + 1);
         }
         fechaActual.setDate(fechaActual.getDate() + 1);
     }
@@ -81,14 +62,14 @@ const generarCalendarioIMSS = (mesSeleccionado, anioSeleccionado) => {
         semanas[4].fin = semanas[semanas.length - 1].fin;
         semanas = semanas.slice(0, 5);
     }
-    
-    while(semanas.length < 5) {
-         semanas.push({ semana: semanas.length + 1, vacia: true });
+
+    while (semanas.length < 5) {
+        semanas.push({ semana: semanas.length + 1, vacia: true });
     }
 
     const nombresMeses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
     semanas.forEach(s => {
-        if(!s.vacia) {
+        if (!s.vacia) {
             const d1 = String(s.inicio.getDate()).padStart(2, '0');
             const m1 = nombresMeses[s.inicio.getMonth()];
             const d2 = String(s.fin.getDate()).padStart(2, '0');
@@ -115,7 +96,7 @@ let cacheDiccionarioCIE = {};
 // ==========================================
 const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExtra, dataExtra, total = true }) => {
     if (!labels || !data) return null;
-    
+
     const mostrarDesglose = dataPV && dataSub;
     const totalPV = mostrarDesglose ? dataPV.reduce((a, b) => a + b, 0) : 0;
     const totalSub = mostrarDesglose ? dataSub.reduce((a, b) => a + b, 0) : 0;
@@ -141,7 +122,7 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                             if (dataPV && dataPV[index] > 0) {
                                 indice = (dataSub[index] / dataPV[index]).toFixed(2);
                             } else if (dataSub && dataSub[index] > 0) {
-                                indice = '∞'; 
+                                indice = '∞';
                             }
 
                             return (
@@ -181,21 +162,22 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
 export default function DashboardProductividad({ isAdmin }) {
     // ESTADOS DE NAVEGACIÓN
     const [vistaActiva, setVistaActiva] = useState('dashboard');
-    const [areaSidebar, setAreaSidebar] = useState('consulta_externa'); 
+    const [configuracionCarga, setConfiguracionCarga] = useState(null);
+    const [areaSidebar, setAreaSidebar] = useState('consulta_externa');
     const [mostrarTablas, setMostrarTablas] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
     // ESTADOS DE FILTROS GLOBALES
     const [anioSeleccionado, setAnioSeleccionado] = useState('todos');
-    const [mesSeleccionado, setMesSeleccionado] = useState('todos'); 
-    const [mesInicio, setMesInicio] = useState(0); 
-    const [mesFin, setMesFin] = useState(11); 
+    const [mesSeleccionado, setMesSeleccionado] = useState('todos');
+    const [mesInicio, setMesInicio] = useState(0);
+    const [mesFin, setMesFin] = useState(11);
     const [divisionSeleccionada, setDivisionSeleccionada] = useState('todas');
     const [especialidadSeleccionada, setEspecialidadSeleccionada] = useState('todas');
 
     // ESTADOS EXCLUSIVOS PARA LA GRÁFICA DE METAS
-    const [mesGraficoMeta, setMesGraficoMeta] = useState(11); 
+    const [mesGraficoMeta, setMesGraficoMeta] = useState(11);
     const [anioGraficoMeta, setAnioGraficoMeta] = useState(2025);
 
     // ESTADOS DE DATOS
@@ -205,7 +187,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const [datos, setDatos] = useState([]);
     const [cargandoDatos, setCargandoDatos] = useState(false);
     const [error, setError] = useState(null);
-    
+
     // Estados para la inyección e IndexedDB de Hospitalización[cite: 8]
     const [datosHospitalizacionBase, setDatosHospitalizacionBase] = useState([]);
     const [cargandoHospitalizacion, setCargandoHospitalizacion] = useState(false);
@@ -229,14 +211,14 @@ export default function DashboardProductividad({ isAdmin }) {
         try {
             await localforage.removeItem('cache_productividad_vencer');
             await localforage.removeItem('version_productividad_vencer');
-            
+
             const datosLocales = await localforage.getItem('cache_productividad_vencer');
             const versionLocal = await localforage.getItem('version_productividad_vencer') || "0";
 
             if (datosLocales && datosLocales.length > 0) {
-                setDatos(datosLocales); 
+                setDatos(datosLocales);
             } else {
-                setCargandoDatos(true); 
+                setCargandoDatos(true);
             }
 
             const resVersion = await axios.get('/api/api_check_update.php');
@@ -295,7 +277,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
     const cargarDiccionario = async () => {
         try {
-            const res = await axios.get('/api/api_medicos.php'); 
+            const res = await axios.get('/api/api_medicos.php');
             if (Array.isArray(res.data) && res.data.length > 0) {
                 const dicc = res.data.reduce((acc, medico) => {
                     let mat = String(medico.matricula || '').trim().replace('.0', '').replace(/\s/g, '');
@@ -315,7 +297,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const cargarDiccionarioCIE = async () => {
         try {
             await localforage.removeItem('cache_cie_vencer');
-            cacheDiccionarioCIE = {}; 
+            cacheDiccionarioCIE = {};
             const res = await axios.get(`/api/api_cie.php?t=${new Date().getTime()}`);
             if (Array.isArray(res.data)) {
                 const dicc = res.data.reduce((acc, item) => {
@@ -357,7 +339,7 @@ export default function DashboardProductividad({ isAdmin }) {
         cargarDatos();
         cargarDatosHospitalizacion(); // Disparar la carga paralela
         cargarDiccionario();
-        cargarDiccionarioCIE(); 
+        cargarDiccionarioCIE();
         cargarDiccionarioEspecialidades();
     }, []);
 
@@ -372,13 +354,13 @@ export default function DashboardProductividad({ isAdmin }) {
     // ==========================================
     const traducirEspecialidad = (valorCrudo) => {
         if (!valorCrudo) return 'Desconocida';
-        
+
         // 1. Lo pasamos a mayúsculas y le quitamos acentos
         let espRaw = String(valorCrudo).trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        
+
         // 2. ¡LA VACUNA! Le arrancamos la palabra "COD:" y los ".0"
         espRaw = espRaw.replace('COD:', '').replace('COD: ', '').replace('.0', '').trim();
-        
+
         // Seguro de vida
         const respaldoInquebrantable = {
             '6300': 'TRABAJO SOCIAL',
@@ -387,7 +369,7 @@ export default function DashboardProductividad({ isAdmin }) {
             '5001': 'CONSULTAS EN PRIMER CONTACTO',
             'A600': 'URGENCIAS TOCO CIRUGIA'
         };
-        
+
         return diccionarioEspecialidades[espRaw]?.nombre || respaldoInquebrantable[espRaw] || espRaw;
     };
 
@@ -410,7 +392,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
     const ultimaFechaBD = useMemo(() => {
         if (!datos || datos.length === 0) return 'No disponible';
-        let maxDate = new Date(2000, 0, 1); 
+        let maxDate = new Date(2000, 0, 1);
         let found = false;
 
         datos.forEach(d => {
@@ -418,7 +400,7 @@ export default function DashboardProductividad({ isAdmin }) {
             let m = d.mes || d.Mes || d.MES;
             let dia = 1;
 
-            const f = encontrarFecha(d); 
+            const f = encontrarFecha(d);
             if (f) {
                 if (f.includes('-')) {
                     const p = f.split('-');
@@ -456,10 +438,10 @@ export default function DashboardProductividad({ isAdmin }) {
             const espCruda = String(d.especialidad || d.ESPECIALIDAD || '');
             const espNivelada = nivelarTexto(espCruda);
             const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
-            
+
             // Si el nombre o el código pertenece a otra área, lo ignoramos de Consulta Externa
             const ignorar = ['TOCO', 'PRIMER CONTACTO', '5001', '6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'TRABAJO SOCIAL', 'PSICOLOGIA', 'REHABILITACION', 'URGENCIAS', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
-            
+
             return !ignorar.some(ignorada => espNivelada.includes(ignorada) || espTraducida.includes(ignorada));
         });
     }, [datos, diccionarioEspecialidades]);
@@ -496,12 +478,12 @@ export default function DashboardProductividad({ isAdmin }) {
                 }
             }
 
-            if (!a) return anioSeleccionado === 'todos'; 
-            if (!m) m = '1'; 
+            if (!a) return anioSeleccionado === 'todos';
+            if (!m) m = '1';
 
-            const mesIdx = parseInt(m, 10) - 1; 
+            const mesIdx = parseInt(m, 10) - 1;
             const pasaAnio = anioSeleccionado === 'todos' || String(a) === String(anioSeleccionado);
-            
+
             let pasaMes = true;
             if (mesSeleccionado === 'rango') {
                 pasaMes = mesIdx >= mesInicio && mesIdx <= mesFin;
@@ -530,13 +512,13 @@ export default function DashboardProductividad({ isAdmin }) {
         const soloUrgencias = datos.filter(d => {
             const espCruda = String(d.especialidad || d.ESPECIALIDAD || d.servicio || '').toUpperCase();
             const espTraducida = traducirEspecialidad(espCruda);
-            
+
             // Criterios de búsqueda: si el nombre tiene alguna de estas palabras, entra a Urgencias
             const criterios = [
-                '5001', 'A600', 'URGENCIAS TOCOCIRUGIA','CONSULTAS EN PRIMER CONTACTO'
+                '5001', 'A600', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'
             ];
-            
-            return criterios.some(c => 
+
+            return criterios.some(c =>
                 espTraducida.includes(c) || espCruda.includes(c)
             );
         });
@@ -550,9 +532,9 @@ export default function DashboardProductividad({ isAdmin }) {
         return datosHospitalizacionBase.filter(item => {
             const pasaAnio = anioSeleccionado === 'todos' || String(item.anio) === String(anioSeleccionado);
             let pasaMes = true;
-            
+
             if (mesSeleccionado === 'rango') {
-                const m = Number(item.mes) - 1; 
+                const m = Number(item.mes) - 1;
                 pasaMes = m >= mesInicio && m <= mesFin;
             } else if (mesSeleccionado !== 'todos') {
                 pasaMes = (Number(item.mes) - 1) === Number(mesSeleccionado);
@@ -582,7 +564,7 @@ export default function DashboardProductividad({ isAdmin }) {
             const esp = (d.especialidad || 'Desconocida').trim();
             const div = (d.division || 'Sin Asignar').trim();
             conteo[esp] = (conteo[esp] || 0) + 1;
-            if (!divMap[esp]) divMap[esp] = div; 
+            if (!divMap[esp]) divMap[esp] = div;
         });
         const ranking = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
         return { ranking, divMap };
@@ -601,25 +583,25 @@ export default function DashboardProductividad({ isAdmin }) {
     const datosFiltrados = useMemo(() => {
         return datosFiltradosDivision.filter(item => {
             if (especialidadSeleccionada === 'todas') return true;
-            
+
             // 1. Traduce y limpia al paciente (quita el COD:)
             const espTraducida = traducirEspecialidad(item.especialidad || item.ESPECIALIDAD);
-            
+
             // 2. Compara el paciente con lo que elegiste en el menú (ambos sin acentos)
             return nivelarTexto(espTraducida) === nivelarTexto(especialidadSeleccionada);
         });
     }, [datosFiltradosDivision, especialidadSeleccionada, diccionarioEspecialidades]);
 
-   const especialidadesParaMostrar = useMemo(() => {
+    const especialidadesParaMostrar = useMemo(() => {
         const setEsp = new Set();
-        
+
         // 1. Recorremos TODA tu base de datos (catálogo) en lugar de leer el Excel
         Object.values(diccionarioEspecialidades).forEach(item => {
             if (item && item.nombre) {
                 // Si el usuario eligió una División, solo metemos a la lista las especialidades de esa división
                 if (divisionSeleccionada !== 'todas') {
                     const divItem = String(item.division || '').trim();
-                    if (divItem !== divisionSeleccionada) return; 
+                    if (divItem !== divisionSeleccionada) return;
                 }
 
                 // Limpiamos el nombre para que el menú se vea impecable
@@ -651,7 +633,7 @@ export default function DashboardProductividad({ isAdmin }) {
         }
 
         // Si es consulta externa, limpiamos el menú ocultando lo que es de paramédicos o urgencias
-        const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS TOCOCIRUGIA','CONSULTAS EN PRIMER CONTACTO'];
+        const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
         return listaCompleta.filter(esp => !ignorar.some(ignorada => esp.includes(ignorada)));
 
     }, [diccionarioEspecialidades, areaSidebar, divisionSeleccionada]);
@@ -683,14 +665,14 @@ export default function DashboardProductividad({ isAdmin }) {
         const labelsSemanas = semanasOperativas.map(s => s.label);
         const citasPorSemana = [0, 0, 0, 0, 0];
         let metasPorSemana = [2646, 2646, 2646, 2646, 2646];
-        
-        if (Number(mesGraficoMeta) === 0) metasPorSemana[0] = 1134; 
+
+        if (Number(mesGraficoMeta) === 0) metasPorSemana[0] = 1134;
 
         datosConsultaExterna.forEach(d => {
             const div = (d.division || 'Sin Asignar').trim();
             if (divisionSeleccionada !== 'todas' && div !== divisionSeleccionada) return;
 
-           // Nivelamos y comparamos para la gráfica de metas
+            // Nivelamos y comparamos para la gráfica de metas
             const espTraducida = traducirEspecialidad(d.especialidad || d.ESPECIALIDAD);
             if (especialidadSeleccionada !== 'todas' && nivelarTexto(espTraducida) !== nivelarTexto(especialidadSeleccionada)) return;
 
@@ -712,7 +694,7 @@ export default function DashboardProductividad({ isAdmin }) {
                         const sem = semanasOperativas[i];
                         if (!sem.vacia && fechaRegistro >= sem.inicio && fechaRegistro <= sem.fin) {
                             citasPorSemana[i]++;
-                            break; 
+                            break;
                         }
                     }
                 }
@@ -725,10 +707,10 @@ export default function DashboardProductividad({ isAdmin }) {
                 {
                     label: 'Citas Reales',
                     data: citasPorSemana,
-                    borderColor: '#0284c7', 
-                    backgroundColor: 'rgba(2, 132, 199, 0.1)', 
+                    borderColor: '#0284c7',
+                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
                     borderWidth: 3,
-                    tension: 0.3, 
+                    tension: 0.3,
                     fill: true,
                     pointBackgroundColor: '#0284c7',
                     pointRadius: 5
@@ -736,12 +718,12 @@ export default function DashboardProductividad({ isAdmin }) {
                 {
                     label: 'Meta Esperada',
                     data: metasPorSemana,
-                    borderColor: '#822626', 
+                    borderColor: '#822626',
                     backgroundColor: 'transparent',
-                    borderDash: [5, 5], 
+                    borderDash: [5, 5],
                     borderWidth: 2,
-                    tension: 0, 
-                    pointRadius: 0, 
+                    tension: 0,
+                    pointRadius: 0,
                     fill: false
                 }
             ]
@@ -778,7 +760,7 @@ export default function DashboardProductividad({ isAdmin }) {
             if (curr.primera_vez === 'Primera Vez') acc[div].pv++; else acc[div].sub++;
             return acc;
         }, {});
-        
+
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
         return {
             labels: ordenados.map(item => item[0]),
@@ -796,7 +778,7 @@ export default function DashboardProductividad({ isAdmin }) {
             if (curr.primera_vez === 'Primera Vez') acc[turno].pv++; else acc[turno].sub++;
             return acc;
         }, {});
-        
+
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
         return {
             labels: ordenados.map(item => item[0]),
@@ -810,14 +792,14 @@ export default function DashboardProductividad({ isAdmin }) {
         if (!datosFiltrados || datosFiltrados.length === 0) return { labels: [], datasets: [], dataPV: [], dataSub: [] };
 
         const conteo = datosFiltrados.reduce((acc, curr) => {
-            const esp = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD); 
+            const esp = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD);
 
             if (!acc[esp]) acc[esp] = { total: 0, pv: 0, sub: 0 };
             acc[esp].total++;
             if (curr.primera_vez === 'Primera Vez') acc[esp].pv++; else acc[esp].sub++;
             return acc;
         }, {});
-        
+
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
         return {
             labels: ordenados.map(item => item[0]),
@@ -834,21 +816,21 @@ export default function DashboardProductividad({ isAdmin }) {
             const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD);
 
             if (!acc[nombreMedico]) acc[nombreMedico] = { total: 0, pv: 0, sub: 0, especialidad: nombreEspecialidad };
-            
+
             acc[nombreMedico].total++;
             if (curr.primera_vez === 'Primera Vez') acc[nombreMedico].pv++; else acc[nombreMedico].sub++;
             return acc;
         }, {});
-        
+
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
         const top = ordenados.slice(0, 20);
-        
+
         return {
             labels: top.map(item => item[0]),
             datasets: [{ label: 'Consultas', data: top.map(item => item[1].total), backgroundColor: '#822626', borderRadius: 4 }],
             dataPV: top.map(item => item[1].pv),
             dataSub: top.map(item => item[1].sub),
-            dataExtra: top.map(item => item[1].especialidad) 
+            dataExtra: top.map(item => item[1].especialidad)
         };
     }, [datosFiltrados, diccionarioMedicos, diccionarioEspecialidades]);
 
@@ -856,14 +838,14 @@ export default function DashboardProductividad({ isAdmin }) {
         const conteo = datosFiltrados.reduce((acc, curr) => {
             const codigoRaw = String(curr.diagnostico_principal || 'No Especificado').trim().toUpperCase();
             const nombreEnfermedad = diccionarioCIE[codigoRaw] || codigoRaw;
-            
+
             if (!acc[nombreEnfermedad]) acc[nombreEnfermedad] = { total: 0, pv: 0, sub: 0 };
-            
+
             acc[nombreEnfermedad].total++;
             if (curr.primera_vez === 'Primera Vez') acc[nombreEnfermedad].pv++; else acc[nombreEnfermedad].sub++;
             return acc;
         }, {});
-        
+
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total).slice(0, 20);
         return {
             labels: ordenados.map(item => item[0]),
@@ -882,7 +864,7 @@ export default function DashboardProductividad({ isAdmin }) {
             const cons = (curr.consultorio || curr.CONSULTORIO || "SIN ESPECIFICAR").toString().trim().toUpperCase();
 
             if (!acc[cons]) acc[cons] = { total: 0, pv: 0, sub: 0 };
-            
+
             acc[cons].total++;
             if (curr.primera_vez === 'Primera Vez' || curr.PRIMERA_VEZ === 'Primera Vez') {
                 acc[cons].pv++;
@@ -895,19 +877,19 @@ export default function DashboardProductividad({ isAdmin }) {
         const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
         return {
             labels: ordenados.map(item => item[0]),
-            datasets: [{ 
-                label: 'Consultas por Consultorio', 
-                data: ordenados.map(item => item[1].total), 
-                backgroundColor: '#10b981', 
-                borderRadius: 4 
+            datasets: [{
+                label: 'Consultas por Consultorio',
+                data: ordenados.map(item => item[1].total),
+                backgroundColor: '#10b981',
+                borderRadius: 4
             }],
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados]); 
+    }, [datosFiltrados]);
 
-    const anchoDinamico = (cantidadItems) => `max(100%, ${cantidadItems * 40}px)`; 
-    
+    const anchoDinamico = (cantidadItems) => `max(100%, ${cantidadItems * 40}px)`;
+
     const chartOptionsVertical = {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -927,17 +909,17 @@ export default function DashboardProductividad({ isAdmin }) {
 
     const handleDescargarExcel = async () => {
         try {
-            console.log("Exportando datos:", { 
-                externa: datosFiltrados.length, 
-                param: datosParamedicos.length, 
+            console.log("Exportando datos:", {
+                externa: datosFiltrados.length,
+                param: datosParamedicos.length,
                 urg: datosUrgencias.length,
                 hosp: datosHospitalizacion.length // Traza de hospitalización[cite: 8]
             });
 
             await exportarReporteCompleto(
-                datosFiltrados,     
-                datosParamedicos,   
-                datosUrgencias,      
+                datosFiltrados,
+                datosParamedicos,
+                datosUrgencias,
                 datosHospitalizacion // Sincronizar columna Excel de hospitalización[cite: 8]
             );
         } catch (error) {
@@ -993,131 +975,168 @@ export default function DashboardProductividad({ isAdmin }) {
     };
 
     const abrirMenuPrincipal = () => {
-    setSidebarMobileOpen(false);
-    setVistaActiva('menu');
-};
+        setSidebarMobileOpen(false);
+        setVistaActiva('menu');
+    };
 
     if (vistaActiva === 'menu') {
-    return (
-        <MenuPrincipal
-            setVistaActiva={setVistaActiva}
-            isAdmin={usuarioEsAdmin}
-            setMensaje={setMensaje}
-        />
-    );
-}
+        return (
+            <MenuPrincipal
+                setVistaActiva={setVistaActiva}
+                isAdmin={usuarioEsAdmin}
+                setMensaje={setMensaje}
+            />
+        );
+    }
 
+    // Pantalla intermedia (Selector de las 3 áreas)
     if (vistaActiva === 'subir') {
-        return <ModuloCarga setVistaActiva={setVistaActiva} setMensaje={setMensaje} mensaje={mensaje} cargarDatos={cargarDatos} />;
+        return <MenuCarga setVistaActiva={setVistaActiva} />;
+    }
+
+    // Módulo de Carga: Consulta Externa
+    if (vistaActiva === 'subir_ce') {
+        return (
+            <ModuloCargaCE 
+                setVistaActiva={setVistaActiva} 
+                setMensaje={setMensaje} 
+                mensaje={mensaje} 
+                cargarDatos={cargarDatos} 
+            />
+        );
+    }
+
+    // ESPACIO RESERVADO PARA CIRUGÍAS (No requiere que crees el archivo)
+    if (vistaActiva === 'subir_cirugias') {
+        // Aquí tu compañero importará y retornará su componente (ej: <ModuloCargaCirugias />)
+        // Por ahora, puedes dejar un retorno provisional o vacío si lo deseas probar
+        return (
+            <div className="p-8 text-center font-sans">
+                <p className="text-slate-500 font-bold">Módulo de Carga de Cirugías en desarrollo por el equipo asignado.</p>
+                <button onClick={() => setVistaActiva('subir')} className="mt-4 text-[#822626] underline font-black">Regresar</button>
+            </div>
+        );
+    }
+
+    // Módulo de Carga: Hospitalización
+    if (vistaActiva === 'subir_hosp') {
+        return (
+            <ModuloCargaHosp 
+                setVistaActiva={setVistaActiva} 
+                setMensaje={setMensaje} 
+                mensaje={mensaje} 
+                cargarDatos={cargarDatos} 
+            />
+        );
     }
 
     if (vistaActiva === 'catalogos') {
         return <AdministradorCatalogos setVistaActiva={setVistaActiva} />;
     }
-    
-    return (
-    <div className="flex min-h-screen md:h-screen bg-slate-50 overflow-x-hidden md:overflow-hidden font-sans relative">
 
-        {/* FONDO OSCURO EN MÓVIL */}
-        {sidebarMobileOpen && (
-            <div
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 md:hidden"
-                onClick={cerrarSidebarMobile}
-            />
-        )}
-        
-        {/* PANEL LATERAL */}
-        <aside
-            className={`
+    return (
+        <div className="flex min-h-screen md:h-screen bg-slate-50 overflow-x-hidden md:overflow-hidden font-sans relative">
+
+            {/* FONDO OSCURO EN MÓVIL */}
+            {sidebarMobileOpen && (
+                <div
+                    className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 md:hidden"
+                    onClick={cerrarSidebarMobile}
+                />
+            )}
+
+            {/* PANEL LATERAL */}
+            <aside
+                className={`
                 bg-[#822626] text-slate-100 flex flex-col shrink-0 shadow-xl
                 fixed md:relative inset-y-0 left-0 z-40 md:z-20
                 transition-all duration-300 ease-in-out
                 w-72 ${sidebarSoloIconos ? 'md:w-20' : 'md:w-64'}
                 ${sidebarMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}
-        >
+            >
                 <div className="h-16 flex items-center justify-between border-b border-[#6b1f1f] shrink-0 px-3">
-    <button
-        onClick={irAlPortalPrincipal}
-        className={`
+                    <button
+                        onClick={irAlPortalPrincipal}
+                        className={`
             h-11 rounded-xl flex items-center transition-all text-white
             hover:bg-[#6b1f1f] font-bold text-sm
             ${sidebarSoloIconos ? 'w-full justify-center px-0' : 'flex-1 justify-start px-3 gap-3'}
         `}
-        title="Volver al inicio"
-    >
-        <Home size={20} className="shrink-0" />
-        {mostrarTextoSidebar && (
-            <span className="whitespace-nowrap">Volver al Inicio</span>
-        )}
-    </button>
+                        title="Volver al inicio"
+                    >
+                        <Home size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap">Volver al Inicio</span>
+                        )}
+                    </button>
 
-    <button
-        onClick={cerrarSidebarMobile}
-        className="md:hidden ml-2 h-11 w-11 flex items-center justify-center rounded-xl hover:bg-[#6b1f1f] transition-colors text-white"
-        title="Cerrar menú"
-    >
-        <X size={20} />
-    </button>
-</div>
-               <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 overflow-x-hidden custom-scrollbar">
+                    <button
+                        onClick={cerrarSidebarMobile}
+                        className="md:hidden ml-2 h-11 w-11 flex items-center justify-center rounded-xl hover:bg-[#6b1f1f] transition-colors text-white"
+                        title="Cerrar menú"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 overflow-x-hidden custom-scrollbar">
 
-    {/* Consulta Externa */}
-    <button
-        onClick={() => cambiarAreaSidebar('consulta_externa')}
-        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'consulta_externa' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
-    >
-        <Stethoscope size={20} className="shrink-0" />
-        {mostrarTextoSidebar && (
-            <span className="whitespace-nowrap">Consulta Externa Esp</span>
-        )}
-    </button>
-    
-    {/* Paramédicos */}
-    <button
-        onClick={() => cambiarAreaSidebar('paramedicos')}
-        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'paramedicos' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
-    >
-        <Ambulance size={20} className="shrink-0" />
-        {mostrarTextoSidebar && (
-            <span className="whitespace-nowrap">Paramédicos</span>
-        )}
-    </button>
-    
-    {/* Cirugías */}
-    <button
-        onClick={() => cambiarAreaSidebar('cirugias')}
-        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'cirugias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
-    >
-        <Syringe size={20} className="shrink-0" />
-        {mostrarTextoSidebar && (
-            <span className="whitespace-nowrap">Cirugías</span>
-        )}
-    </button>
-    
-    {/* Hospitalización */}
-    <button
-        onClick={() => cambiarAreaSidebar('hospitalizacion')}
-        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'hospitalizacion' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
-    >
-        <Bed size={20} className="shrink-0" />
-        {mostrarTextoSidebar && (
-            <span className="whitespace-nowrap">Hospitalización</span>
-        )}
-    </button>
-    
-    {/* Urgencias */}
-    <button
-        onClick={() => cambiarAreaSidebar('urgencias')}
-        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'urgencias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
-    >
-        <Siren size={20} className="shrink-0" />
-        {mostrarTextoSidebar && (
-            <span className="whitespace-nowrap">Urgencias</span>
-        )}
-    </button>
-    
-</nav>
+                    {/* Consulta Externa */}
+                    <button
+                        onClick={() => cambiarAreaSidebar('consulta_externa')}
+                        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'consulta_externa' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+                    >
+                        <Stethoscope size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap">Consulta Externa Esp</span>
+                        )}
+                    </button>
+
+                    {/* Paramédicos */}
+                    <button
+                        onClick={() => cambiarAreaSidebar('paramedicos')}
+                        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'paramedicos' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+                    >
+                        <Ambulance size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap">Paramédicos</span>
+                        )}
+                    </button>
+
+                    {/* Cirugías */}
+                    <button
+                        onClick={() => cambiarAreaSidebar('cirugias')}
+                        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'cirugias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+                    >
+                        <Syringe size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap">Cirugías</span>
+                        )}
+                    </button>
+
+                    {/* Hospitalización */}
+                    <button
+                        onClick={() => cambiarAreaSidebar('hospitalizacion')}
+                        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'hospitalizacion' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+                    >
+                        <Bed size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap">Hospitalización</span>
+                        )}
+                    </button>
+
+                    {/* Urgencias */}
+                    <button
+                        onClick={() => cambiarAreaSidebar('urgencias')}
+                        className={`w-full flex items-center rounded-xl transition-all ${sidebarSoloIconos ? 'justify-center p-3' : 'px-4 py-3 gap-3'} ${areaSidebar === 'urgencias' ? 'bg-[#6b1f1f] text-white font-bold shadow-md border-l-4 border-white' : 'hover:bg-[#962e2e] text-red-100 border-l-4 border-transparent'}`}
+                    >
+                        <Siren size={20} className="shrink-0" />
+                        {mostrarTextoSidebar && (
+                            <span className="whitespace-nowrap">Urgencias</span>
+                        )}
+                    </button>
+
+                </nav>
                 <div className="p-3 border-t border-[#6b1f1f] flex flex-col gap-2 shrink-0">
                     <button
                         onClick={() => setMostrarTablas(!mostrarTablas)}
@@ -1134,11 +1153,10 @@ export default function DashboardProductividad({ isAdmin }) {
 
                     <button
                         onClick={handleDescargarExcel}
-                        className={`flex items-center transition-all duration-300 ease-in-out bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md ${
-                            sidebarSoloIconos
-                                ? 'justify-center p-3'
-                                : 'justify-start gap-3 px-4 py-3'
-                        }`}
+                        className={`flex items-center transition-all duration-300 ease-in-out bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md ${sidebarSoloIconos
+                            ? 'justify-center p-3'
+                            : 'justify-start gap-3 px-4 py-3'
+                            }`}
                         title="Descargar reporte"
                     >
                         <Download size={20} className="shrink-0" />
@@ -1152,11 +1170,10 @@ export default function DashboardProductividad({ isAdmin }) {
                     {usuarioEsAdmin && (
                         <button
                             onClick={abrirMenuPrincipal}
-                            className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${
-                                sidebarSoloIconos
-                                    ? 'justify-center p-3'
-                                    : 'justify-start gap-3 px-4 py-3'
-                            }`}
+                            className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
+                                ? 'justify-center p-3'
+                                : 'justify-start gap-3 px-4 py-3'
+                                }`}
                             title="Cambiar bases de datos"
                         >
                             <Database size={20} className="shrink-0" />
@@ -1189,19 +1206,19 @@ export default function DashboardProductividad({ isAdmin }) {
                             <h1 className="text-xl md:text-2xl font-black text-slate-800 capitalize">{areaSidebar.replace('_', ' ')}</h1>
                         </div>
                     </div>
-                    
+
                     <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                         {(areaSidebar === 'consulta_externa' || areaSidebar === 'paramedicos' || areaSidebar === 'urgencias') && datos.length > 0 && !cargandoDatos && !error && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
-                                <Filter size={14} className="text-[#822626] ml-2 hidden sm:block"/>
+                                <Filter size={14} className="text-[#822626] ml-2 hidden sm:block" />
                                 <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año:</span>
-                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e=>setAnioSeleccionado(e.target.value)}>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
-                                    {aniosDisponibles.map(a=><option key={a} value={a}>{a}</option>)}
+                                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">Mes:</span>
-                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e=>setMesSeleccionado(e.target.value)}>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e => setMesSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
                                     {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                     <option disabled>──────────</option>
@@ -1212,12 +1229,12 @@ export default function DashboardProductividad({ isAdmin }) {
                                     <>
                                         <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                         <span className="font-bold text-slate-500 text-[10px] uppercase">De:</span>
-                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesInicio} onChange={e=>setMesInicio(Number(e.target.value))}>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesInicio} onChange={e => setMesInicio(Number(e.target.value))}>
                                             {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                         </select>
                                         <span className="text-slate-400 font-bold">-</span>
                                         <span className="font-bold text-slate-500 text-[10px] uppercase">A:</span>
-                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesFin} onChange={e=>setMesFin(Number(e.target.value))}>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesFin} onChange={e => setMesFin(Number(e.target.value))}>
                                             {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                         </select>
                                     </>
@@ -1225,16 +1242,16 @@ export default function DashboardProductividad({ isAdmin }) {
 
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">División:</span>
-                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate" value={divisionSeleccionada} onChange={e=>setDivisionSeleccionada(e.target.value)}>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate" value={divisionSeleccionada} onChange={e => setDivisionSeleccionada(e.target.value)}>
                                     <option value="todas">Todas</option>
-                                    {divisionesDisponibles.map(d=><option key={d} value={d}>{d}</option>)}
+                                    {divisionesDisponibles.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
 
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">Especialidad:</span>
-                                <select 
-                                    className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate" 
-                                    value={especialidadSeleccionada} 
+                                <select
+                                    className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate"
+                                    value={especialidadSeleccionada}
                                     onChange={e => setEspecialidadSeleccionada(e.target.value)}
                                 >
                                     <option value="todas">Todas</option>
@@ -1244,19 +1261,19 @@ export default function DashboardProductividad({ isAdmin }) {
                                 </select>
                             </div>
                         )}
-                        
+
                         {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)*/}
                         {areaSidebar === 'hospitalizacion' && datosHospitalizacionBase.length > 0 && !cargandoHospitalizacion && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
-                                <Filter size={14} className="text-[#822626] ml-2 hidden sm:block"/>
+                                <Filter size={14} className="text-[#822626] ml-2 hidden sm:block" />
                                 <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año IMSS:</span>
-                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e=>setAnioSeleccionado(e.target.value)}>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
-                                    {aniosDisponibles.map(a=><option key={a} value={a}>{a}</option>)}
+                                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">Mes IMSS:</span>
-                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e=>setMesSeleccionado(e.target.value)}>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e => setMesSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
                                     {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                     <option disabled>──────────</option>
@@ -1267,12 +1284,12 @@ export default function DashboardProductividad({ isAdmin }) {
                                     <>
                                         <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                         <span className="font-bold text-slate-500 text-[10px] uppercase">De:</span>
-                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesInicio} onChange={e=>setMesInicio(Number(e.target.value))}>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesInicio} onChange={e => setMesInicio(Number(e.target.value))}>
                                             {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                         </select>
                                         <span className="text-slate-400 font-bold">-</span>
                                         <span className="font-bold text-slate-500 text-[10px] uppercase">A:</span>
-                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesFin} onChange={e=>setMesFin(Number(e.target.value))}>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesFin} onChange={e => setMesFin(Number(e.target.value))}>
                                             {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                         </select>
                                     </>
@@ -1283,9 +1300,9 @@ export default function DashboardProductividad({ isAdmin }) {
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-slate-50">
-                    
+
                     {/* SECCIÓN 1: CONSULTA EXTERNA */}
-                    <div style={{ 
+                    <div style={{
                         display: areaSidebar === 'consulta_externa' ? 'block' : 'none',
                         visibility: areaSidebar === 'consulta_externa' ? 'visible' : 'hidden',
                         position: areaSidebar === 'consulta_externa' ? 'relative' : 'absolute',
@@ -1293,7 +1310,7 @@ export default function DashboardProductividad({ isAdmin }) {
                         width: '100%'
                     }}>
                         {cargandoDatos ? (
-                            <div className="flex justify-center items-center py-20 text-[#822626] font-bold"><Activity className="animate-spin mr-3"/> Calculando estadísticas...</div>
+                            <div className="flex justify-center items-center py-20 text-[#822626] font-bold"><Activity className="animate-spin mr-3" /> Calculando estadísticas...</div>
                         ) : error ? (
                             <div className="text-red-600 font-bold text-center py-20">{error}</div>
                         ) : datosFiltrados.length === 0 ? (
@@ -1310,14 +1327,14 @@ export default function DashboardProductividad({ isAdmin }) {
                                         Actualizado hasta: <span className="text-[#822626] font-black">{ultimaFechaBD}</span>
                                     </p>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                                     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#822626]">
-                                        <div className="flex items-center gap-3 text-slate-500 mb-2"><Users size={18}/><h3 className="text-xs font-bold uppercase tracking-widest">Total Consultas</h3></div>
+                                        <div className="flex items-center gap-3 text-slate-500 mb-2"><Users size={18} /><h3 className="text-xs font-bold uppercase tracking-widest">Total Consultas</h3></div>
                                         <p className="text-4xl font-black text-[#822626]">{kpis.total.toLocaleString()}</p>
                                     </div>
                                     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                                        <div className="flex items-center gap-3 text-slate-500 mb-2"><CalendarCheck size={18}/><h3 className="text-xs font-bold uppercase tracking-widest">Citados</h3></div>
+                                        <div className="flex items-center gap-3 text-slate-500 mb-2"><CalendarCheck size={18} /><h3 className="text-xs font-bold uppercase tracking-widest">Citados</h3></div>
                                         <p className="text-4xl font-black text-slate-700">{kpis.citados.toLocaleString()}</p>
                                         <div className="flex flex-col mt-5 pt-4 border-t border-slate-100">
                                             <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Espontáneos</span>
@@ -1325,7 +1342,7 @@ export default function DashboardProductividad({ isAdmin }) {
                                         </div>
                                     </div>
                                     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                                        <div className="flex items-center gap-3 text-slate-500 mb-2"><Clock size={18}/><h3 className="text-xs font-bold uppercase tracking-widest">Primera Vez</h3></div>
+                                        <div className="flex items-center gap-3 text-slate-500 mb-2"><Clock size={18} /><h3 className="text-xs font-bold uppercase tracking-widest">Primera Vez</h3></div>
                                         <p className="text-4xl font-black text-[#c2410c]">{kpis.primeraVez.toLocaleString()}</p>
                                         <div className="flex flex-col mt-5 pt-4 border-t border-slate-100">
                                             <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Subsecuentes</span>
@@ -1337,20 +1354,20 @@ export default function DashboardProductividad({ isAdmin }) {
                                 <div id="graficoE_1" className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="bg-blue-50 p-2 rounded-lg"><Target size={24} className="text-blue-700"/></div>
+                                            <div className="bg-blue-50 p-2 rounded-lg"><Target size={24} className="text-blue-700" /></div>
                                             <div>
                                                 <h3 className="font-bold text-slate-800 uppercase tracking-wide">Cumplimiento de Meta (Semanal)</h3>
                                                 <p className="text-xs text-slate-500">Objetivo directivo vs consultas otorgadas.</p>
                                             </div>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-200">
                                             <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={mesGraficoMeta} onChange={e => setMesGraficoMeta(Number(e.target.value))}>
                                                 {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                             </select>
-                                            
+
                                             <div className="w-px h-4 bg-slate-300"></div>
-                                            
+
                                             <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={anioGraficoMeta} onChange={e => setAnioGraficoMeta(Number(e.target.value))}>
                                                 {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
                                                 {!aniosDisponibles.includes('2025') && <option value="2025">2025</option>}
@@ -1395,54 +1412,54 @@ export default function DashboardProductividad({ isAdmin }) {
                     </div>
 
                     {/* SECCIÓN 2: PARAMÉDICOS */}
-                    <div style={{ 
+                    <div style={{
                         display: areaSidebar === 'paramedicos' ? 'block' : 'none',
                         visibility: areaSidebar === 'paramedicos' ? 'visible' : 'hidden',
                         position: areaSidebar === 'paramedicos' ? 'relative' : 'absolute',
                         left: areaSidebar === 'paramedicos' ? '0' : '-9999px',
                         width: '100%'
                     }}>
-                        <TableroParamedicos 
-                            datos={paramedicosParaTablero} 
-                            diccionarioMedicos={diccionarioMedicos} 
-                            diccionarioCIE={diccionarioCIE} 
-                            diccionarioEspecialidades={diccionarioEspecialidades} 
-                            mostrarTablas={mostrarTablas} 
+                        <TableroParamedicos
+                            datos={paramedicosParaTablero}
+                            diccionarioMedicos={diccionarioMedicos}
+                            diccionarioCIE={diccionarioCIE}
+                            diccionarioEspecialidades={diccionarioEspecialidades}
+                            mostrarTablas={mostrarTablas}
                             setExportData={setDatosParamedicos}
                         />
                     </div>
 
                     {/* SECCIÓN 3: URGENCIAS */}
-                    <div style={{ 
+                    <div style={{
                         display: areaSidebar === 'urgencias' ? 'block' : 'none',
                         visibility: areaSidebar === 'urgencias' ? 'visible' : 'hidden',
                         position: areaSidebar === 'urgencias' ? 'relative' : 'absolute',
                         left: areaSidebar === 'urgencias' ? '0' : '-9999px',
                         width: '100%'
                     }}>
-                        <TableroUrgencias 
-                            datos={urgenciasParaTablero} 
-                            diccionarioMedicos={diccionarioMedicos} 
+                        <TableroUrgencias
+                            datos={urgenciasParaTablero}
+                            diccionarioMedicos={diccionarioMedicos}
                             diccionarioCIE={diccionarioCIE}
-                            diccionarioEspecialidades={diccionarioEspecialidades} 
-                            mostrarTablas={mostrarTablas} 
+                            diccionarioEspecialidades={diccionarioEspecialidades}
+                            mostrarTablas={mostrarTablas}
                             setExportData={setDatosUrgencias}
                         />
                     </div>
 
                     {/* SECCIÓN 4: CIRUGIAS */}
-                    <div style={{ 
+                    <div style={{
                         display: areaSidebar === 'cirugias' ? 'block' : 'none',
                         visibility: areaSidebar === 'cirugias' ? 'visible' : 'hidden',
                         position: areaSidebar === 'cirugias' ? 'relative' : 'absolute',
                         left: areaSidebar === 'cirugias' ? '0' : '-9999px',
                         width: '100%'
                     }}>
-                        <TableroCirugias 
+                        <TableroCirugias
                             datos={datosCirugias}
                             mostrarTablas={mostrarTablas}
                             setExportData={setDatosCirugias}
-                         />
+                        />
                     </div>
 
                     {/* SECCIÓN 5: HOSPITALIZACION CONFIGURADA EN SEGUNDO PLANO Y SIN PARÁMETROS BASURA[cite: 8, 9] */}
@@ -1455,7 +1472,7 @@ export default function DashboardProductividad({ isAdmin }) {
                     }}>
                         {cargandoHospitalizacion ? (
                             <div className="flex justify-center items-center py-20 text-emerald-600 font-bold">
-                                <Activity className="animate-spin mr-3"/> Cargando registros de Hospitalización...
+                                <Activity className="animate-spin mr-3" /> Cargando registros de Hospitalización...
                             </div>
                         ) : (
                             <TableroHospitalizacion
@@ -1465,7 +1482,7 @@ export default function DashboardProductividad({ isAdmin }) {
                             />
                         )}
                     </div>
-                    
+
                     {/* MENSAJE DE EN CONSTRUCCIÓN */}
                     {!['consulta_externa', 'paramedicos', 'urgencias', 'cirugias', 'hospitalizacion'].includes(areaSidebar) && (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 p-16 border-2 border-dashed border-slate-300 rounded-3xl bg-slate-100/50">
