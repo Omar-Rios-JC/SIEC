@@ -3,7 +3,7 @@ import DashboardVencer from './componentes/dashboardVencer';
 import DashboardProductividad from './componentes/dashboardProductividad';
 import AdministradorUsuarios from './componentes/AdministradorUsuarios';
 import TableroCirugias from './componentes/TableroCirugias';
-import DashboardIndicadores from './componentes/DashboardIndicadores';
+import ModuloIndicadores from './componentes/ModuloIndicadores';
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -27,7 +27,7 @@ function App() {
   }
 
   if (modulo === "indicadores") {
-  return <DashboardIndicadores isAdmin={esAdmin} />;
+  return <ModuloIndicadores isAdmin={esAdmin} />;
 }
 
   // 4. RUTA para el módulo de Cirugías
