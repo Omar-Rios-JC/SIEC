@@ -3,7 +3,7 @@ import axios from 'axios';
 import localforage from 'localforage';
 import { Database, Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function ModuloCarga({ setVistaActiva, setMensaje, mensaje, cargarDatos }) {
+export default function ModuloCargaCE({ setVistaActiva, setMensaje, mensaje, cargarDatos }) {
     const [archivo, setArchivo] = useState(null);
     const [subiendo, setSubiendo] = useState(false);
 
@@ -52,12 +52,12 @@ export default function ModuloCarga({ setVistaActiva, setMensaje, mensaje, carga
         <div className="min-h-screen bg-slate-50 p-6 font-sans flex flex-col items-center">
             {/* Botón de regreso */}
             <div className="w-full max-w-4xl mb-8">
-                <button 
-                    onClick={() => { setVistaActiva('menu'); setMensaje(''); }}
+                <button
+                    onClick={() => { setVistaActiva('subir'); setMensaje(''); }}
                     className="flex items-center text-slate-500 hover:text-[#822626] font-bold transition-colors group"
                 >
-                    <span className="mr-2 transition-transform group-hover:-translate-x-1">←</span> 
-                    Volver al Menú Principal
+                    <span className="mr-2 transition-transform group-hover:-translate-x-1">←</span>
+                    Volver a Selección de Carga
                 </button>
             </div>
 
