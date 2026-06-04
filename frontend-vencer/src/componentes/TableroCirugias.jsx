@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Papa from "papaparse";
 import {
   Scissors,
@@ -49,16 +49,47 @@ const COLORS = {
   male: "#3b82f6",
 };
 
+const DATOS_VACIOS = [];
+
 const AREA_FILTRO_TODAS = "TODAS";
+const ANIOS_CIRUGIA_FIJOS = ["2026", "2025"];
 
 const AREA_FILTER_OPTIONS = [
-  { value: AREA_FILTRO_TODAS, label: "Todas las areas" },
+  { value: AREA_FILTRO_TODAS, label: "Todas las áreas" },
   { value: "OBSTETRICIA", label: "Obstetricia" },
-  { value: "CIRUGIA_PEDIATRICA", label: "Cirugia Pediatrica" },
-  { value: "GINECOLOGIA", label: "Ginecologia" },
-  { value: "ANESTESIOLOGIA", label: "Anestesiologia" },
-  { value: "PEDIATRICA", label: "Pediatrica" },
+  { value: "CIRUGIA_PEDIATRICA", label: "Cirugía Pediátrica" },
+  { value: "GINECOLOGIA", label: "Ginecología" },
+  { value: "ANESTESIOLOGIA", label: "Anestesiología" },
+  { value: "PEDIATRICA", label: "Pediátrica" },
 ];
+
+const DIVISIONES_CIRUGIA_FIJAS = AREA_FILTER_OPTIONS
+  .filter((opcion) => opcion.value !== AREA_FILTRO_TODAS)
+  .map((opcion) => opcion.label);
+
+const esValorDivisionValido = (valor) => {
+  const limpio = quitarAcentos(repararTextoRoto(valor))
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return Boolean(
+    limpio &&
+      ![
+        "SIN DIVISION",
+        "SIN DIVISIÓN",
+        "SIN AREA",
+        "SIN ÁREA",
+        "SIN DATO",
+        "NO REGISTRADO",
+        "NO REGISTRADA",
+        "N/A",
+        "NA",
+        "NULL",
+        "-",
+      ].includes(limpio),
+  );
+};
 
 const ESPECIALIDADES_POR_AREA = {
   OBSTETRICIA: ["OBSTETRICIA", "MATERNO FETAL", "MEDICINA MATERNO FETAL"],
@@ -1125,6 +1156,26 @@ const procesarFila = (fila, indice) => {
       normalizarValor(obtenerValorOptimizado(fila, ["Especialidad"], indice)) ||
       "SIN ESPECIALIDAD",
 
+    division:
+      normalizarValor(
+        obtenerValorOptimizado(
+          fila,
+          [
+            "División",
+            "Division",
+            "DIVISION",
+            "Área",
+            "Area",
+            "AREA",
+            "Servicio división",
+            "Servicio division",
+            "División médica",
+            "Division medica",
+          ],
+          indice,
+        ),
+      ) || "",
+
     tipoSolicitud:
       normalizarValor(
         obtenerValorOptimizado(fila, ["Tipo de solicitud"], indice),
@@ -1432,8 +1483,8 @@ const KpiCard = ({ titulo, valor, icono: Icono, color }) => {
   );
 };
 
-const Card = ({ titulo, icono: Icono, color, children }) => (
-  <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col shadow-sm">
+const Card = ({ id, titulo, icono: Icono, color, children }) => (
+  <div id={id} className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col shadow-sm">
     <div className="flex gap-3 mb-5 items-center">
       <div className="p-2 rounded-xl bg-slate-50">
         {React.createElement(Icono, { size: 18, style: { color } })}
@@ -1446,10 +1497,76 @@ const Card = ({ titulo, icono: Icono, color, children }) => (
   </div>
 );
 
+const TablaResumenCirugias = ({ labels = [], data = [], titulo = "Categoría", valor = "Total" }) => {
+  if (!labels?.length || !data?.length) return null;
+
+  const filas = labels.map((label, index) => ({
+    label: Array.isArray(label) ? label.join(" ") : String(label),
+    total: Number(data[index]) || 0,
+  }));
+
+  const totalGeneral = filas.reduce((acc, fila) => acc + fila.total, 0);
+
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-4">
+      <div className="max-h-[260px] overflow-y-auto rounded-xl border border-slate-100">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500 sticky top-0">
+            <tr>
+              <th className="px-3 py-2 font-black">{titulo}</th>
+              <th className="px-3 py-2 font-black text-right">{valor}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((fila, index) => (
+              <tr key={`${fila.label}-${index}`} className="border-t border-slate-100 hover:bg-slate-50">
+                <td className="px-3 py-2 text-slate-700 font-semibold">{fila.label}</td>
+                <td className="px-3 py-2 text-right text-slate-900 font-black">{fila.total.toLocaleString("es-MX")}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-slate-50 text-slate-900 font-black">
+            <tr>
+              <td className="px-3 py-2">TOTAL GENERAL</td>
+              <td className="px-3 py-2 text-right">{totalGeneral.toLocaleString("es-MX")}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const obtenerFechaFiltroCirugia = (item) => {
+  return item?.fechaProgramacion || item?.fechaSolicitud || item?.fechaCancelacion || null;
+};
+
+const obtenerDivisionCirugia = (item) => {
+  if (esValorDivisionValido(item?.division)) {
+    return normalizarValor(item.division);
+  }
+
+  const area = obtenerAreaEspecialidad(item?.especialidad);
+  const opcion = AREA_FILTER_OPTIONS.find((o) => o.value === area);
+
+  return opcion?.label || "Sin división";
+};
+
 // ==================== COMPONENTE PRINCIPAL ====================
 
-export default function TableroCirugias({ datos = [] }) {
-  const [datosProcesados, setDatosProcesados] = useState([]);
+export default function TableroCirugias({
+  datos = DATOS_VACIOS,
+  mostrarTablas = false,
+  setExportData,
+  setOpcionesFiltros,
+  anioSeleccionado = "todos",
+  mesSeleccionado = "todos",
+  mesInicio = 0,
+  mesFin = 11,
+  divisionSeleccionada = "todas",
+  especialidadSeleccionada = "todas",
+}) {
+  const [datosProcesadosBase, setDatosProcesadosBase] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [progresoCarga, setProgresoCarga] = useState(0);
   const [error, setError] = useState(null);
@@ -1465,7 +1582,7 @@ export default function TableroCirugias({ datos = [] }) {
         setCargando(true);
         setError(null);
         setProgresoCarga(0);
-        setDatosProcesados([]);
+        setDatosProcesadosBase([]);
 
         if (datos && datos.length > 0) {
           const columnas = Object.keys(datos[0] || {});
@@ -1480,7 +1597,7 @@ export default function TableroCirugias({ datos = [] }) {
           );
 
           if (!cancelado) {
-            setDatosProcesados(procesados);
+            setDatosProcesadosBase(procesados);
             setCargando(false);
           }
 
@@ -1523,7 +1640,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
             const filas = resultado.data || [];
 
             if (!filas.length) {
-              setDatosProcesados([]);
+              setDatosProcesadosBase([]);
               setCargando(false);
               return;
             }
@@ -1541,7 +1658,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
 
             if (cancelado) return;
 
-            setDatosProcesados(procesados);
+            setDatosProcesadosBase(procesados);
             setCargando(false);
           },
           error: (err) => {
@@ -1567,6 +1684,102 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
       cancelado = true;
     };
   }, [datos]);
+
+  const opcionesFiltrosCirugias = useMemo(() => {
+    const aniosDetectados = new Set();
+    const divisionesDetectadas = new Set(DIVISIONES_CIRUGIA_FIJAS);
+    const especialidades = new Set();
+
+    datosProcesadosBase.forEach((item) => {
+      const fecha = obtenerFechaFiltroCirugia(item);
+      if (fecha) aniosDetectados.add(String(fecha.getFullYear()));
+
+      const division = obtenerDivisionCirugia(item);
+      if (division) divisionesDetectadas.add(division);
+
+      const pasaDivision =
+        divisionSeleccionada === "todas" ||
+        normalizarParaComparar(division) === normalizarParaComparar(divisionSeleccionada);
+
+      if (pasaDivision && item.especialidad) {
+        especialidades.add(item.especialidad);
+      }
+    });
+
+    const anios = ANIOS_CIRUGIA_FIJOS.filter((anio) =>
+      ["2025", "2026"].includes(String(anio)),
+    );
+
+    const divisiones = [...divisionesDetectadas].sort((a, b) => {
+      if (a === "Sin división") return 1;
+      if (b === "Sin división") return -1;
+      return a.localeCompare(b, "es");
+    });
+
+    return {
+      anios,
+      divisiones,
+      especialidades: [...especialidades].sort((a, b) =>
+        a.localeCompare(b, "es"),
+      ),
+      cargado: !cargando && datosProcesadosBase.length > 0,
+    };
+  }, [datosProcesadosBase, cargando, divisionSeleccionada]);
+
+  useEffect(() => {
+    if (typeof setOpcionesFiltros === "function") {
+      setOpcionesFiltros(opcionesFiltrosCirugias);
+    }
+  }, [opcionesFiltrosCirugias, setOpcionesFiltros]);
+
+  const datosProcesados = useMemo(() => {
+    return datosProcesadosBase.filter((item) => {
+      const fecha = obtenerFechaFiltroCirugia(item);
+
+      if (anioSeleccionado !== "todos") {
+        if (!fecha || String(fecha.getFullYear()) !== String(anioSeleccionado)) {
+          return false;
+        }
+      }
+
+      if (mesSeleccionado === "rango") {
+        if (!fecha) return false;
+        const mes = fecha.getMonth();
+        if (mes < Number(mesInicio) || mes > Number(mesFin)) return false;
+      } else if (mesSeleccionado !== "todos") {
+        if (!fecha || fecha.getMonth() !== Number(mesSeleccionado)) return false;
+      }
+
+      if (divisionSeleccionada !== "todas") {
+        const division = obtenerDivisionCirugia(item);
+        if (normalizarParaComparar(division) !== normalizarParaComparar(divisionSeleccionada)) {
+          return false;
+        }
+      }
+
+      if (especialidadSeleccionada !== "todas") {
+        if (normalizarParaComparar(item.especialidad) !== normalizarParaComparar(especialidadSeleccionada)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    datosProcesadosBase,
+    anioSeleccionado,
+    mesSeleccionado,
+    mesInicio,
+    mesFin,
+    divisionSeleccionada,
+    especialidadSeleccionada,
+  ]);
+
+  useEffect(() => {
+    if (typeof setExportData === "function") {
+      setExportData(datosProcesados);
+    }
+  }, [datosProcesados, setExportData]);
 
   const agregados = useMemo(() => {
     const gruposEdad = [
@@ -2538,6 +2751,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <Card
+          id="graficoC_1"
           titulo="Estatus Quirúrgico"
           icono={Activity}
           color={COLORS.success}
@@ -2545,9 +2759,11 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[260px]">
             <Doughnut data={chartEstatus} options={doughnutOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={chartEstatus.labels} data={chartEstatus.datasets[0].data} titulo="Estatus" />}
         </Card>
 
         <Card
+          id="graficoC_2"
           titulo="Distribución por Sexo"
           icono={Users}
           color={COLORS.female}
@@ -2555,9 +2771,11 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[260px]">
             <Doughnut data={chartSexo} options={doughnutOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={chartSexo.labels} data={chartSexo.datasets[0].data} titulo="Sexo" />}
         </Card>
 
         <Card
+          id="graficoC_3"
           titulo="Cirugía Concertada"
           icono={ClipboardCheck}
           color={COLORS.info}
@@ -2565,17 +2783,20 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[260px]">
             <Doughnut data={chartConcertada} options={doughnutOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={chartConcertada.labels} data={chartConcertada.datasets[0].data} titulo="Concertada" />}
         </Card>
       </div>
 
       <div className="grid xl:grid-cols-2 gap-6">
-        <Card titulo="Tipo de Solicitud" icono={FileText} color={COLORS.info}>
+        <Card id="graficoC_4" titulo="Tipo de Solicitud" icono={FileText} color={COLORS.info}>
           <div className="h-[320px]">
             <Bar data={topTipoSolicitud} options={horizontalOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={topTipoSolicitud.labels} data={topTipoSolicitud.datasets[0].data} titulo="Tipo" />}
         </Card>
 
         <Card
+          id="graficoC_5"
           titulo="Tiempos Promedio del Procedimiento (minutos)"
           icono={Hourglass}
           color={COLORS.primary}
@@ -2583,17 +2804,20 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[320px]">
             <Bar data={chartTiempos} options={barOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={chartTiempos.labels} data={chartTiempos.datasets[0].data} titulo="Tiempo" valor="Minutos" />}
         </Card>
       </div>
 
       <div className="grid xl:grid-cols-2 gap-6">
-        <Card titulo="Top Cirujanos" icono={Users} color={COLORS.info}>
+        <Card id="graficoC_6" titulo="Top Cirujanos" icono={Users} color={COLORS.info}>
           <div className="h-[420px]">
             <Bar data={topCirujanos} options={horizontalOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={topCirujanos.labels} data={topCirujanos.datasets[0].data} titulo="Cirujano" />}
         </Card>
 
         <Card
+          id="graficoC_7"
           titulo="Cirugías por Especialidad"
           icono={Stethoscope}
           color={COLORS.primary}
@@ -2601,11 +2825,13 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[420px]">
             <Bar data={topEspecialidades} options={horizontalOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={topEspecialidades.labels} data={topEspecialidades.datasets[0].data} titulo="Especialidad" />}
         </Card>
       </div>
 
       <div className="grid xl:grid-cols-2 gap-6">
         <Card
+          id="graficoC_8"
           titulo="Pirámide Poblacional"
           icono={Users}
           color={COLORS.success}
@@ -2613,9 +2839,17 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[420px]">
             <Bar data={chartEdad} options={piramideOptions} />
           </div>
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={chartEdad.labels}
+              data={chartEdad.labels.map((_, index) => Math.abs(chartEdad.datasets[0].data[index] || 0) + Math.abs(chartEdad.datasets[1].data[index] || 0))}
+              titulo="Grupo de edad"
+            />
+          )}
         </Card>
 
         <Card
+          id="graficoC_9"
           titulo="Días de Diferimiento (días naturales)"
           icono={Hourglass}
           color={COLORS.warning}
@@ -2623,6 +2857,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[320px]">
             <Bar data={chartDiferimiento} options={diferimientoOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={chartDiferimiento.labels} data={chartDiferimiento.datasets[0].data} titulo="Diferimiento" />}
         </Card>
       </div>
 
@@ -2883,9 +3118,10 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
               Motivos de Cancelación
             </h4>
 
-            <div className="h-[480px]">
+            <div id="graficoC_10" className="h-[480px]">
               <Bar data={chartMotivosCancelacion} options={horizontalOptions} />
             </div>
+            {mostrarTablas && <TablaResumenCirugias labels={chartMotivosCancelacion.labels} data={chartMotivosCancelacion.datasets[0].data} titulo="Motivo" />}
           </div>
 
           <div>
@@ -2893,9 +3129,10 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
               Último Motivo de Suspensión
             </h4>
 
-            <div className="h-[480px]">
+            <div id="graficoC_11" className="h-[480px]">
               <Bar data={chartMotivosSuspension} options={horizontalOptions} />
             </div>
+            {mostrarTablas && <TablaResumenCirugias labels={chartMotivosSuspension.labels} data={chartMotivosSuspension.datasets[0].data} titulo="Motivo" />}
           </div>
         </div>
 
@@ -2907,6 +3144,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
 
       <div className="grid xl:grid-cols-2 gap-6">
         <Card
+          id="graficoC_12"
           titulo="Top Diagnósticos CIE10"
           icono={Activity}
           color={COLORS.info}
@@ -2914,9 +3152,11 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[480px]">
             <Bar data={topCIE10} options={horizontalOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={topCIE10.labels} data={topCIE10.datasets[0].data} titulo="CIE10" />}
         </Card>
 
         <Card
+          id="graficoC_13"
           titulo="Top Diagnósticos CIE9"
           icono={Activity}
           color={COLORS.dark}
@@ -2924,11 +3164,13 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[480px]">
             <Bar data={topCIE9} options={horizontalOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={topCIE9.labels} data={topCIE9.datasets[0].data} titulo="CIE9" />}
         </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <Card
+          id="graficoC_14"
           titulo="Utilización de Salas"
           icono={DoorOpen}
           color={COLORS.success}
@@ -2936,6 +3178,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
           <div className="h-[350px]">
             <Bar data={topSalas} options={horizontalOptions} />
           </div>
+          {mostrarTablas && <TablaResumenCirugias labels={topSalas.labels} data={topSalas.datasets[0].data} titulo="Sala" />}
         </Card>
       </div>
     </div>

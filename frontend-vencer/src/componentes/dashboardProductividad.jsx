@@ -204,6 +204,14 @@ export default function DashboardProductividad({ isAdmin }) {
     const [datosCirugias, setDatosCirugias] = useState([]);
     const [datosHospitalizacion, setDatosHospitalizacion] = useState([]);
 
+    // Opciones dinámicas que envía TableroCirugias para mostrar filtros en la barra superior
+    const [opcionesFiltrosCirugias, setOpcionesFiltrosCirugias] = useState({
+        anios: ['2026', '2025'],
+        divisiones: ['Anestesiología', 'Cirugía Pediátrica', 'Ginecología', 'Obstetricia', 'Pediátrica'],
+        especialidades: [],
+        cargado: false
+    });
+
     // ==========================================
     // CARGA DE DATOS 
     // ==========================================
@@ -343,10 +351,16 @@ export default function DashboardProductividad({ isAdmin }) {
         cargarDiccionarioEspecialidades();
     }, []);
 
-    // RESETEAR ESPECIALIDAD CUANDO CAMBIA LA DIVISIÓN O DE ÁREA
+    // RESETEAR FILTROS AL CAMBIAR DE ÁREA PARA EVITAR VALORES QUE NO EXISTEN EN OTRO MÓDULO
+    useEffect(() => {
+        setDivisionSeleccionada('todas');
+        setEspecialidadSeleccionada('todas');
+    }, [areaSidebar]);
+
+    // RESETEAR ESPECIALIDAD CUANDO CAMBIA LA DIVISIÓN
     useEffect(() => {
         setEspecialidadSeleccionada('todas');
-    }, [divisionSeleccionada, areaSidebar]);
+    }, [divisionSeleccionada]);
 
 
     // ==========================================
@@ -900,33 +914,79 @@ export default function DashboardProductividad({ isAdmin }) {
     };
 
     const handleDescargarTodo = async () => {
-        if (dataExterna.length === 0 && dataParamedicos.length === 0 && dataUrgencias.length === 0) {
-            alert("Navega por las pestañas para cargar los datos antes de exportar.");
+        const totalRegistros =
+            datosFiltrados.length +
+            datosParamedicos.length +
+            datosUrgencias.length +
+            datosCirugias.length +
+            datosHospitalizacion.length;
+
+        if (totalRegistros === 0) {
+            alert("No hay datos cargados para generar el reporte.");
             return;
         }
-        await exportarReporteCompleto(dataExterna, dataParamedicos, dataUrgencias);
+
+        await exportarReporteCompleto(
+            datosFiltrados,
+            datosParamedicos,
+            datosUrgencias,
+            datosCirugias,
+            datosHospitalizacion
+        );
     };
 
     const handleDescargarExcel = async () => {
         try {
-            console.log("Exportando datos:", {
-                externa: datosFiltrados.length,
-                param: datosParamedicos.length,
-                urg: datosUrgencias.length,
-                hosp: datosHospitalizacion.length // Traza de hospitalización[cite: 8]
-            });
+            const totalRegistros =
+                datosFiltrados.length +
+                datosParamedicos.length +
+                datosUrgencias.length +
+                datosCirugias.length +
+                datosHospitalizacion.length;
+
+            if (areaSidebar === 'cirugias' && datosCirugias.length === 0) {
+                alert("El módulo de Cirugías todavía no tiene datos cargados para exportar con los filtros actuales.");
+                return;
+            }
+
+            if (totalRegistros === 0) {
+                alert("No hay datos cargados para generar el reporte.");
+                return;
+            }
 
             await exportarReporteCompleto(
                 datosFiltrados,
                 datosParamedicos,
                 datosUrgencias,
-                datosHospitalizacion // Sincronizar columna Excel de hospitalización[cite: 8]
+                datosCirugias,
+                datosHospitalizacion
             );
         } catch (error) {
             console.error("Error en la exportación:", error);
             alert("Hubo un error al generar el Excel.");
         }
     };
+
+    const modulosConFiltrosCompletos = ['consulta_externa', 'paramedicos', 'urgencias', 'cirugias'];
+    const mostrarFiltrosGlobales = modulosConFiltrosCompletos.includes(areaSidebar);
+
+    const aniosFiltroActual = areaSidebar === 'cirugias'
+        ? ['2026', '2025']
+        : [...new Set([...aniosDisponibles.map(String), '2026', '2025'])]
+            .filter(a => a === '2025' || a === '2026')
+            .sort((a, b) => Number(b) - Number(a));
+
+    const divisionesFiltroActual = areaSidebar === 'cirugias'
+        ? opcionesFiltrosCirugias.divisiones
+        : divisionesDisponibles;
+
+    const especialidadesFiltroActual = areaSidebar === 'cirugias'
+        ? opcionesFiltrosCirugias.especialidades
+        : especialidadesParaMostrar;
+
+    const hayDatosParaFiltrosActuales = areaSidebar === 'cirugias'
+        ? true
+        : datos.length > 0 && !cargandoDatos && !error;
 
     const rolURL = new URLSearchParams(window.location.search).get('rol');
 
@@ -955,6 +1015,19 @@ export default function DashboardProductividad({ isAdmin }) {
 
         window.location.href = '/vistas/roles/index.php';
     };
+
+    const irAlPanelAdmin = () => {
+    const esLocal =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+
+    if (esLocal) {
+        window.location.href = 'http://siec.infinityfreeapp.com/vistas/admin/admin.php';
+        return;
+    }
+
+    window.location.href = '/vistas/admin/admin.php';
+};
 
     const manejarSidebar = () => {
         if (window.innerWidth < 768) {
@@ -1168,20 +1241,40 @@ export default function DashboardProductividad({ isAdmin }) {
                     </button>
 
                     {usuarioEsAdmin && (
-                        <button
-                            onClick={abrirMenuPrincipal}
-                            className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
-                                ? 'justify-center p-3'
-                                : 'justify-start gap-3 px-4 py-3'
-                                }`}
-                            title="Cambiar bases de datos"
-                        >
-                            <Database size={20} className="shrink-0" />
-                            {mostrarTextoSidebar && (
-                                <span className="whitespace-nowrap">Cambiar bases de datos</span>
-                            )}
-                        </button>
-                    )}
+    <>
+        <button
+            onClick={abrirMenuPrincipal}
+            className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
+                ? 'justify-center p-3'
+                : 'justify-start gap-3 px-4 py-3'
+                }`}
+            title="Actualizar bases de datos"
+        >
+            <Database size={20} className="shrink-0" />
+            {mostrarTextoSidebar && (
+                <span className="whitespace-nowrap">
+                    Actualizar Bases de Datos
+                </span>
+            )}
+        </button>
+
+        <button
+            onClick={irAlPanelAdmin}
+            className={`w-full flex items-center bg-[#6b1f1f] hover:bg-[#5e1919] text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
+                ? 'justify-center p-3'
+                : 'justify-start gap-3 px-4 py-3'
+                }`}
+            title="Volver al panel de admin"
+        >
+            <Home size={20} className="shrink-0" />
+            {mostrarTextoSidebar && (
+                <span className="whitespace-nowrap">
+                    Volver al Panel Admin
+                </span>
+            )}
+        </button>
+    </>
+)}
                 </div>
             </aside>
 
@@ -1208,13 +1301,13 @@ export default function DashboardProductividad({ isAdmin }) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                        {(areaSidebar === 'consulta_externa' || areaSidebar === 'paramedicos' || areaSidebar === 'urgencias') && datos.length > 0 && !cargandoDatos && !error && (
+                        {mostrarFiltrosGlobales && hayDatosParaFiltrosActuales && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
                                 <Filter size={14} className="text-[#822626] ml-2 hidden sm:block" />
                                 <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año:</span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
-                                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+                                    {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">Mes:</span>
@@ -1244,7 +1337,7 @@ export default function DashboardProductividad({ isAdmin }) {
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">División:</span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate" value={divisionSeleccionada} onChange={e => setDivisionSeleccionada(e.target.value)}>
                                     <option value="todas">Todas</option>
-                                    {divisionesDisponibles.map(d => <option key={d} value={d}>{d}</option>)}
+                                    {divisionesFiltroActual.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
 
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
@@ -1255,7 +1348,7 @@ export default function DashboardProductividad({ isAdmin }) {
                                     onChange={e => setEspecialidadSeleccionada(e.target.value)}
                                 >
                                     <option value="todas">Todas</option>
-                                    {especialidadesParaMostrar.map(e => (
+                                    {especialidadesFiltroActual.map(e => (
                                         <option key={e} value={e}>{e}</option>
                                     ))}
                                 </select>
@@ -1269,7 +1362,7 @@ export default function DashboardProductividad({ isAdmin }) {
                                 <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año IMSS:</span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
-                                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+                                    {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">Mes IMSS:</span>
@@ -1369,8 +1462,7 @@ export default function DashboardProductividad({ isAdmin }) {
                                             <div className="w-px h-4 bg-slate-300"></div>
 
                                             <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={anioGraficoMeta} onChange={e => setAnioGraficoMeta(Number(e.target.value))}>
-                                                {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
-                                                {!aniosDisponibles.includes('2025') && <option value="2025">2025</option>}
+                                                {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
                                             </select>
                                         </div>
                                     </div>
@@ -1456,9 +1548,15 @@ export default function DashboardProductividad({ isAdmin }) {
                         width: '100%'
                     }}>
                         <TableroCirugias
-                            datos={datosCirugias}
                             mostrarTablas={mostrarTablas}
                             setExportData={setDatosCirugias}
+                            setOpcionesFiltros={setOpcionesFiltrosCirugias}
+                            anioSeleccionado={anioSeleccionado}
+                            mesSeleccionado={mesSeleccionado}
+                            mesInicio={mesInicio}
+                            mesFin={mesFin}
+                            divisionSeleccionada={divisionSeleccionada}
+                            especialidadSeleccionada={especialidadSeleccionada}
                         />
                     </div>
 
