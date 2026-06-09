@@ -30,7 +30,7 @@ try {
     $diccCIE = [];
     $queryCIE = $pdo->query("SELECT codigo, descripcion FROM cat_cie10");
     while ($rowCIE = $queryCIE->fetch(PDO::FETCH_ASSOC)) {
-        // Guardamos la clave en mayúsculas y limpia de puntos
+        // Guardamos la clave en mayúsculas y limpia de puntos para máxima compatibilidad
         $codigoLimpioDicc = strtoupper(str_replace('.', '', trim($rowCIE['codigo'])));
         $diccCIE[$codigoLimpioDicc] = trim($rowCIE['descripcion']);
     }
@@ -39,18 +39,36 @@ try {
         $fileTmpPath = $_FILES['archivo_csv']['tmp_name'];
         
         if (($handle = fopen($fileTmpPath, "r")) !== FALSE) {
+            // 1. LEER LA PRIMERA LÍNEA COMO STRING PURO
             $linea1 = fgets($handle);
-            $delimitador = strpos($linea1, ';') !== false ? ';' : ',';
-            rewind($handle); 
+            
+            // VACUNA 1: Quitamos las comillas dobles externas del bloque completo si existen
+            $linea1Limpia = trim($linea1);
+            $linea1Limpia = trim($linea1Limpia, '"'); 
+            
+            // Detectamos el delimitador de forma automática sobre la línea ya limpia
+            if (strpos($linea1Limpia, '|') !== false) {
+                $delimitador = '|';
+            } elseif (strpos($linea1Limpia, ';') !== false) {
+                $delimitador = ';';
+            } else {
+                $delimitador = ',';
+            }
+            rewind($handle); // Reiniciamos el puntero para que str_getcsv procese desde el inicio
 
-            $headers = fgetcsv($handle, 10000, $delimitador);
+            // Volvemos a leer la primera línea pero ya limpia para construir los headers
+            $linea1Header = fgets($handle);
+            $linea1HeaderLimpia = trim($linea1Header);
+            $linea1HeaderLimpia = trim($linea1HeaderLimpia, '"');
+
+            $headers = str_getcsv($linea1HeaderLimpia, $delimitador);
             $headers = array_map(function($h) { 
                 $h = preg_replace('/\xEF\xBB\xBF/', '', $h); 
                 return trim(preg_replace('/[\x00-\x1F\x7F]/', '', $h)); 
             }, $headers);
             $colMap = array_flip($headers);
 
-            // CORRECCIÓN: Línea exacta proporcionada por ti
+            // Verificación estricta de tus columnas requeridas fijas
             $columnasRequeridas = ['FEEGR', 'ESP', 'DIASEST', 'DiagPrincipalEgreso', 'des_motivo_egreso'];
             foreach ($columnasRequeridas as $req) {
                 if (!isset($colMap[$req])) {
@@ -59,7 +77,7 @@ try {
                 }
             }
 
-            // Iniciar transacción masiva para burlar límites de CPU
+            // Iniciar transacción masiva para burlar los límites de CPU del hosting gratuito
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("INSERT IGNORE INTO hospitalizacion_externa 
@@ -69,13 +87,23 @@ try {
             $registrosInsertados = 0;
             $duplicadosSaltados = 0;
 
-            while (($data = fgetcsv($handle, 10000, $delimitador)) !== FALSE) {
+            // 2. PROCESAR EL RESTO DE LAS FILAS DE MANERA ENCAPSULADA
+            while (($lineaRaw = fgets($handle)) !== FALSE) {
+                $lineaRaw = trim($lineaRaw);
+                if (empty($lineaRaw)) continue;
+
+                // VACUNA 2: Le arrancamos las comillas externas a la fila de datos completa
+                $lineaRawLimpia = trim($lineaRaw, '"');
+
+                // Segmentamos las columnas usando el delimitador detectado
+                $data = str_getcsv($lineaRawLimpia, $delimitador);
+
                 if (count($data) < count($colMap)) continue; 
 
                 $idxFecha = $colMap['FEEGR'];
                 if (!isset($data[$idxFecha]) || empty(trim($data[$idxFecha]))) continue;
 
-                // --- 1. PROCESAMIENTO DE FECHA DE EGRESO (CALENDARIO IMSS) ---
+                // --- 1. PROCESAMIENTO DE FECHA DE EGRESO (CALENDARIO IMSS 26-25) ---
                 $fechaHoraBruta = trim($data[$idxFecha]);
                 $fechaSola = explode(' ', $fechaHoraBruta)[0]; 
                 
@@ -167,17 +195,16 @@ try {
             }
             fclose($handle);
 
-            // Recorremos el diccionario de especialidades que acabamos de leer de la BD
+            // =================================================================
+            // PARCHAR HISTÓRICOS DESVINCULADOS
+            // =================================================================
             if (!empty($diccEspecialidades)) {
                 $stmtUpdate = $pdo->prepare("UPDATE hospitalizacion_externa 
                     SET division = ?, especialidad = ? 
                     WHERE especialidad = ?");
 
                 foreach ($diccEspecialidades as $clave => $info) {
-                    // El texto que se guardó erróneamente en el pasado cuando no existía la clave:
                     $textoHuerfano = "ESPECIALIDAD CP: " . $clave;
-                    
-                    // Ejecutamos la actualización para rescatar los registros viejos
                     $stmtUpdate->execute([
                         $info['division'],
                         $info['nombre'],
@@ -185,12 +212,13 @@ try {
                     ]);
                 }
             }
+            // =================================================================
             
             $pdo->commit();
             
             echo json_encode([
                 'success' => true, 
-                'message' => "¡Carga Masiva Exitosa! Periodos IMSS recalculados (26-25). Egresos nuevos: $registrosInsertados, Duplicados saltados: $duplicadosSaltados."
+                'message' => "¡Carga Masiva Exitosa! Formato encapsulado de la plataforma procesado correctamente. Egresos nuevos: $registrosInsertados, Duplicados saltados: $duplicadosSaltados."
             ]);
         }
     }
