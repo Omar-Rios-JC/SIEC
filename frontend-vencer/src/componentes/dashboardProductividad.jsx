@@ -159,6 +159,12 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
     );
 };
 
+const DIVISIONES_CIRUGIAS_PERMITIDAS = [
+    'CONSULTA EXTERNA',
+    'HOSPITAL',
+    'URGENCIAS'
+];
+
 export default function DashboardProductividad({ isAdmin }) {
     // ESTADOS DE NAVEGACIÓN
     const [vistaActiva, setVistaActiva] = useState('dashboard');
@@ -207,7 +213,7 @@ export default function DashboardProductividad({ isAdmin }) {
     // Opciones dinámicas que envía TableroCirugias para mostrar filtros en la barra superior
     const [opcionesFiltrosCirugias, setOpcionesFiltrosCirugias] = useState({
         anios: ['2026', '2025'],
-        divisiones: ['Anestesiología', 'Cirugía Pediátrica', 'Ginecología', 'Obstetricia', 'Pediátrica'],
+        divisiones: DIVISIONES_CIRUGIAS_PERMITIDAS,
         especialidades: [],
         cargado: false
     });
@@ -361,6 +367,16 @@ export default function DashboardProductividad({ isAdmin }) {
     useEffect(() => {
         setEspecialidadSeleccionada('todas');
     }, [divisionSeleccionada]);
+
+    useEffect(() => {
+    if (
+        areaSidebar === 'cirugias' &&
+        divisionSeleccionada !== 'todas' &&
+        !DIVISIONES_CIRUGIAS_PERMITIDAS.includes(divisionSeleccionada)
+    ) {
+        setDivisionSeleccionada('todas');
+    }
+}, [areaSidebar, divisionSeleccionada]);
 
 
     // ==========================================
@@ -977,7 +993,7 @@ export default function DashboardProductividad({ isAdmin }) {
             .sort((a, b) => Number(b) - Number(a));
 
     const divisionesFiltroActual = areaSidebar === 'cirugias'
-        ? opcionesFiltrosCirugias.divisiones
+        ? DIVISIONES_CIRUGIAS_PERMITIDAS
         : divisionesDisponibles;
 
     const especialidadesFiltroActual = areaSidebar === 'cirugias'
