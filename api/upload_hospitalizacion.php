@@ -166,6 +166,25 @@ try {
                 if ($stmt->rowCount() > 0) $registrosInsertados++; else $duplicadosSaltados++;
             }
             fclose($handle);
+
+            // Recorremos el diccionario de especialidades que acabamos de leer de la BD
+            if (!empty($diccEspecialidades)) {
+                $stmtUpdate = $pdo->prepare("UPDATE hospitalizacion_externa 
+                    SET division = ?, especialidad = ? 
+                    WHERE especialidad = ?");
+
+                foreach ($diccEspecialidades as $clave => $info) {
+                    // El texto que se guardó erróneamente en el pasado cuando no existía la clave:
+                    $textoHuerfano = "ESPECIALIDAD CP: " . $clave;
+                    
+                    // Ejecutamos la actualización para rescatar los registros viejos
+                    $stmtUpdate->execute([
+                        $info['division'],
+                        $info['nombre'],
+                        $textoHuerfano
+                    ]);
+                }
+            }
             
             $pdo->commit();
             
