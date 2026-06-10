@@ -504,11 +504,6 @@ unset($_SESSION['login_error']);
             </form>
 
             <div class="login-footer-actions">
-                <a class="create-account" href="./registro.php">
-                    <i class="bi bi-person-plus-fill me-1"></i>
-                    Crear cuenta
-                </a>
-
                 <a class="back-home" href="../roles/index.php">
                     Volver al portal institucional
                 </a>

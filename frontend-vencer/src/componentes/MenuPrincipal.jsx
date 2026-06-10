@@ -5,6 +5,15 @@ export default function MenuPrincipal({ setVistaActiva, isAdmin, setMensaje }) {
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col items-center pt-20 px-8 animate-in fade-in duration-700">
             {/* Encabezado */}
+            <div className="w-full max-w-4xl mb-8">
+                <button
+                    onClick={() => setVistaActiva('dashboard')}
+                    className="flex items-center text-slate-500 hover:text-[#822626] font-bold transition-colors group"
+                >
+                    <span className="mr-2 transition-transform group-hover:-translate-x-1">←</span>
+                    Volver a Tableros de Indicadores
+                </button>
+            </div>
             <div className="text-center mb-12">
                 <h1 className="text-4xl font-black text-[#822626] mb-2 tracking-tight">
                     Módulo de Productividad
@@ -15,29 +24,15 @@ export default function MenuPrincipal({ setVistaActiva, isAdmin, setMensaje }) {
             </div>
 
             {/* Contenedor de Tarjetas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
-                
-                {/* BOTÓN 1: TABLEROS (Visible para todos) */}
-                <button 
-                    onClick={() => setVistaActiva('dashboard')} 
-                    className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:border-red-300 transition-all flex flex-col items-center text-center group"
-                >
-                    <div className="bg-red-50 p-4 rounded-full mb-4 group-hover:bg-[#822626] group-hover:text-white text-[#822626] transition-colors">
-                        <BarChart2 size={40} />
-                    </div>
-                    <h2 className="text-xl font-black text-slate-800 mb-2">Tableros de Indicadores</h2>
-                    <p className="text-slate-500 text-sm font-medium">
-                        Ingresa para visualizar las gráficas de Consulta Externa, Hospitalización, Cirugía y más.
-                    </p>
-                </button>
+            <div className="grid grid-cols-1 md:flex md:justify-center gap-8 max-w-6xl w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
 
                 {/* VISTAS DE ADMINISTRADOR (Condicionales) */}
                 {isAdmin && (
                     <>
-                        {/* BOTÓN 2: ACTUALIZAR BD */}
-                        <button 
-                            onClick={() => { setVistaActiva('subir'); setMensaje(''); }} 
-                            className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:border-red-300 transition-all flex flex-col items-center text-center group"
+                        {/* BOTÓN 1: ACTUALIZAR BD */}
+                        <button
+                            onClick={() => { setVistaActiva('subir'); setMensaje(''); }}
+                            className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:border-red-300 transition-all flex flex-col items-center text-center group w-full md:max-w-sm"
                         >
                             <div className="bg-red-50 p-4 rounded-full mb-4 group-hover:bg-[#822626] group-hover:text-white text-[#822626] transition-colors">
                                 <Database size={40} />
@@ -48,10 +43,10 @@ export default function MenuPrincipal({ setVistaActiva, isAdmin, setMensaje }) {
                             </p>
                         </button>
 
-                        {/* BOTÓN 3: GESTIÓN DE CATÁLOGOS */}
-                        <button 
-                            onClick={() => setVistaActiva('catalogos')} 
-                            className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:border-red-300 transition-all flex flex-col items-center text-center group relative overflow-hidden"
+                        {/* BOTÓN 2: GESTIÓN DE CATÁLOGOS */}
+                        <button
+                            onClick={() => setVistaActiva('catalogos')}
+                            className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:border-red-300 transition-all flex flex-col items-center text-center group relative overflow-hidden w-full md:max-w-sm"
                         >
                             <div className="absolute top-4 right-4 bg-green-100 text-green-700 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest">
                                 Nuevo
