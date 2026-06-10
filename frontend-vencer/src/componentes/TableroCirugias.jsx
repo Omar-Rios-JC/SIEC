@@ -51,6 +51,18 @@ const COLORS = {
 
 const DATOS_VACIOS = [];
 
+const decodificarCSVDesdeBuffer = (buffer) => {
+  try {
+    return new TextDecoder("utf-8", { fatal: true })
+      .decode(buffer)
+      .replace(/^\uFEFF/, "");
+  } catch {
+    return new TextDecoder("windows-1252")
+      .decode(buffer)
+      .replace(/^\uFEFF/, "");
+  }
+};
+
 const AREA_FILTRO_TODAS = "TODAS";
 const ANIOS_CIRUGIA_FIJOS = ["2026", "2025"];
 
@@ -1603,10 +1615,7 @@ export default function TableroCirugias({
 
           return;
         }
-
-        const CSV_VERSION = "2026-05";
-
-const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
+        const respuesta = await fetch(`/api/api_cirugias.php?t=${Date.now()}`, {
           cache: "no-store",
         });
 
@@ -1618,11 +1627,7 @@ const respuesta = await fetch("/graficos/datos_cirugias_ene_mayo_2026.csv", {
 
         const buffer = await respuesta.arrayBuffer();
 
-        let texto = new TextDecoder("windows-1252").decode(buffer);
-
-        if (texto.charCodeAt(0) === 0xfeff) {
-          texto = texto.slice(1);
-        }
+        const texto = decodificarCSVDesdeBuffer(buffer);
 
         if (cancelado) return;
 
