@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stethoscope, Syringe, Bed, ArrowLeft } from 'lucide-react';
 
-export default function MenuCarga({ setVistaActiva }) {
+export default function MenuCarga({ setVistaActiva, setMensaje = () => {} }) {
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col items-center pt-16 px-8 animate-in fade-in duration-500">
             {/* Botón para regresar al Menú Principal */}
@@ -11,7 +11,7 @@ export default function MenuCarga({ setVistaActiva }) {
                     onClick={() => { setVistaActiva('menu'); setMensaje(''); }}
                     className="flex items-center text-slate-500 hover:text-[#822626] font-bold transition-colors group"
                 >
-                    <span className="mr-2 transition-transform group-hover:-translate-x-1">←</span>
+                    <ArrowLeft size={16} className="mr-2 transition-transform group-hover:-translate-x-1" />
                     Volver al Menú Principal
                 </button>
             </div>

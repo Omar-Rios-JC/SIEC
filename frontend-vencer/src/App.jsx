@@ -32,7 +32,7 @@ function App() {
 
   // 4. RUTA para el módulo de Cirugías
   if (modulo === "cirugias") {
-    return <TableroCirugias datos={datosCirugiasPrueba} />;
+    return <TableroCirugias />;
   }
 
   // 5. Ruta por defecto: 
