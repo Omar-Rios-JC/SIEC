@@ -372,22 +372,22 @@ const IndicadoresHosp = ({ rolUsuario = 'admin', tabActiva = 'mensual' }) => {
     // INTERFAZ GRÁFICA (RENDER)
     // ==========================================
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <div className="space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
             {rolUsuario === 'admin' && (
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm text-center max-w-xl mx-auto relative overflow-hidden">
+                <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm text-center w-full max-w-xl mx-auto relative overflow-hidden">
                     <div className="bg-blue-50 p-3 rounded-full w-14 h-14 flex items-center justify-center mx-auto mb-3">
                         <FileText size={28} className="text-blue-600" />
                     </div>
                     <h3 className="font-bold text-slate-800 text-lg mb-1">Cargar Toda la Cédula</h3>
                     <p className="text-xs text-slate-500 mb-5">Sube el archivo Excel una sola vez.</p>
                     
-                    <div className="flex items-center justify-center gap-3 mb-6 bg-slate-50 p-2 rounded-xl inline-flex border border-slate-200">
+                    <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-6 bg-slate-50 p-2 rounded-xl border border-slate-200">
                         <Calendar size={18} className="text-slate-400 ml-2" />
                         <span className="text-sm font-bold text-slate-600">Año:</span>
                         <input type="number" className="bg-white border border-slate-300 rounded-lg px-3 py-1 font-bold text-blue-700 outline-none w-24 text-center shadow-inner" value={anioSeleccionado} onChange={(e) => setAnioSeleccionado(e.target.value)} disabled={guardando} />
                     </div>
                     <br />
-                    <label className={`inline-flex items-center justify-center px-8 py-3 font-bold text-sm rounded-xl shadow-md transition-all ${guardando ? 'bg-blue-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer text-white'}`}>
+                    <label className={`inline-flex w-full sm:w-auto items-center justify-center px-5 sm:px-8 py-3 font-bold text-sm rounded-xl shadow-md transition-all ${guardando ? 'bg-blue-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer text-white'}`}>
                         {guardando ? (<><Loader2 className="animate-spin mr-2" size={18} /> Procesando...</>) : (<span>Seleccionar Archivo Excel Único</span>)}
                         <input type="file" accept=".xlsx, .xls" className="hidden" onChange={manejarSubidaHospExcel} disabled={guardando} />
                     </label>
@@ -401,8 +401,8 @@ const IndicadoresHosp = ({ rolUsuario = 'admin', tabActiva = 'mensual' }) => {
                 </div>
             ) : datosHosp.length > 0 && chartMensual && totalesAnuales ? (
                 <>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
                             <div className="flex-1 w-full sm:w-auto">
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
                                     Seleccionar Indicador para Visualizar
@@ -425,21 +425,21 @@ const IndicadoresHosp = ({ rolUsuario = 'admin', tabActiva = 'mensual' }) => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-md min-w-[140px] flex-shrink-0">
+                            <div className="bg-slate-800 text-white px-5 sm:px-6 py-3 rounded-2xl shadow-md w-full sm:w-auto sm:min-w-[140px] flex-shrink-0">
                                 <span className="text-xs uppercase tracking-widest text-slate-300 block text-center font-bold">Año Analizado</span>
                                 <span className="text-3xl font-black block text-center">{anioSeleccionado}</span>
                             </div>
                         </div>
-                        <div className="h-80 w-full">
+                        <div className="h-64 sm:h-80 w-full">
                             <Line data={tabActiva === 'acumulado' ? chartAcumulado : chartMensual} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#f8fafc' } }, x: { grid: { display: false } } } }} />
                         </div>
                     </div>
 
                     {tabActiva === 'mensual' ? (
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-500">
+                        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm animate-in fade-in duration-500">
                             <h3 className="font-bold text-slate-800 text-base mb-4">Desglose Mensual - {configActual.nombreCorto}</h3>
                             <div className="overflow-x-auto border rounded-2xl custom-scrollbar shadow-inner">
-                                <table className="w-full text-left text-xs border-collapse min-w-max">
+                                <table className="min-w-[760px] text-left text-xs border-collapse">
                                     <thead className="bg-slate-50 font-bold text-slate-600">
                                         <tr>
                                             <th className="p-4 border-b border-r bg-slate-100 min-w-[200px] sticky left-0 z-20 shadow-[4px_0_10px_rgba(0,0,0,0.03)] uppercase tracking-wider text-[10px]">Métrica</th>
@@ -487,10 +487,10 @@ const IndicadoresHosp = ({ rolUsuario = 'admin', tabActiva = 'mensual' }) => {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-500">
+                        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm animate-in fade-in duration-500">
                             <h3 className="font-bold text-slate-800 text-base mb-4">Progreso Acumulado del Año - {configActual.nombreCorto}</h3>
                             <div className="overflow-x-auto border rounded-2xl custom-scrollbar shadow-inner">
-                                <table className="w-full text-left text-xs border-collapse min-w-max">
+                                <table className="min-w-[760px] text-left text-xs border-collapse">
                                     <thead className="bg-slate-50 font-bold text-slate-600">
                                         <tr>
                                             <th className="p-4 border-b border-r bg-slate-100 min-w-[200px] sticky left-0 z-20 shadow-[4px_0_10px_rgba(0,0,0,0.03)] uppercase tracking-wider text-[10px]">Métrica Acumulada</th>
@@ -535,25 +535,24 @@ const IndicadoresHosp = ({ rolUsuario = 'admin', tabActiva = 'mensual' }) => {
                         </div>
                     )}
 
-                    <div className="bg-blue-600 text-white p-8 rounded-3xl shadow-lg border border-blue-500/50 flex flex-col sm:flex-row justify-around items-center gap-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-blue-500 opacity-20 blur-3xl"></div>
+                    <div className="bg-blue-600 text-white p-5 sm:p-8 rounded-2xl shadow-lg border border-blue-500/50 flex flex-col sm:flex-row justify-around items-center gap-5 sm:gap-6 relative overflow-hidden">
                         <div className="text-center z-10 w-full sm:w-1/3">
                             <p className="text-blue-200 text-xs uppercase font-black tracking-widest mb-1">
                                 {indicadorActivo === 'HOSP_04' ? 'Total de Consultas Anual' : 'Numerador Anual'}
                             </p>
-                            <p className="text-3xl font-black">{totalesAnuales.numerador.toLocaleString()}</p>
+                            <p className="text-2xl sm:text-3xl font-black">{totalesAnuales.numerador.toLocaleString()}</p>
                         </div>
                         <div className="hidden sm:block w-px h-16 bg-blue-400/30 z-10"></div>
                         <div className="text-center z-10 w-full sm:w-1/3">
                             <p className="text-blue-200 text-xs uppercase font-black tracking-widest mb-1">
                                 {indicadorActivo === 'HOSP_04' ? 'Total Días Hábiles' : 'Denominador Anual'}
                             </p>
-                            <p className="text-3xl font-black">{totalesAnuales.denominador.toLocaleString()}</p>
+                            <p className="text-2xl sm:text-3xl font-black">{totalesAnuales.denominador.toLocaleString()}</p>
                         </div>
                         <div className="hidden sm:block w-px h-16 bg-blue-400/30 z-10"></div>
                         <div className="text-center z-10 w-full sm:w-1/3 bg-blue-700/50 p-4 rounded-2xl border border-blue-400/30 shadow-inner">
                             <p className="text-blue-100 text-xs uppercase font-black tracking-widest mb-1">Resultado Final</p>
-                            <p className={`text-5xl font-black drop-shadow-md ${configActual.evaluarColorTarjeta(totalesAnuales.porcentaje)}`}>
+                            <p className={`text-4xl sm:text-5xl font-black drop-shadow-md ${configActual.evaluarColorTarjeta(totalesAnuales.porcentaje)}`}>
                                 {totalesAnuales.porcentaje}{indicadorActivo === 'HOSP_04' || indicadorActivo === 'HOSP_06' ? '' : '%'}
                             </p>
                             <p className="text-[10px] text-blue-200 mt-1 font-medium">{indicadorActivo === 'HOSP_04' || indicadorActivo === 'HOSP_06' ? 'Promedio General Acumulado' : '% Acumulado del Año'}</p>
@@ -561,7 +560,7 @@ const IndicadoresHosp = ({ rolUsuario = 'admin', tabActiva = 'mensual' }) => {
                     </div>
                 </>
             ) : (
-                <div className="text-center p-10 text-slate-400 font-medium text-sm">
+                <div className="text-center p-6 sm:p-10 text-slate-400 font-medium text-sm">
                     {rolUsuario === 'admin' ? `Sube el archivo Excel con toda la cédula para visualizar los datos.` : `Aún no hay datos disponibles en este año.`}
                 </div>
             )}
