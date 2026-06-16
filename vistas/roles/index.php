@@ -1103,7 +1103,7 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
                     </div>
                 </a>
 
-                <a class="main-module-card module-blue" href="/IFU/index.php?rol=consulta">
+                <a class="main-module-card module-blue" href="/inventario_ifu/IFU/index.php?rol=consulta">
                     <div class="main-module-bg-number">04</div>
 
                     <div class="module-top">
