@@ -100,24 +100,24 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
         }
 
         .brand-logo {
-    width: 64px;
-    height: 64px;
-    border-radius: 22px;
-    background: var(--imss-soft);
-    border: 1px solid rgba(0, 99, 65, 0.18);
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    flex: 0 0 auto;
-    padding: 0;
-}
+            width: 64px;
+            height: 64px;
+            border-radius: 22px;
+            background: var(--imss-soft);
+            border: 1px solid rgba(0, 99, 65, 0.18);
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            flex: 0 0 auto;
+            padding: 0;
+        }
 
-.brand-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
 
         .brand-kicker {
             margin: 0;
@@ -1103,7 +1103,7 @@ $adminName = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : null;
                     </div>
                 </a>
 
-                <a class="main-module-card module-blue" href="/inventario_ifu/IFU/index.php?rol=consulta">
+                <a class="main-module-card module-blue" href="/IFU/index.php?rol=<?php echo $rol; ?>">
                     <div class="main-module-bg-number">04</div>
 
                     <div class="module-top">
