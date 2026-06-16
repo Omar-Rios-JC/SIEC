@@ -15,13 +15,11 @@ import MenuPrincipal from './MenuPrincipal';
 import MenuCarga from './MenuCarga';
 import ModuloCargaCE from './ModuloCargaCE';
 import ModuloCargaHosp from './ModuloCargaHosp';
-import ModuloCargaCirugias from './ModuloCargaCirugias';
 import TableroParamedicos from './TableroParamedicos';
 import TableroUrgencias from './TableroUrgencias';
 import { exportarReporteCompleto } from './exportarReporteCompleto';
 import TableroCirugias from './TableroCirugias';
 import TableroHospitalizacion from './TableroHospitalizacion';
-
 // Registrar componentes de Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement);
 
@@ -161,12 +159,6 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
     );
 };
 
-const DIVISIONES_CIRUGIAS_PERMITIDAS = [
-    'CONSULTA EXTERNA',
-    'HOSPITAL',
-    'URGENCIAS'
-];
-
 export default function DashboardProductividad({ isAdmin }) {
     // ESTADOS DE NAVEGACIÓN
     const [vistaActiva, setVistaActiva] = useState('dashboard');
@@ -183,6 +175,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const [mesFin, setMesFin] = useState(11);
     const [divisionSeleccionada, setDivisionSeleccionada] = useState('todas');
     const [especialidadSeleccionada, setEspecialidadSeleccionada] = useState('todas');
+    const [doctorSeleccionado, setDoctorSeleccionado] = useState('todos');
 
     // ESTADOS EXCLUSIVOS PARA LA GRÁFICA DE METAS
     const [mesGraficoMeta, setMesGraficoMeta] = useState(11);
@@ -196,7 +189,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const [cargandoDatos, setCargandoDatos] = useState(false);
     const [error, setError] = useState(null);
 
-    // Estados para la inyección e IndexedDB de Hospitalización
+    // Estados para la inyección e IndexedDB de Hospitalización[cite: 8]
     const [datosHospitalizacionBase, setDatosHospitalizacionBase] = useState([]);
     const [cargandoHospitalizacion, setCargandoHospitalizacion] = useState(false);
 
@@ -205,29 +198,18 @@ export default function DashboardProductividad({ isAdmin }) {
     const [diccionarioCIE, setDiccionarioCIE] = useState({});
     const [diccionarioEspecialidades, setDiccionarioEspecialidades] = useState({});
 
-    // Datos para descargar Excel
+    // Datos para descargar Excel[cite: 8]
     const [datosExterna, setDatosExterna] = useState([]);
     const [datosParamedicos, setDatosParamedicos] = useState([]);
     const [datosUrgencias, setDatosUrgencias] = useState([]);
     const [datosCirugias, setDatosCirugias] = useState([]);
     const [datosHospitalizacion, setDatosHospitalizacion] = useState([]);
 
-    // Opciones dinámicas que envía TableroCirugias para mostrar filtros en la barra superior
-    const [opcionesFiltrosCirugias, setOpcionesFiltrosCirugias] = useState({
-        anios: ['2026', '2025'],
-        divisiones: DIVISIONES_CIRUGIAS_PERMITIDAS,
-        especialidades: [],
-        cargado: false
-    });
-
     // ==========================================
     // CARGA DE DATOS 
     // ==========================================
     const cargarDatos = async () => {
         try {
-            await localforage.removeItem('cache_productividad_vencer');
-            await localforage.removeItem('version_productividad_vencer');
-
             const datosLocales = await localforage.getItem('cache_productividad_vencer');
             const versionLocal = await localforage.getItem('version_productividad_vencer') || "0";
 
@@ -255,7 +237,7 @@ export default function DashboardProductividad({ isAdmin }) {
         }
     };
 
-    // Descarga y Sincronización Local de Hospitalización
+    // Descarga y Sincronización Local de Hospitalización[cite: 8]
     const cargarDatosHospitalizacion = async () => {
         try {
             const cacheHosp = await localforage.getItem('cache_hospitalizacion_vencer');
@@ -359,28 +341,16 @@ export default function DashboardProductividad({ isAdmin }) {
         cargarDiccionarioEspecialidades();
     }, []);
 
-    // RESETEAR FILTROS AL CAMBIAR DE ÁREA PARA EVITAR VALORES QUE NO EXISTEN EN OTRO MÓDULO
-    useEffect(() => {
-        setAnioSeleccionado('todos');
-        setMesSeleccionado('todos');
-        setDivisionSeleccionada('todas');
-        setEspecialidadSeleccionada('todas');
-    }, [areaSidebar]);
-
-    // RESETEAR ESPECIALIDAD CUANDO CAMBIA LA DIVISIÓN
+    // RESETEAR ESPECIALIDAD CUANDO CAMBIA LA DIVISIÓN O DE ÁREA
     useEffect(() => {
         setEspecialidadSeleccionada('todas');
-    }, [divisionSeleccionada]);
+        setDoctorSeleccionado('todos');
+    }, [divisionSeleccionada, areaSidebar]);
 
     useEffect(() => {
-        if (
-            areaSidebar === 'cirugias' &&
-            divisionSeleccionada !== 'todas' &&
-            !DIVISIONES_CIRUGIAS_PERMITIDAS.includes(divisionSeleccionada)
-        ) {
-            setDivisionSeleccionada('todas');
-        }
-    }, [areaSidebar, divisionSeleccionada]);
+        setDoctorSeleccionado('todos');
+    }, [especialidadSeleccionada, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+
 
     // ==========================================
     // TRADUCTOR GLOBAL (Vacunado contra el "COD:")
@@ -412,7 +382,33 @@ export default function DashboardProductividad({ isAdmin }) {
     const nivelarTexto = (texto) => {
         return String(texto || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
-    
+
+    const limpiarMatricula = (valor) => String(valor || '').trim().replace('.0', '').replace(/\s/g, '');
+
+    const obtenerMatriculaMedico = (item) => {
+        return limpiarMatricula(item?.matricula_medico || item?.MATRICULA_MEDICO || item?.matricula || item?.MATRICULA || '');
+    };
+
+    const obtenerNombreMedico = (item) => {
+        const matricula = obtenerMatriculaMedico(item);
+        const nombreCatalogo = diccionarioMedicos[matricula];
+        const nombreCapturado = item?.medico || item?.MEDICO || item?.doctor || item?.DOCTOR || item?.nombre_medico || item?.NOMBRE_MEDICO;
+
+        if (nombreCatalogo) return nombreCatalogo;
+        if (nombreCapturado) return String(nombreCapturado).trim();
+        return matricula ? `Matr. ${matricula}` : 'Sin Médico';
+    };
+
+    const obtenerValorDoctor = (item) => {
+        const matricula = obtenerMatriculaMedico(item);
+        if (matricula) return `mat:${matricula}`;
+        return `nom:${nivelarTexto(obtenerNombreMedico(item))}`;
+    };
+
+    const aplicarFiltroDoctor = (listaDatos) => {
+        if (doctorSeleccionado === 'todos') return listaDatos;
+        return listaDatos.filter(item => obtenerValorDoctor(item) === doctorSeleccionado);
+    };
     // ==========================================
     // LÓGICA DE FILTRADO BASE
     // ==========================================
@@ -497,7 +493,7 @@ export default function DashboardProductividad({ isAdmin }) {
         return [...anios].sort().reverse();
     }, [datos]);
 
-    // FILTRO DE FECHAS COMPARTIDO
+    // FILTRO DE FECHAS
     const aplicarFiltroFecha = (listaDatos) => {
         return listaDatos.filter(item => {
             let a = item.anio || item.Anio || item.ANIO || item.año || item.Año || item.AÑO;
@@ -547,47 +543,65 @@ export default function DashboardProductividad({ isAdmin }) {
             const espCruda = String(d.especialidad || d.ESPECIALIDAD || d.servicio || '').toUpperCase();
             const espTraducida = traducirEspecialidad(espCruda);
 
-            const criterios = ['5001', 'A600', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
-            return criterios.some(c => espTraducida.includes(c) || espCruda.includes(c));
+            // Criterios de búsqueda: si el nombre tiene alguna de estas palabras, entra a Urgencias
+            const criterios = [
+                '5001', 'A600', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'
+            ];
+
+            return criterios.some(c =>
+                espTraducida.includes(c) || espCruda.includes(c)
+            );
         });
 
+        // Aplicamos el filtro de fecha (¡Ojo con el año seleccionado!)
         return aplicarFiltroFecha(soloUrgencias);
-    }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+    }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin, diccionarioEspecialidades]);
 
-    // Segmentación analítica limpia para periodos IMSS, Divisiones y Especialidades de Hospitalización
+    // Segmentación analítica limpia para periodos IMSS de Hospitalización[cite: 8]
     const datosHospitalizacionFiltrados = useMemo(() => {
         return datosHospitalizacionBase.filter(item => {
             const pasaAnio = anioSeleccionado === 'todos' || String(item.anio) === String(anioSeleccionado);
-            
             let pasaMes = true;
+
             if (mesSeleccionado === 'rango') {
                 const m = Number(item.mes) - 1;
                 pasaMes = m >= mesInicio && m <= mesFin;
             } else if (mesSeleccionado !== 'todos') {
                 pasaMes = (Number(item.mes) - 1) === Number(mesSeleccionado);
             }
-
-            const divPac = item.division ? item.division.toUpperCase().trim() : "";
-            const pasaDivision = divisionSeleccionada === 'todas' || divPac === divisionSeleccionada.toUpperCase().trim();
-
-            const espPac = item.especialidad ? item.especialidad.toUpperCase().trim() : "";
-            const pasaEspecialidad = especialidadSeleccionada === 'todas' || espPac === especialidadSeleccionada.toUpperCase().trim();
-
-            return pasaAnio && pasaMes && pasaDivision && pasaEspecialidad;
+            return pasaAnio && pasaMes;
         });
-    }, [datosHospitalizacionBase, anioSeleccionado, mesSeleccionado, mesInicio, mesFin, divisionSeleccionada, especialidadSeleccionada]);
+    }, [datosHospitalizacionBase, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
 
     // ==========================================
-    // DIVISIONES Y ESPECIALIDADES (CONSULTA EXTERNA)
+    // DIVISIONES Y ESPECIALIDADES
     // ==========================================
+    const datosParamedicosFiltradosDivision = useMemo(() => {
+        return datosParamedicosFiltrados.filter(item => {
+            if (divisionSeleccionada === 'todas') return true;
+            return (item.division || 'Sin Asignar').trim() === divisionSeleccionada;
+        });
+    }, [datosParamedicosFiltrados, divisionSeleccionada]);
+
+    const datosUrgenciasFiltradosDivision = useMemo(() => {
+        return datosUrgenciasFiltrados.filter(item => {
+            if (divisionSeleccionada === 'todas') return true;
+            return (item.division || 'Sin Asignar').trim() === divisionSeleccionada;
+        });
+    }, [datosUrgenciasFiltrados, divisionSeleccionada]);
+
     const rankingDivisiones = useMemo(() => {
         const conteo = {};
-        datosFiltradosFecha.forEach(d => {
+        let base = datosFiltradosFecha;
+        if (areaSidebar === 'paramedicos') base = datosParamedicosFiltrados;
+        if (areaSidebar === 'urgencias') base = datosUrgenciasFiltrados;
+
+        base.forEach(d => {
             const div = (d.division || 'Sin Asignar').trim();
             conteo[div] = (conteo[div] || 0) + 1;
         });
         return Object.entries(conteo).sort((a, b) => b[1] - a[1]);
-    }, [datosFiltradosFecha]);
+    }, [datosFiltradosFecha, datosParamedicosFiltrados, datosUrgenciasFiltrados, areaSidebar]);
 
     const divisionesDisponibles = useMemo(() => rankingDivisiones.map(item => item[0]).sort(), [rankingDivisiones]);
 
@@ -612,30 +626,43 @@ export default function DashboardProductividad({ isAdmin }) {
     }, [datosFiltradosFecha, divisionSeleccionada]);
 
     // ==========================================
-    // MOTOR DE FILTRO PRINCIPAL (CONSULTA EXTERNA)
+    // MOTOR DE FILTRO PRINCIPAL
     // ==========================================
-    const datosFiltrados = useMemo(() => {
+    const datosFiltradosEspecialidad = useMemo(() => {
         return datosFiltradosDivision.filter(item => {
             if (especialidadSeleccionada === 'todas') return true;
+
+            // 1. Traduce y limpia al paciente (quita el COD:)
             const espTraducida = traducirEspecialidad(item.especialidad || item.ESPECIALIDAD);
+
+            // 2. Compara el paciente con lo que elegiste en el menú (ambos sin acentos)
             return nivelarTexto(espTraducida) === nivelarTexto(especialidadSeleccionada);
         });
-    }, [datosFiltradosDivision, especialidadSeleccionada]);
+    }, [datosFiltradosDivision, especialidadSeleccionada, diccionarioEspecialidades]);
+
+    const datosFiltrados = useMemo(() => {
+        return aplicarFiltroDoctor(datosFiltradosEspecialidad);
+    }, [datosFiltradosEspecialidad, doctorSeleccionado, diccionarioMedicos]);
 
     const especialidadesParaMostrar = useMemo(() => {
         const setEsp = new Set();
 
+        // 1. Recorremos TODA tu base de datos (catálogo) en lugar de leer el Excel
         Object.values(diccionarioEspecialidades).forEach(item => {
             if (item && item.nombre) {
+                // Si el usuario eligió una División, solo metemos a la lista las especialidades de esa división
                 if (divisionSeleccionada !== 'todas') {
                     const divItem = String(item.division || '').trim();
                     if (divItem !== divisionSeleccionada) return;
                 }
+
+                // Limpiamos el nombre para que el menú se vea impecable
                 const nombreLimpio = String(item.nombre).trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 setEsp.add(nombreLimpio);
             }
         });
 
+        // Seguro de vida: Si la BD tarda en responder, forzamos la aparición de estas
         if (Object.keys(diccionarioEspecialidades).length === 0) {
             if (areaSidebar === 'paramedicos') {
                 ['TRABAJO SOCIAL', 'PSICOLOGIA', 'NUTRICION', 'REHABILITACION'].forEach(e => setEsp.add(e));
@@ -646,6 +673,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
         let listaCompleta = [...setEsp].sort();
 
+        // 2. Filtramos la lista visual dependiendo de en qué pestaña estemos
         if (areaSidebar === 'paramedicos') {
             const criterios = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA'];
             return listaCompleta.filter(esp => criterios.some(c => esp.includes(c)));
@@ -656,83 +684,67 @@ export default function DashboardProductividad({ isAdmin }) {
             return listaCompleta.filter(esp => criterios.some(c => esp.includes(c)));
         }
 
+        // Si es consulta externa, limpiamos el menú ocultando lo que es de paramédicos o urgencias
         const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
         return listaCompleta.filter(esp => !ignorar.some(ignorada => esp.includes(ignorada)));
 
     }, [diccionarioEspecialidades, areaSidebar, divisionSeleccionada]);
 
     // ==========================================
-    // MOTORES DE FILTRO SECUNDARIOS
+    // MOTORES DE FILTRO SECUNDARIOS (USANDO EL TRADUCTOR)
     // ==========================================
-    const paramedicosParaTablero = useMemo(() => {
-        return datosParamedicosFiltrados.filter(item => {
+    const paramedicosFiltradosEspecialidad = useMemo(() => {
+        return datosParamedicosFiltradosDivision.filter(item => {
             if (especialidadSeleccionada === 'todas') return true;
             const espTraducida = traducirEspecialidad(item.especialidad || item.ESPECIALIDAD);
             return nivelarTexto(espTraducida) === nivelarTexto(especialidadSeleccionada);
         });
-    }, [datosParamedicosFiltrados, especialidadSeleccionada]);
+    }, [datosParamedicosFiltradosDivision, especialidadSeleccionada, diccionarioEspecialidades]);
 
-    const urgenciasParaTablero = useMemo(() => {
-        return datosUrgenciasFiltrados.filter(item => {
+    const paramedicosParaTablero = useMemo(() => {
+        return aplicarFiltroDoctor(paramedicosFiltradosEspecialidad);
+    }, [paramedicosFiltradosEspecialidad, doctorSeleccionado, diccionarioMedicos]);
+
+    const urgenciasFiltradasEspecialidad = useMemo(() => {
+        return datosUrgenciasFiltradosDivision.filter(item => {
             if (especialidadSeleccionada === 'todas') return true;
             const espTraducida = traducirEspecialidad(item.especialidad || item.ESPECIALIDAD || item.servicio);
             return nivelarTexto(espTraducida) === nivelarTexto(especialidadSeleccionada);
         });
-    }, [datosUrgenciasFiltrados, especialidadSeleccionada]);
+    }, [datosUrgenciasFiltradosDivision, especialidadSeleccionada, diccionarioEspecialidades]);
 
-    // ==========================================
-    // CONFIGURACIÓN DINÁMICA DE LA BARRA SUPERIOR SEGÚN PESTAÑA ACTIVA
-    // ==========================================
-    const aniosFiltroActual = useMemo(() => {
-        if (areaSidebar === 'cirugias') return ['2026', '2025'];
-        
-        if (areaSidebar === 'hospitalizacion') {
-            const aniosHosp = new Set(datosHospitalizacionBase.map(item => String(item.anio)));
-            return [...aniosHosp].sort((a, b) => Number(b) - Number(a));
-        }
-        
-        return [...new Set([...aniosDisponibles.map(String), '2026', '2025'])]
-            .filter(a => a === '2025' || a === '2026')
-            .sort((a, b) => Number(b) - Number(a));
-    }, [areaSidebar, aniosDisponibles, datosHospitalizacionBase]);
+    const urgenciasParaTablero = useMemo(() => {
+        return aplicarFiltroDoctor(urgenciasFiltradasEspecialidad);
+    }, [urgenciasFiltradasEspecialidad, doctorSeleccionado, diccionarioMedicos]);
 
-    const divisionesFiltroActual = useMemo(() => {
-        if (areaSidebar === 'cirugias') return DIVISIONES_CIRUGIAS_PERMITIDAS;
-        
-        if (areaSidebar === 'hospitalizacion') {
-            const divsHosp = new Set();
-            datosHospitalizacionBase.forEach(item => {
-                if (item.division) divsHosp.add(item.division.toUpperCase().trim());
-            });
-            return Array.from(divsHosp).sort();
-        }
-        
-        return divisionesDisponibles;
-    }, [areaSidebar, divisionesDisponibles, datosHospitalizacionBase]);
+    const doctoresParaMostrar = useMemo(() => {
+        let base = datosFiltradosEspecialidad;
+        if (areaSidebar === 'paramedicos') base = paramedicosFiltradosEspecialidad;
+        if (areaSidebar === 'urgencias') base = urgenciasFiltradasEspecialidad;
 
-    const { ranking, divMap } = infoEspecialidades; // Destructuración preventiva para dependencias limpias
-    const especialidadesFiltroActual = useMemo(() => {
-        if (areaSidebar === 'cirugias') return opcionesFiltrosCirugias.especialidades;
-        
-        if (areaSidebar === 'hospitalizacion') {
-            const especsHosp = new Set();
-            datosHospitalizacionBase.forEach(item => {
-                const div = item.division ? item.division.toUpperCase().trim() : "";
-                if (item.especialidad && (divisionSeleccionada === 'todas' || div === divisionSeleccionada.toUpperCase().trim())) {
-                    especsHosp.add(item.especialidad.toUpperCase().trim());
-                }
-            });
-            return Array.from(especsHosp).sort();
-        }
-        
-        return especialidadesParaMostrar;
-    }, [areaSidebar, opcionesFiltrosCirugias.especialidades, datosHospitalizacionBase, divisionSeleccionada, especialidadesParaMostrar]);
+        const medicos = new Map();
+        base.forEach(item => {
+            const valor = obtenerValorDoctor(item);
+            const nombre = obtenerNombreMedico(item);
+            if (valor && !medicos.has(valor)) medicos.set(valor, nombre);
+        });
 
-    const hayDatosParaFiltrosActuales = areaSidebar === 'cirugias'
-        ? true
-        : areaSidebar === 'hospitalizacion'
-            ? datosHospitalizacionBase.length > 0 && !cargandoHospitalizacion
-            : datos.length > 0 && !cargandoDatos && !error;
+        return Array.from(medicos.entries())
+            .map(([valor, nombre]) => ({ valor, nombre }))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    }, [
+        areaSidebar,
+        datosFiltradosEspecialidad,
+        paramedicosFiltradosEspecialidad,
+        urgenciasFiltradasEspecialidad,
+        diccionarioMedicos
+    ]);
+
+    useEffect(() => {
+        if (doctorSeleccionado === 'todos') return;
+        const existeDoctor = doctoresParaMostrar.some(item => item.valor === doctorSeleccionado);
+        if (!existeDoctor) setDoctorSeleccionado('todos');
+    }, [doctorSeleccionado, doctoresParaMostrar]);
 
     // ==========================================
     // GRÁFICA DE METAS CON CALENDARIO DINÁMICO HISTÓRICO
@@ -749,8 +761,10 @@ export default function DashboardProductividad({ isAdmin }) {
             const div = (d.division || 'Sin Asignar').trim();
             if (divisionSeleccionada !== 'todas' && div !== divisionSeleccionada) return;
 
+            // Nivelamos y comparamos para la gráfica de metas
             const espTraducida = traducirEspecialidad(d.especialidad || d.ESPECIALIDAD);
             if (especialidadSeleccionada !== 'todas' && nivelarTexto(espTraducida) !== nivelarTexto(especialidadSeleccionada)) return;
+            if (doctorSeleccionado !== 'todos' && obtenerValorDoctor(d) !== doctorSeleccionado) return;
 
             let a = d.anio || d.Anio || d.ANIO || d.año || d.Año || d.AÑO;
             let m = d.mes || d.Mes || d.MES;
@@ -804,7 +818,7 @@ export default function DashboardProductividad({ isAdmin }) {
                 }
             ]
         };
-    }, [datosConsultaExterna, divisionSeleccionada, especialidadSeleccionada, mesGraficoMeta, anioGraficoMeta]);
+    }, [datosConsultaExterna, divisionSeleccionada, especialidadSeleccionada, doctorSeleccionado, mesGraficoMeta, anioGraficoMeta, diccionarioEspecialidades, diccionarioMedicos]);
 
     const chartOptionsLine = {
         maintainAspectRatio: false,
@@ -883,12 +897,11 @@ export default function DashboardProductividad({ isAdmin }) {
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados]);
+    }, [datosFiltrados, diccionarioEspecialidades]);
 
     const chartMedicos = useMemo(() => {
         const conteo = datosFiltrados.reduce((acc, curr) => {
-            const matriculaLimpia = String(curr.matricula_medico || 'Sin Matrícula').trim().replace('.0', '').replace(/\s/g, '');
-            const nombreMedico = diccionarioMedicos[matriculaLimpia] || `Matr. ${curr.matricula_medico}`;
+            const nombreMedico = obtenerNombreMedico(curr);
             const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD);
 
             if (!acc[nombreMedico]) acc[nombreMedico] = { total: 0, pv: 0, sub: 0, especialidad: nombreEspecialidad };
@@ -908,7 +921,7 @@ export default function DashboardProductividad({ isAdmin }) {
             dataSub: top.map(item => item[1].sub),
             dataExtra: top.map(item => item[1].especialidad)
         };
-    }, [datosFiltrados, diccionarioMedicos]);
+    }, [datosFiltrados, diccionarioMedicos, diccionarioEspecialidades]);
 
     const chartDiagnosticos = useMemo(() => {
         const conteo = datosFiltrados.reduce((acc, curr) => {
@@ -975,40 +988,34 @@ export default function DashboardProductividad({ isAdmin }) {
         }
     };
 
+    const handleDescargarTodo = async () => {
+        if (dataExterna.length === 0 && dataParamedicos.length === 0 && dataUrgencias.length === 0) {
+            alert("Navega por las pestañas para cargar los datos antes de exportar.");
+            return;
+        }
+        await exportarReporteCompleto(dataExterna, dataParamedicos, dataUrgencias);
+    };
+
     const handleDescargarExcel = async () => {
         try {
-            const totalRegistros =
-                datosFiltrados.length +
-                datosParamedicos.length +
-                datosUrgencias.length +
-                datosCirugias.length +
-                datosHospitalizacion.length;
-
-            if (areaSidebar === 'cirugias' && datosCirugias.length === 0) {
-                alert("El módulo de Cirugías todavía no tiene datos cargados para exportar con los filtros actuales.");
-                return;
-            }
-
-            if (totalRegistros === 0) {
-                alert("No hay datos cargados para generar el reporte.");
-                return;
-            }
+            console.log("Exportando datos:", {
+                externa: datosFiltrados.length,
+                param: datosParamedicos.length,
+                urg: datosUrgencias.length,
+                hosp: datosHospitalizacion.length // Traza de hospitalización[cite: 8]
+            });
 
             await exportarReporteCompleto(
                 datosFiltrados,
                 datosParamedicos,
                 datosUrgencias,
-                datosCirugias,
-                datosHospitalizacion
+                datosHospitalizacion // Sincronizar columna Excel de hospitalización[cite: 8]
             );
         } catch (error) {
             console.error("Error en la exportación:", error);
             alert("Hubo un error al generar el Excel.");
         }
     };
-
-    const modulosConFiltrosCompletos = ['consulta_externa', 'paramedicos', 'urgencias', 'cirugias', 'hospitalizacion'];
-    const mostrarFiltrosGlobales = modulosConFiltrosCompletos.includes(areaSidebar);
 
     const rolURL = new URLSearchParams(window.location.search).get('rol');
 
@@ -1026,21 +1033,16 @@ export default function DashboardProductividad({ isAdmin }) {
     const mostrarTextoSidebar = !sidebarSoloIconos;
 
     const irAlPortalPrincipal = () => {
-        const esLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const esLocal =
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1';
+
         if (esLocal) {
             window.location.href = 'http://siec.infinityfreeapp.com/vistas/roles/index.php';
             return;
         }
-        window.location.href = '/vistas/roles/index.php';
-    };
 
-    const irAlPanelAdmin = () => {
-        const esLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        if (esLocal) {
-            window.location.href = 'http://siec.infinityfreeapp.com/vistas/admin/admin.php';
-            return;
-        }
-        window.location.href = '/vistas/admin/admin.php';
+        window.location.href = '/vistas/roles/index.php';
     };
 
     const manejarSidebar = () => {
@@ -1048,6 +1050,7 @@ export default function DashboardProductividad({ isAdmin }) {
             setSidebarMobileOpen(prev => !prev);
             return;
         }
+
         setSidebarCollapsed(prev => !prev);
     };
 
@@ -1075,10 +1078,12 @@ export default function DashboardProductividad({ isAdmin }) {
         );
     }
 
+    // Pantalla intermedia (Selector de las 3 áreas)
     if (vistaActiva === 'subir') {
-        return <MenuCarga setVistaActiva={setVistaActiva} setMensaje={setMensaje} />;
+        return <MenuCarga setVistaActiva={setVistaActiva} />;
     }
 
+    // Módulo de Carga: Consulta Externa
     if (vistaActiva === 'subir_ce') {
         return (
             <ModuloCargaCE 
@@ -1090,15 +1095,19 @@ export default function DashboardProductividad({ isAdmin }) {
         );
     }
 
+    // ESPACIO RESERVADO PARA CIRUGÍAS (No requiere que crees el archivo)
     if (vistaActiva === 'subir_cirugias') {
+        // Aquí tu compañero importará y retornará su componente (ej: <ModuloCargaCirugias />)
+        // Por ahora, puedes dejar un retorno provisional o vacío si lo deseas probar
         return (
-            <ModuloCargaCirugias
-                setVistaActiva={setVistaActiva}
-                setMensaje={setMensaje}
-                mensaje={mensaje}
-            />
+            <div className="p-8 text-center font-sans">
+                <p className="text-slate-500 font-bold">Módulo de Carga de Cirugías en desarrollo por el equipo asignado.</p>
+                <button onClick={() => setVistaActiva('subir')} className="mt-4 text-[#822626] underline font-black">Regresar</button>
+            </div>
         );
     }
+
+    // Módulo de Carga: Hospitalización
     if (vistaActiva === 'subir_hosp') {
         return (
             <ModuloCargaHosp 
@@ -1139,10 +1148,10 @@ export default function DashboardProductividad({ isAdmin }) {
                     <button
                         onClick={irAlPortalPrincipal}
                         className={`
-                        h-11 rounded-xl flex items-center transition-all text-white
-                        hover:bg-[#6b1f1f] font-bold text-sm
-                        ${sidebarSoloIconos ? 'w-full justify-center px-0' : 'flex-1 justify-start px-3 gap-3'}
-                    `}
+            h-11 rounded-xl flex items-center transition-all text-white
+            hover:bg-[#6b1f1f] font-bold text-sm
+            ${sidebarSoloIconos ? 'w-full justify-center px-0' : 'flex-1 justify-start px-3 gap-3'}
+        `}
                         title="Volver al inicio"
                     >
                         <Home size={20} className="shrink-0" />
@@ -1248,39 +1257,19 @@ export default function DashboardProductividad({ isAdmin }) {
                     </button>
 
                     {usuarioEsAdmin && (
-                        <>
-                            <button
-                                onClick={abrirMenuPrincipal}
-                                className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
-                                    ? 'justify-center p-3'
-                                    : 'justify-start gap-3 px-4 py-3'
-                                    }`}
-                                title="Actualizar bases de datos"
-                            >
-                                <Database size={20} className="shrink-0" />
-                                {mostrarTextoSidebar && (
-                                    <span className="whitespace-nowrap">
-                                        Actualizar Bases de Datos
-                                    </span>
-                                )}
-                            </button>
-
-                            <button
-                                onClick={irAlPanelAdmin}
-                                className={`w-full flex items-center bg-[#6b1f1f] hover:bg-[#5e1919] text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
-                                    ? 'justify-center p-3'
-                                    : 'justify-start gap-3 px-4 py-3'
-                                    }`}
-                                title="Volver al panel de admin"
-                            >
-                                <Home size={20} className="shrink-0" />
-                                {mostrarTextoSidebar && (
-                                    <span className="whitespace-nowrap">
-                                        Volver al Panel Admin
-                                    </span>
-                                )}
-                            </button>
-                        </>
+                        <button
+                            onClick={abrirMenuPrincipal}
+                            className={`w-full flex items-center bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-colors font-bold text-sm ${sidebarSoloIconos
+                                ? 'justify-center p-3'
+                                : 'justify-start gap-3 px-4 py-3'
+                                }`}
+                            title="Cambiar bases de datos"
+                        >
+                            <Database size={20} className="shrink-0" />
+                            {mostrarTextoSidebar && (
+                                <span className="whitespace-nowrap">Cambiar bases de datos</span>
+                            )}
+                        </button>
                     )}
                 </div>
             </aside>
@@ -1308,23 +1297,16 @@ export default function DashboardProductividad({ isAdmin }) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                        {mostrarFiltrosGlobales && hayDatosParaFiltrosActuales && (
+                        {(areaSidebar === 'consulta_externa' || areaSidebar === 'paramedicos' || areaSidebar === 'urgencias') && datos.length > 0 && !cargandoDatos && !error && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
                                 <Filter size={14} className="text-[#822626] ml-2 hidden sm:block" />
-                                
-                                <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">
-                                    {areaSidebar === 'hospitalizacion' ? 'Año IMSS:' : 'Año:'}
-                                </span>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año:</span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
-                                    {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
+                                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
-                                
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                                
-                                <span className="font-bold text-slate-500 text-[10px] uppercase">
-                                    {areaSidebar === 'hospitalizacion' ? 'Mes IMSS:' : 'Mes:'}
-                                </span>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase">Mes:</span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e => setMesSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
                                     {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
@@ -1351,22 +1333,66 @@ export default function DashboardProductividad({ isAdmin }) {
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">División:</span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate" value={divisionSeleccionada} onChange={e => setDivisionSeleccionada(e.target.value)}>
                                     <option value="todas">Todas</option>
-                                    {divisionesFiltroActual.map(d => <option key={d} value={d}>{d}</option>)}
+                                    {divisionesDisponibles.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
 
-                                {!(areaSidebar === 'cirugias' && !opcionesFiltrosCirugias.cargado) && (
+                                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase">Especialidad:</span>
+                                <select
+                                    className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate"
+                                    value={especialidadSeleccionada}
+                                    onChange={e => setEspecialidadSeleccionada(e.target.value)}
+                                >
+                                    <option value="todas">Todas</option>
+                                    {especialidadesParaMostrar.map(e => (
+                                        <option key={e} value={e}>{e}</option>
+                                    ))}
+                                </select>
+
+                                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase">Doctor:</span>
+                                <select
+                                    className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[120px] sm:max-w-[190px] truncate"
+                                    value={doctorSeleccionado}
+                                    onChange={e => setDoctorSeleccionado(e.target.value)}
+                                >
+                                    <option value="todos">Todos</option>
+                                    {doctoresParaMostrar.map(doctor => (
+                                        <option key={doctor.valor} value={doctor.valor}>{doctor.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Selector simplificado exclusivo para hospitalización (Oculta selectores extras incompatibles)*/}
+                        {areaSidebar === 'hospitalizacion' && datosHospitalizacionBase.length > 0 && !cargandoHospitalizacion && (
+                            <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
+                                <Filter size={14} className="text-[#822626] ml-2 hidden sm:block" />
+                                <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">Año IMSS:</span>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
+                                    <option value="todos">Todos</option>
+                                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+                                </select>
+                                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                <span className="font-bold text-slate-500 text-[10px] uppercase">Mes IMSS:</span>
+                                <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e => setMesSeleccionado(e.target.value)}>
+                                    <option value="todos">Todos</option>
+                                    {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                    <option disabled>──────────</option>
+                                    <option value="rango">Rango...</option>
+                                </select>
+
+                                {mesSeleccionado === 'rango' && (
                                     <>
                                         <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                                        <span className="font-bold text-slate-500 text-[10px] uppercase">Especialidad:</span>
-                                        <select
-                                            className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1 max-w-[100px] sm:max-w-[150px] truncate"
-                                            value={especialidadSeleccionada}
-                                            onChange={e => setEspecialidadSeleccionada(e.target.value)}
-                                        >
-                                            <option value="todas">Todas</option>
-                                            {especialidadesFiltroActual.map(e => (
-                                                <option key={e} value={e}>{e}</option>
-                                            ))}
+                                        <span className="font-bold text-slate-500 text-[10px] uppercase">De:</span>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesInicio} onChange={e => setMesInicio(Number(e.target.value))}>
+                                            {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                        </select>
+                                        <span className="text-slate-400 font-bold">-</span>
+                                        <span className="font-bold text-slate-500 text-[10px] uppercase">A:</span>
+                                        <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer" value={mesFin} onChange={e => setMesFin(Number(e.target.value))}>
+                                            {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                         </select>
                                     </>
                                 )}
@@ -1445,7 +1471,8 @@ export default function DashboardProductividad({ isAdmin }) {
                                             <div className="w-px h-4 bg-slate-300"></div>
 
                                             <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={anioGraficoMeta} onChange={e => setAnioGraficoMeta(Number(e.target.value))}>
-                                                {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
+                                                {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+                                                {!aniosDisponibles.includes('2025') && <option value="2025">2025</option>}
                                             </select>
                                         </div>
                                     </div>
@@ -1531,19 +1558,13 @@ export default function DashboardProductividad({ isAdmin }) {
                         width: '100%'
                     }}>
                         <TableroCirugias
+                            datos={datosCirugias}
                             mostrarTablas={mostrarTablas}
                             setExportData={setDatosCirugias}
-                            setOpcionesFiltros={setOpcionesFiltrosCirugias}
-                            anioSeleccionado={anioSeleccionado}
-                            mesSeleccionado={mesSeleccionado}
-                            mesInicio={mesInicio}
-                            mesFin={mesFin}
-                            divisionSeleccionada={divisionSeleccionada}
-                            especialidadSeleccionada={especialidadSeleccionada}
                         />
                     </div>
 
-                    {/* SECCIÓN 5: HOSPITALIZACION CONFIGURADA EN SEGUNDO PLANO Y SIN PARÁMETROS BASURA */}
+                    {/* SECCIÓN 5: HOSPITALIZACION CONFIGURADA EN SEGUNDO PLANO Y SIN PARÁMETROS BASURA[cite: 8, 9] */}
                     <div style={{
                         display: areaSidebar === 'hospitalizacion' ? 'block' : 'none',
                         visibility: areaSidebar === 'hospitalizacion' ? 'visible' : 'hidden',
