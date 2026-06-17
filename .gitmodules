@@ -1,0 +1,3 @@
+[submodule "inventario_ifu/IFU"]
+	path = inventario_ifu/IFU
+	url = https://github.com/chago04/prototipo-ifu.git

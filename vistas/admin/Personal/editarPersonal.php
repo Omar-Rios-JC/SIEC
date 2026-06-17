@@ -19,6 +19,7 @@ if (!$datos) {
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Personal</title>
     <link rel="stylesheet" href="../../../css/bootstrap.min.css">
     <link rel="icon" type="image/png" href="../../../logo-imss.png" />
@@ -127,6 +128,125 @@ if (!$datos) {
             font-weight: bold;
             padding-top: 10px;
         }
+    
+        /* Ajustes moviles agregados para mantener formularios, tablas y botones legibles */
+        @media (max-width: 576px) {
+            .content {
+                padding: 12px !important;
+            }
+
+            .container,
+            .form-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 20px auto !important;
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
+            .card-body {
+                padding: 1.25rem !important;
+            }
+
+            .form-actions,
+            .acciones,
+            .d-flex {
+                flex-wrap: wrap !important;
+            }
+
+            .btn,
+            .btn-sm,
+            .form-actions .btn,
+            .acciones a {
+                width: 100%;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                margin-bottom: 8px;
+                justify-content: center;
+            }
+
+            .navbar-brand {
+                max-width: 70vw;
+                white-space: normal;
+            }
+
+            .table-responsive {
+                overflow-x: auto;
+            }
+        }
+
+        @media (max-width: 576px) {
+ 
+    /* Área de contenido principal */
+    .content {
+        padding: 12px !important;
+    }
+ 
+    /* Contenedores y formularios */
+    .container,
+    .form-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 20px auto !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+ 
+    /* Cards de Bootstrap */
+    .card-body {
+        padding: 1.25rem !important;
+    }
+ 
+    /* Grupos de botones / acciones: apila en columna */
+    .form-actions,
+    .acciones,
+    .d-flex {
+        flex-wrap: wrap !important;
+    }
+ 
+    /* Botones a ancho completo y separados */
+    .btn,
+    .btn-sm,
+    .form-actions .btn,
+    .acciones a,
+    .acciones button {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        margin-bottom: 8px !important;
+        justify-content: center;
+        text-align: center;
+    }
+ 
+    /* Navbar brand no desborda */
+    .navbar-brand {
+        max-width: 70vw;
+        white-space: normal;
+    }
+ 
+    /* Tablas con scroll horizontal */
+    .table-responsive {
+        overflow-x: auto;
+    }
+ 
+    /* Formularios: inputs a ancho completo */
+    .form-control,
+    .form-select,
+    select,
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="email"],
+    textarea {
+        width: 100% !important;
+    }
+ 
+    /* Grids de Bootstrap: 1 columna en móvil */
+    .row.g-3 > [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
     </style>
 </head>
 
