@@ -15,6 +15,7 @@ import MenuPrincipal from './MenuPrincipal';
 import MenuCarga from './MenuCarga';
 import ModuloCargaCE from './ModuloCargaCE';
 import ModuloCargaHosp from './ModuloCargaHosp';
+import ModuloCargaCirugias from './ModuloCargaCirugias';
 import TableroParamedicos from './TableroParamedicos';
 import TableroUrgencias from './TableroUrgencias';
 import { exportarReporteCompleto } from './exportarReporteCompleto';
@@ -1075,7 +1076,7 @@ export default function DashboardProductividad({ isAdmin }) {
     }
 
     if (vistaActiva === 'subir') {
-        return <MenuCarga setVistaActiva={setVistaActiva} />;
+        return <MenuCarga setVistaActiva={setVistaActiva} setMensaje={setMensaje} />;
     }
 
     if (vistaActiva === 'subir_ce') {
@@ -1091,13 +1092,13 @@ export default function DashboardProductividad({ isAdmin }) {
 
     if (vistaActiva === 'subir_cirugias') {
         return (
-            <div className="p-8 text-center font-sans">
-                <p className="text-slate-500 font-bold">Módulo de Carga de Cirugías en desarrollo por el equipo asignado.</p>
-                <button onClick={() => setVistaActiva('subir')} className="mt-4 text-[#822626] underline font-black">Regresar</button>
-            </div>
+            <ModuloCargaCirugias
+                setVistaActiva={setVistaActiva}
+                setMensaje={setMensaje}
+                mensaje={mensaje}
+            />
         );
     }
-
     if (vistaActiva === 'subir_hosp') {
         return (
             <ModuloCargaHosp 
