@@ -68,7 +68,7 @@ foreach ($metodologia as $clavePadre => $relacion) {
 
 try {
     $pdo->beginTransaction();
-    $pdo->exec('TRUNCATE TABLE metodologia');
+    $pdo->exec('DELETE FROM metodologia');
 
     $stmt = $pdo->prepare(
         'INSERT INTO metodologia (clave_padre, descripcion_padre, clave_hijo)

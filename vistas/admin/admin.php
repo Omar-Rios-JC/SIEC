@@ -433,7 +433,7 @@ try {
                 <i class="fa-solid fa-sitemap purple"></i>
                 <h3>Inventario IFU</h3>
                 <p>Gestión, control de existencias y seguimiento de entradas/salidas.</p>
-                <a class="purple" href="/inventario_ifu/IFU/index.php?rol=admin">
+                <a class="purple" href="/IFU/index.php?rol=admin">
                     Ir a Inventario IFU
                 </a>
             </div>

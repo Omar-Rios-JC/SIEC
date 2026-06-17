@@ -67,7 +67,7 @@ foreach ($inventario as $item) {
 
 try {
     $pdo->beginTransaction();
-    $pdo->exec('TRUNCATE TABLE inventario');
+    $pdo->exec('DELETE FROM inventario');
 
     $stmt = $pdo->prepare(
         'INSERT INTO inventario (clave, descripcion, cantidad)
