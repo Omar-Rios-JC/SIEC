@@ -15,6 +15,7 @@ import MenuPrincipal from './MenuPrincipal';
 import MenuCarga from './MenuCarga';
 import ModuloCargaCE from './ModuloCargaCE';
 import ModuloCargaHosp from './ModuloCargaHosp';
+import ModuloCargaCirugias from './ModuloCargaCirugias';
 import TableroParamedicos from './TableroParamedicos';
 import TableroUrgencias from './TableroUrgencias';
 import { exportarReporteCompleto } from './exportarReporteCompleto';
@@ -169,6 +170,7 @@ const DIVISIONES_CIRUGIAS_PERMITIDAS = [
 export default function DashboardProductividad({ isAdmin }) {
     // ESTADOS DE NAVEGACIÓN
     const [vistaActiva, setVistaActiva] = useState('dashboard');
+    const [ordenInverso, setOrdenInverso] = useState(false);
     const [configuracionCarga, setConfiguracionCarga] = useState(null);
     const [areaSidebar, setAreaSidebar] = useState('consulta_externa');
     const [mostrarTablas, setMostrarTablas] = useState(false);
@@ -364,6 +366,7 @@ export default function DashboardProductividad({ isAdmin }) {
         setMesSeleccionado('todos');
         setDivisionSeleccionada('todas');
         setEspecialidadSeleccionada('todas');
+        setOrdenInverso(false);
     }, [areaSidebar]);
 
     // RESETEAR ESPECIALIDAD CUANDO CAMBIA LA DIVISIÓN
@@ -411,7 +414,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const nivelarTexto = (texto) => {
         return String(texto || '').trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
-    
+
     // ==========================================
     // LÓGICA DE FILTRADO BASE
     // ==========================================
@@ -557,7 +560,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const datosHospitalizacionFiltrados = useMemo(() => {
         return datosHospitalizacionBase.filter(item => {
             const pasaAnio = anioSeleccionado === 'todos' || String(item.anio) === String(anioSeleccionado);
-            
+
             let pasaMes = true;
             if (mesSeleccionado === 'rango') {
                 const m = Number(item.mes) - 1;
@@ -684,12 +687,12 @@ export default function DashboardProductividad({ isAdmin }) {
     // ==========================================
     const aniosFiltroActual = useMemo(() => {
         if (areaSidebar === 'cirugias') return ['2026', '2025'];
-        
+
         if (areaSidebar === 'hospitalizacion') {
             const aniosHosp = new Set(datosHospitalizacionBase.map(item => String(item.anio)));
             return [...aniosHosp].sort((a, b) => Number(b) - Number(a));
         }
-        
+
         return [...new Set([...aniosDisponibles.map(String), '2026', '2025'])]
             .filter(a => a === '2025' || a === '2026')
             .sort((a, b) => Number(b) - Number(a));
@@ -697,7 +700,7 @@ export default function DashboardProductividad({ isAdmin }) {
 
     const divisionesFiltroActual = useMemo(() => {
         if (areaSidebar === 'cirugias') return DIVISIONES_CIRUGIAS_PERMITIDAS;
-        
+
         if (areaSidebar === 'hospitalizacion') {
             const divsHosp = new Set();
             datosHospitalizacionBase.forEach(item => {
@@ -705,14 +708,14 @@ export default function DashboardProductividad({ isAdmin }) {
             });
             return Array.from(divsHosp).sort();
         }
-        
+
         return divisionesDisponibles;
     }, [areaSidebar, divisionesDisponibles, datosHospitalizacionBase]);
 
     const { ranking, divMap } = infoEspecialidades; // Destructuración preventiva para dependencias limpias
     const especialidadesFiltroActual = useMemo(() => {
         if (areaSidebar === 'cirugias') return opcionesFiltrosCirugias.especialidades;
-        
+
         if (areaSidebar === 'hospitalizacion') {
             const especsHosp = new Set();
             datosHospitalizacionBase.forEach(item => {
@@ -723,7 +726,7 @@ export default function DashboardProductividad({ isAdmin }) {
             });
             return Array.from(especsHosp).sort();
         }
-        
+
         return especialidadesParaMostrar;
     }, [areaSidebar, opcionesFiltrosCirugias.especialidades, datosHospitalizacionBase, divisionSeleccionada, especialidadesParaMostrar]);
 
@@ -836,14 +839,16 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
+        const ordenados = Object.entries(conteo).sort((a, b) =>
+            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
+        );
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{ label: 'Consultas', data: ordenados.map(item => item[1].total), backgroundColor: ['#822626', '#D4C19C', '#475569', '#1e293b', '#b45309'], borderRadius: 4 }],
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados]);
+    }, [datosFiltrados, ordenInverso]);
 
     const chartTurnos = useMemo(() => {
         const conteo = datosFiltrados.reduce((acc, curr) => {
@@ -875,14 +880,16 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
+        const ordenados = Object.entries(conteo).sort((a, b) => 
+            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
+        );
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{ label: 'Consultas', data: ordenados.map(item => item[1].total), backgroundColor: '#334155', borderRadius: 4 }],
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados]);
+    }, [datosFiltrados, ordenInverso]);
 
     const chartMedicos = useMemo(() => {
         const conteo = datosFiltrados.reduce((acc, curr) => {
@@ -897,7 +904,9 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
+        const ordenados = Object.entries(conteo).sort((a, b) => 
+            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
+        );
         const top = ordenados.slice(0, 20);
 
         return {
@@ -907,7 +916,7 @@ export default function DashboardProductividad({ isAdmin }) {
             dataSub: top.map(item => item[1].sub),
             dataExtra: top.map(item => item[1].especialidad)
         };
-    }, [datosFiltrados, diccionarioMedicos]);
+    }, [datosFiltrados, diccionarioMedicos, ordenInverso]);
 
     const chartDiagnosticos = useMemo(() => {
         const conteo = datosFiltrados.reduce((acc, curr) => {
@@ -921,14 +930,16 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total).slice(0, 20);
+        const ordenados = Object.entries(conteo).sort((a, b) => 
+            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
+        ).slice(0, 20);
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{ label: 'Frecuencia', data: ordenados.map(item => item[1].total), backgroundColor: '#1e293b', borderRadius: 4 }],
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados, diccionarioCIE]);
+    }, [datosFiltrados, diccionarioCIE, ordenInverso]);
 
     const chartConsultorios = useMemo(() => {
         if (!datosFiltrados || datosFiltrados.length === 0) {
@@ -949,7 +960,9 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
+        const ordenados = Object.entries(conteo).sort((a, b) => 
+            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
+        );
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{
@@ -961,7 +974,7 @@ export default function DashboardProductividad({ isAdmin }) {
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados]);
+    }, [datosFiltrados, ordenInverso]);
 
     const anchoDinamico = (cantidadItems) => `max(100%, ${cantidadItems * 40}px)`;
 
@@ -1075,36 +1088,36 @@ export default function DashboardProductividad({ isAdmin }) {
     }
 
     if (vistaActiva === 'subir') {
-        return <MenuCarga setVistaActiva={setVistaActiva} />;
+        return <MenuCarga setVistaActiva={setVistaActiva} setMensaje={setMensaje} />;
     }
 
     if (vistaActiva === 'subir_ce') {
         return (
-            <ModuloCargaCE 
-                setVistaActiva={setVistaActiva} 
-                setMensaje={setMensaje} 
-                mensaje={mensaje} 
-                cargarDatos={cargarDatos} 
+            <ModuloCargaCE
+                setVistaActiva={setVistaActiva}
+                setMensaje={setMensaje}
+                mensaje={mensaje}
+                cargarDatos={cargarDatos}
             />
         );
     }
 
     if (vistaActiva === 'subir_cirugias') {
         return (
-            <div className="p-8 text-center font-sans">
-                <p className="text-slate-500 font-bold">Módulo de Carga de Cirugías en desarrollo por el equipo asignado.</p>
-                <button onClick={() => setVistaActiva('subir')} className="mt-4 text-[#822626] underline font-black">Regresar</button>
-            </div>
+            <ModuloCargaCirugias
+                setVistaActiva={setVistaActiva}
+                setMensaje={setMensaje}
+                mensaje={mensaje}
+            />
         );
     }
-
     if (vistaActiva === 'subir_hosp') {
         return (
-            <ModuloCargaHosp 
-                setVistaActiva={setVistaActiva} 
-                setMensaje={setMensaje} 
-                mensaje={mensaje} 
-                cargarDatos={cargarDatos} 
+            <ModuloCargaHosp
+                setVistaActiva={setVistaActiva}
+                setMensaje={setMensaje}
+                mensaje={mensaje}
+                cargarDatos={cargarDatos}
             />
         );
     }
@@ -1310,19 +1323,19 @@ export default function DashboardProductividad({ isAdmin }) {
                         {mostrarFiltrosGlobales && hayDatosParaFiltrosActuales && (
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1.5 border border-slate-200 shadow-inner flex-wrap w-full xl:w-auto">
                                 <Filter size={14} className="text-[#822626] ml-2 hidden sm:block" />
-                                
+
                                 <span className="font-bold text-slate-500 text-[10px] uppercase ml-1">
-                                    {areaSidebar === 'hospitalizacion' ? 'Año IMSS:' : 'Año:'}
+                                    {areaSidebar === 'hospitalizacion' ? 'Año:' : 'Año:'}
                                 </span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={anioSeleccionado} onChange={e => setAnioSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
                                     {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
-                                
+
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                                
+
                                 <span className="font-bold text-slate-500 text-[10px] uppercase">
-                                    {areaSidebar === 'hospitalizacion' ? 'Mes IMSS:' : 'Mes:'}
+                                    {areaSidebar === 'hospitalizacion' ? 'Mes:' : 'Mes:'}
                                 </span>
                                 <select className="bg-transparent font-bold text-[#822626] text-sm outline-none cursor-pointer pr-1" value={mesSeleccionado} onChange={e => setMesSeleccionado(e.target.value)}>
                                     <option value="todos">Todos</option>
@@ -1396,7 +1409,22 @@ export default function DashboardProductividad({ isAdmin }) {
                             </div>
                         ) : (
                             <div className="max-w-[1600px] mx-auto w-full pb-8">
-                                <div className="flex justify-end mb-4">
+                                <div className="flex justify-between items-center mb-4 gap-4 w-full">
+                                    <button
+                                        onClick={() => setOrdenInverso(!ordenInverso)}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-bold text-sm transition-all shadow-sm ${ordenInverso
+                                            ? 'bg-slate-700 text-white border-slate-700 hover:bg-slate-800'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                            }`}
+                                        title="Alternar entre mayor y menor productividad"
+                                    >
+                                        <BarChart2
+                                            size={16}
+                                            className={`transition-transform duration-300 ${ordenInverso ? 'rotate-180' : ''}`}
+                                        />
+                                        {ordenInverso ? 'Mostrando: Menor Productividad' : 'Mostrando: Mayor Productividad'}
+                                    </button>
+
                                     <p className="text-sm font-bold text-slate-500 bg-white shadow-sm px-4 py-2 rounded-lg border border-slate-200 inline-flex items-center gap-2">
                                         <Activity size={16} className="text-[#822626]" />
                                         Actualizado hasta: <span className="text-[#822626] font-black">{ultimaFechaBD}</span>
