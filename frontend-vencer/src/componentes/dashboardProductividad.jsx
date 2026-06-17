@@ -630,8 +630,12 @@ export default function DashboardProductividad({ isAdmin }) {
         Object.values(diccionarioEspecialidades).forEach(item => {
             if (item && item.nombre) {
                 if (divisionSeleccionada !== 'todas') {
-                    const divItem = String(item.division || '').trim();
-                    if (divItem !== divisionSeleccionada) return;
+                    // LA SOLUCIÓN: Usamos tu función nivelarTexto en lugar de solo toUpperCase
+                    // Así "Ginecología" y "GINECOLOGIA" se vuelven exactamente iguales.
+                    const divItem = nivelarTexto(item.division);
+                    const divSeleccionadaUpper = nivelarTexto(divisionSeleccionada);
+                    
+                    if (divItem !== divSeleccionadaUpper) return;
                 }
                 const nombreLimpio = String(item.nombre).trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 setEsp.add(nombreLimpio);
@@ -831,24 +835,40 @@ export default function DashboardProductividad({ isAdmin }) {
     }, [datosFiltrados]);
 
     const chartDivisiones = useMemo(() => {
+        // Bandera para saber en qué nivel estamos
+        const mostrandoEspecialidades = divisionSeleccionada !== 'todas';
+
         const conteo = datosFiltrados.reduce((acc, curr) => {
-            const div = curr.division || 'Sin Asignar';
-            if (!acc[div]) acc[div] = { total: 0, pv: 0, sub: 0 };
-            acc[div].total++;
-            if (curr.primera_vez === 'Primera Vez') acc[div].pv++; else acc[div].sub++;
+            // Condicionamos la agrupación
+            const clave = mostrandoEspecialidades
+                ? traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD)
+                : (curr.division || 'Sin Asignar');
+
+            if (!acc[clave]) acc[clave] = { total: 0, pv: 0, sub: 0 };
+            acc[clave].total++;
+            if (curr.primera_vez === 'Primera Vez') acc[clave].pv++; else acc[clave].sub++;
             return acc;
         }, {});
 
         const ordenados = Object.entries(conteo).sort((a, b) =>
             ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
         );
+
         return {
             labels: ordenados.map(item => item[0]),
-            datasets: [{ label: 'Consultas', data: ordenados.map(item => item[1].total), backgroundColor: ['#822626', '#D4C19C', '#475569', '#1e293b', '#b45309'], borderRadius: 4 }],
+            datasets: [{
+                label: 'Consultas',
+                data: ordenados.map(item => item[1].total),
+                // Usamos un color fijo para especialidades y la paleta para divisiones
+                backgroundColor: mostrandoEspecialidades ? '#334155' : ['#822626', '#D4C19C', '#475569', '#1e293b', '#b45309'],
+                borderRadius: 4
+            }],
             dataPV: ordenados.map(item => item[1].pv),
-            dataSub: ordenados.map(item => item[1].sub)
+            dataSub: ordenados.map(item => item[1].sub),
+            // Exportamos la bandera para que la interfaz sepa qué título poner
+            mostrandoEspecialidades
         };
-    }, [datosFiltrados, ordenInverso]);
+    }, [datosFiltrados, ordenInverso, divisionSeleccionada]);
 
     const chartTurnos = useMemo(() => {
         const conteo = datosFiltrados.reduce((acc, curr) => {
@@ -880,7 +900,7 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => 
+        const ordenados = Object.entries(conteo).sort((a, b) =>
             ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
         );
         return {
@@ -904,7 +924,7 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => 
+        const ordenados = Object.entries(conteo).sort((a, b) =>
             ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
         );
         const top = ordenados.slice(0, 20);
@@ -930,7 +950,7 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => 
+        const ordenados = Object.entries(conteo).sort((a, b) =>
             ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
         ).slice(0, 20);
         return {
@@ -960,7 +980,7 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) => 
+        const ordenados = Object.entries(conteo).sort((a, b) =>
             ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
         );
         return {
@@ -1481,9 +1501,24 @@ export default function DashboardProductividad({ isAdmin }) {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                     <div id="graficoE_2" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px]">
-                                        <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">Distribución por División</h3>
-                                        <div className="relative flex-1 min-h-[220px]"><Bar data={chartDivisiones} options={{ maintainAspectRatio: false }} /></div>
-                                        {mostrarTablas && <TablaDatos titulo1="División" titulo2="Consultas" labels={chartDivisiones.labels} data={chartDivisiones.datasets[0].data} dataPV={chartDivisiones.dataPV} dataSub={chartDivisiones.dataSub} />}
+                                        <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">
+                                            {chartDivisiones.mostrandoEspecialidades ? 'Distribución por Especialidad' : 'Distribución por División'}
+                                        </h3>
+
+                                        <div className="relative flex-1 min-h-[220px]">
+                                            <Bar data={chartDivisiones} options={{ maintainAspectRatio: false }} />
+                                        </div>
+
+                                        {mostrarTablas && (
+                                            <TablaDatos
+                                                titulo1={chartDivisiones.mostrandoEspecialidades ? 'Especialidad' : 'División'}
+                                                titulo2="Consultas"
+                                                labels={chartDivisiones.labels}
+                                                data={chartDivisiones.datasets[0].data}
+                                                dataPV={chartDivisiones.dataPV}
+                                                dataSub={chartDivisiones.dataSub}
+                                            />
+                                        )}
                                     </div>
                                     <div id="graficoE_3" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px]">
                                         <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">Consultas por Turno</h3>
