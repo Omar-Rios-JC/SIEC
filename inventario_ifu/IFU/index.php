@@ -48,14 +48,21 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
  
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="css/style.css?v=20260527">
+    <link rel="stylesheet" href="css/style.css?v=20260617-2">
  
     <style>
         .hidden { display: none !important; }
     </style>
+
+    <script>
+        window.IFU_SESSION = <?php echo json_encode([
+            'nombre' => $nombreSesion,
+            'rol' => $rolVisible,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    </script>
  
     <script src="js/xlsx.full.min.js?v=20260527" defer></script>
-    <script src="js/main.js?v=20260527" defer></script>
+    <script src="js/main.js?v=20260617-4" defer></script>
 </head>
  
 <body>
@@ -103,7 +110,7 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
             </div>
  
             <!-- Panel de administración (solo visible para admin) -->
-            <div id="adminPanel" class="upload-card admin-only hidden">
+            <div id="adminPanel" class="upload-card admin-only<?php echo $rolIfu === 'admin' ? '' : ' hidden'; ?>">
                 <div class="upload-grid">
                     <div class="upload-box">
                         <span class="upload-icon" aria-hidden="true">CSV</span>
@@ -140,11 +147,15 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
                 <input
                     type="text"
                     id="searchInput"
-                    list="listaClaves"
                     placeholder="Buscar clave o especialidad..."
+                    autocomplete="off"
+                    aria-autocomplete="list"
+                    aria-controls="searchSuggestions"
+                    aria-expanded="false"
                     disabled
                 >
-                <datalist id="listaClaves"></datalist>
+                <button id="clearSearchBtn" class="clear-search hidden" type="button" aria-label="Limpiar búsqueda">&times;</button>
+                <div id="searchSuggestions" class="search-suggestions hidden" role="listbox"></div>
             </div>
  
             <button id="searchBtn" type="button">Buscar</button>
@@ -161,7 +172,7 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
  
             <button id="downloadBtn" type="button">Descargar Excel</button>
  
-            <button id="clearStorageBtn" class="admin-only hidden" type="button">
+            <button id="clearStorageBtn" class="admin-only<?php echo $rolIfu === 'admin' ? '' : ' hidden'; ?>" type="button">
                 Borrar datos guardados
             </button>
  
@@ -179,33 +190,6 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
  
         </section>
     </main>
- 
-    <!--
-        Inicialización JS desde PHP:
-        El rol y nombre ya no se leen de URL params, sino de variables PHP.
-        Esto evita que el usuario manipule el rol desde la URL.
-    -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const rol          = <?php echo json_encode($rolVisible,   JSON_UNESCAPED_UNICODE); ?>;
-            const nombreSesion = <?php echo json_encode($nombreSesion, JSON_UNESCAPED_UNICODE); ?>;
- 
-            const sessionRole = document.getElementById('sessionRole');
-            const sessionName = document.getElementById('sessionName');
- 
-            if (sessionRole) { sessionRole.textContent = rol; }
-            if (sessionName) { sessionName.textContent = nombreSesion; }
- 
-            // Mostrar/ocultar elementos admin-only según el rol
-            document.querySelectorAll('.admin-only').forEach(function (el) {
-                if (rol === 'admin') {
-                    el.classList.remove('hidden');
-                } else {
-                    el.classList.add('hidden');
-                }
-            });
-        });
-    </script>
  
 </body>
 </html>

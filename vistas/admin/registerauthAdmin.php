@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 if (isset($_POST['btnRegister'])) {
     $txtNames = $_POST['names'];
     $txtEmail = $_POST['email'];
@@ -8,31 +10,34 @@ if (isset($_POST['btnRegister'])) {
     $conexion = new Conexion();
     
     // Verificar si el correo ya está registrado
-    $sqlCheck = "SELECT * FROM admi WHERE Email = '$txtEmail'";
-    $existe = $conexion->consultarUnaFila($sqlCheck);
+    $db = $conexion->getConexion();
+    $stmtCheck = $db->prepare('SELECT Id FROM admi WHERE Email = ? LIMIT 1');
+    $stmtCheck->bind_param('s', $txtEmail);
+    $stmtCheck->execute();
+    $existe = $stmtCheck->get_result()->fetch_assoc();
+    $stmtCheck->close();
     
     if ($existe) {
-    session_start();
     $_SESSION['register_error'] = "El correo ya está registrado.";
     header('Location: registerformAdmin.php?msg=Email ya en uso');
     exit();
 }
-    $sql = "INSERT INTO admi (Names, Email, Pasword)
-            VALUES ('$txtNames', '$txtEmail', '$txtPassword')";
+    $stmtInsert = $db->prepare(
+        "INSERT INTO admi (Names, Email, Pasword, rol) VALUES (?, ?, ?, 'admin')"
+    );
+    $stmtInsert->bind_param('sss', $txtNames, $txtEmail, $txtPassword);
 
-    if ($conexion->actualizar($sql)) {
-        session_start();
+    if ($stmtInsert->execute()) {
 
         $adminId = $conexion->obtenerUltimoId();
 
         $_SESSION['admin_id'] = $adminId;
         $_SESSION['admin_name'] = $txtNames;
+        $_SESSION['rol'] = 'admin';
 
         header("Location: login.php?msg=Administrador registrado correctamente");
         exit();
     } else {
-        session_start();
-        
         $_SESSION['register_error'] = "Error al registrar el administrador. Inténtalo de nuevo.";
         header('Location: registerformAdmin.php?msg=Error Registro');
         exit();

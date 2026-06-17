@@ -3,8 +3,6 @@ let relaciones = {};
 let datosTransformados = [];
 let ultimoResultado = [];
 let syncTimer = null;
-let opcionesBusqueda = [];
-let sugerenciaActiva = -1;
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -16,48 +14,36 @@ const API = {
     subirMetodologia: 'subir_metodologia.php'
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
-
-    usuarioActual = window.IFU_SESSION || {
-        nombre: document.getElementById('sessionName').textContent.trim(),
-        rol: document.getElementById('sessionRole').textContent.trim()
-    };
-
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', iniciarSesion);
-    }
-
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', cerrarSesion);
-    }
-
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginForm').addEventListener('submit', iniciarSesion);
+    document.getElementById('logoutBtn').addEventListener('click', cerrarSesion);
     document.getElementById('fileUpload').addEventListener('change', procesarArchivo);
     document.getElementById('fileMetodologia').addEventListener('change', cargarMetodologia);
     document.getElementById('searchBtn').addEventListener('click', realizarBusqueda);
-    document.getElementById('searchInput').addEventListener('input', actualizarSugerencias);
-    document.getElementById('searchInput').addEventListener('focus', actualizarSugerencias);
-    document.getElementById('searchInput').addEventListener('keydown', navegarSugerencias);
-    document.getElementById('clearSearchBtn').addEventListener('click', () => limpiarBuscador(true));
-    document.addEventListener('click', cerrarSugerenciasAlSalir);
     document.getElementById('downloadBtn').addEventListener('click', descargarExcel);
     document.getElementById('filtroTabla').addEventListener('input', filtrarTabla);
     document.getElementById('filterZero').addEventListener('change', filtrarTabla);
     document.getElementById('clearStorageBtn').addEventListener('click', limpiarDatos);
 
-    mostrarApp();
-    await cargarDatos();
-    iniciarActualizacionTiempoReal();
+    verificarSesion();
 });
 
 async function verificarSesion() {
-    usuarioActual = window.IFU_SESSION;
+    try {
+        const response = await fetch(API.login, { cache: 'no-store' });
+        const result = await response.json();
 
-    if (usuarioActual) {
-        mostrarApp();
-    } else {
+        if (result.authenticated) {
+            usuarioActual = result.usuario;
+            mostrarApp();
+            await cargarDatos();
+            iniciarActualizacionTiempoReal();
+        } else {
+            mostrarLogin();
+        }
+    } catch (error) {
         mostrarLogin();
+        mostrarMensajeGlobal('No se pudo verificar la sesión. Revisa la conexión a PHP/MySQL.', 'error');
     }
 }
 
@@ -80,7 +66,6 @@ async function iniciarSesion(e) {
         }
 
         usuarioActual = result.usuario;
-        window.IFU_SESSION = result.usuario;
         document.getElementById('loginForm').reset();
         mostrarApp();
         await cargarDatos();
@@ -333,7 +318,7 @@ function transformarInventario(cuadricula) {
     let filaEncabezados = -1;
 
     for (let i = 0; i < cuadricula.length; i++) {
-        const texto = normalizarTexto(cuadricula[i].join(' '));
+        const texto = cuadricula[i].join(' ').toUpperCase();
 
         if (texto.includes('50100') || texto.includes('60000')) {
             filaEncabezados = i;
@@ -350,14 +335,9 @@ function transformarInventario(cuadricula) {
 
     for (let f = filaEncabezados + 1; f < cuadricula.length; f++) {
         const filaActual = cuadricula[f] || [];
-        const textoFila = normalizarTexto(filaActual.join(' '));
-        const esFilaUnidad =
-            textoFila.includes('4W') ||
-            textoFila.includes('HGP 48') ||
-            textoFila.includes('UMAE 23') ||
-            textoFila.includes('BAJIO');
+        const textoFila = filaActual.join(' ').toUpperCase();
 
-        if (esFilaUnidad) {
+        if (textoFila.includes('HGP 48') || textoFila.includes('BAJIO') || textoFila.includes('BAJÍO')) {
             for (let c = 0; c < encabezados.length; c++) {
                 const titulo = encabezados[c] ? encabezados[c].toString().trim() : '';
                 const valorCrudo = filaActual[c] ? filaActual[c].toString().trim() : '0';
@@ -384,6 +364,9 @@ function transformarInventario(cuadricula) {
 }
 
 function reconstruirDatalist() {
+    const lista = document.getElementById('listaClaves');
+    lista.innerHTML = '';
+
     const opciones = datosTransformados.map((item) => `${item.clave} - ${item.descripcion}`);
 
     Object.keys(relaciones).forEach((clave) => {
@@ -391,105 +374,11 @@ function reconstruirDatalist() {
         opciones.push(`${clave} - ${descripcion}`);
     });
 
-    opcionesBusqueda = [...new Set(opciones)].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-    cerrarSugerencias();
-}
-
-function actualizarSugerencias() {
-    const input = document.getElementById('searchInput');
-    const lista = document.getElementById('searchSuggestions');
-    const limpiar = document.getElementById('clearSearchBtn');
-    const termino = normalizarTexto(input.value.trim());
-
-    limpiar.classList.toggle('hidden', input.value.length === 0);
-    sugerenciaActiva = -1;
-    lista.innerHTML = '';
-
-    const coincidencias = opcionesBusqueda
-        .filter((opcion) => !termino || normalizarTexto(opcion).includes(termino))
-        .slice(0, 12);
-
-    if (coincidencias.length === 0) {
-        const vacio = document.createElement('div');
-        vacio.className = 'search-empty';
-        vacio.textContent = 'No se encontraron coincidencias';
-        lista.appendChild(vacio);
-    } else {
-        coincidencias.forEach((opcion) => {
-            const [clave, ...descripcion] = opcion.split(' - ');
-            const item = document.createElement('button');
-            const claveElement = document.createElement('span');
-            const descripcionElement = document.createElement('span');
-
-            item.type = 'button';
-            item.className = 'search-suggestion';
-            item.setAttribute('role', 'option');
-            item.dataset.value = opcion;
-            claveElement.className = 'suggestion-key';
-            claveElement.textContent = clave;
-            descripcionElement.className = 'suggestion-label';
-            descripcionElement.textContent = descripcion.join(' - ');
-            item.append(claveElement, descripcionElement);
-            item.addEventListener('click', () => seleccionarSugerencia(opcion, true));
-            lista.appendChild(item);
-        });
-    }
-
-    lista.classList.remove('hidden');
-    input.setAttribute('aria-expanded', 'true');
-}
-
-function navegarSugerencias(e) {
-    const items = [...document.querySelectorAll('.search-suggestion')];
-
-    if (e.key === 'Escape') {
-        cerrarSugerencias();
-        return;
-    }
-
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        if (sugerenciaActiva >= 0 && items[sugerenciaActiva]) {
-            seleccionarSugerencia(items[sugerenciaActiva].dataset.value, true);
-        } else {
-            realizarBusqueda();
-        }
-        return;
-    }
-
-    if (!['ArrowDown', 'ArrowUp'].includes(e.key) || items.length === 0) return;
-
-    e.preventDefault();
-    sugerenciaActiva = e.key === 'ArrowDown'
-        ? (sugerenciaActiva + 1) % items.length
-        : (sugerenciaActiva - 1 + items.length) % items.length;
-
-    items.forEach((item, index) => item.classList.toggle('active', index === sugerenciaActiva));
-    items[sugerenciaActiva].scrollIntoView({ block: 'nearest' });
-}
-
-function seleccionarSugerencia(valor, buscar) {
-    document.getElementById('searchInput').value = valor;
-    cerrarSugerencias();
-    if (buscar) realizarBusqueda();
-}
-
-function limpiarBuscador(enfocar = false) {
-    const input = document.getElementById('searchInput');
-    input.value = '';
-    document.getElementById('clearSearchBtn').classList.add('hidden');
-    if (enfocar) input.focus();
-    cerrarSugerencias();
-}
-
-function cerrarSugerencias() {
-    document.getElementById('searchSuggestions').classList.add('hidden');
-    document.getElementById('searchInput').setAttribute('aria-expanded', 'false');
-    sugerenciaActiva = -1;
-}
-
-function cerrarSugerenciasAlSalir(e) {
-    if (!e.target.closest('.search-box')) cerrarSugerencias();
+    [...new Set(opciones)].sort().forEach((texto) => {
+        const opt = document.createElement('option');
+        opt.value = texto;
+        lista.appendChild(opt);
+    });
 }
 
 function calcularDashboard() {
@@ -513,8 +402,6 @@ function realizarBusqueda() {
         mostrarSinResultados('Escribe o selecciona una clave IFU.');
         return;
     }
-
-    limpiarBuscador(true);
 
     const claveBuscada = inputVal.split(' - ')[0].trim();
     const relacion = relaciones[claveBuscada];
@@ -639,8 +526,6 @@ function mostrarDesglose(clavePadre) {
             ${construirTabla(filas, true, false)}
         </div>
     `;
-
-    filtrarTabla();
 }
 
 function ocultarDesglose() {
@@ -901,13 +786,6 @@ function leerLocalStorage(key, fallback) {
 
 function limpiarClave(valor) {
     return valor.toString().replace('.00', '').replace('.0', '').trim();
-}
-
-function normalizarTexto(valor) {
-    return String(valor)
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toUpperCase();
 }
 
 function normalizarCantidad(valorCrudo) {

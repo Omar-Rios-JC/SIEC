@@ -80,8 +80,7 @@ body{
 }
 
 .login-form button,
-#logoutBtn,
-.logout-link{
+#logoutBtn{
     display:flex;
     align-items:center;
     justify-content:center;
@@ -124,37 +123,16 @@ body{
     font-size:0.85rem;
 }
 
-#logoutBtn,
-.logout-link{
+#logoutBtn{
     padding:10px 14px;
     border-radius:10px;
     background:#34495e;
     color:white;
     font-size:0.95rem;
-    text-decoration:none;
-    font-weight:bold;
-    white-space:nowrap;
 }
 
-#logoutBtn:hover,
-.logout-link:hover{
+#logoutBtn:hover{
     background:#2c3e50;
-    color:white;
-}
-
-.local-icon{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-width:28px;
-    height:22px;
-    padding:0 6px;
-    border-radius:999px;
-    background:rgba(255,255,255,0.18);
-    color:inherit;
-    font-size:0.72rem;
-    font-weight:800;
-    line-height:1;
 }
 
 /* UPLOAD */
@@ -187,18 +165,9 @@ body{
     background:#f2f8fc;
 }
 
-.upload-icon{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:58px;
-    height:42px;
-    border-radius:12px;
-    background:#eaf3f9;
+.upload-box i{
+    font-size:2rem;
     color:#005b96;
-    font-size:1rem;
-    font-weight:800;
-    letter-spacing:0;
     margin-bottom:15px;
 }
 
@@ -247,37 +216,18 @@ body{
     margin-bottom:15px;
 }
 
-.search-icon{
+.search-box i{
     position:absolute;
     top:50%;
     left:20px;
     transform:translateY(-50%);
-    width:16px;
-    height:16px;
-    border:2px solid #7f8c8d;
-    border-radius:50%;
-}
-
-.search-icon::after{
-    content:"";
-    position:absolute;
-    width:8px;
-    height:2px;
-    right:-7px;
-    bottom:-4px;
-    background:#7f8c8d;
-    transform:rotate(45deg);
-    border-radius:2px;
-}
-
-.search-box i{
     color:#7f8c8d;
     font-size:1.1rem;
 }
 
 .search-box input{
     width:100%;
-    padding:20px 58px 20px 55px;
+    padding:20px 20px 20px 55px;
     border-radius:18px;
     border:2px solid #dfe6e9;
     font-size:1rem;
@@ -432,8 +382,7 @@ button{
 .table-card{
     background:white;
     border-radius:20px;
-    overflow-x:auto;
-    overflow-y:hidden;
+    overflow:hidden;
     box-shadow:0 2px 10px rgba(0,0,0,0.08);
     margin-bottom:25px;
 }
@@ -478,7 +427,6 @@ button{
 
 table{
     width:100%;
-    min-width:640px;
     border-collapse:collapse;
 }
 
@@ -566,20 +514,6 @@ td button:hover{
 
 @media(max-width:600px){
 
-    .container{
-        width:92%;
-        margin:20px auto;
-    }
-
-    .session-bar{
-        align-items:stretch;
-        flex-direction:column;
-    }
-
-    .logout-link{
-        width:100%;
-    }
-
     .topbar h1{
         font-size:1.5rem;
     }
@@ -597,196 +531,3 @@ td button:hover{
 #clearStorageBtn{ background:#c0392b; }
 
 #clearStorageBtn:hover{ background:#922b21; }
-
-/* -----------------------------------------------------------------
-   1. Botón "Regresar al inicio"  (.logout-link)
-      Se agrega .logout-link al mismo grupo que #logoutBtn para que
-      el enlace <a> tenga el mismo aspecto visual que el botón.
-   ----------------------------------------------------------------- */
-.logout-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: #34495e;
-    color: white;
-    font-size: 0.95rem;
-    font-weight: bold;
-    text-decoration: none;
-    white-space: nowrap;
-    border: none;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.logout-link:hover,
-.logout-link:focus {
-    background: #2c3e50;
-    color: white;
-    text-decoration: none;
-}
-
-
-/* -----------------------------------------------------------------
-   2. Tablas responsivas dentro de .table-card
-      Evita que las tablas anchas rompan el layout en móvil.
-   ----------------------------------------------------------------- */
-.table-card {
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-/* Las tablas pueden ser anchas pero con scroll, no cortadas */
-.table-card table,
-table.ifu-table {
-    min-width: 640px;
-    border-collapse: collapse;
-}
-
-
-/* -----------------------------------------------------------------
-   3. Responsive móvil (max-width: 600px)
-   ----------------------------------------------------------------- */
-@media (max-width: 600px) {
-
-    /* Contenedor principal */
-    .container {
-        width: 92%;
-        margin: 20px auto;
-        padding-left: 10px;
-        padding-right: 10px;
-    }
-
-    /* Topbar: título más pequeño */
-    .topbar h1 {
-        font-size: 1.3rem;
-    }
-
-    /* Barra de sesión: apila nombre y botón en columna */
-    .session-bar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-
-    /* Botón "Regresar al inicio" ocupa el ancho completo en móvil */
-    .logout-link {
-        width: 100%;
-        justify-content: center;
-        text-align: center;
-    }
-
-    /* Dashboard: una tarjeta por fila */
-    .dashboard {
-        grid-template-columns: 1fr;
-    }
-
-    /* Búsqueda: input a todo el ancho */
-    .search-box {
-        flex-direction: column;
-    }
-
-    .search-box input {
-        width: 100%;
-    }
-
-    /* Botones principales a ancho completo */
-    #searchBtn,
-    #downloadBtn,
-    #clearStorageBtn {
-        width: 100%;
-        margin-bottom: 8px;
-    }
-
-    /* Filtros extra en columna */
-    .filtros-extra {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .filtros-extra input {
-        width: 100%;
-    }
-
-    /* Upload grid: una columna */
-    .upload-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.clear-search{
-    position:absolute;
-    top:50%;
-    right:18px;
-    transform:translateY(-50%);
-    width:34px;
-    height:34px;
-    border-radius:50%;
-    background:#eef4f7;
-    color:#34495e;
-    font-size:1.45rem;
-    line-height:1;
-    z-index:3;
-}
-
-.clear-search:hover,
-.clear-search:focus-visible{
-    background:#dceaf1;
-    color:#005b96;
-}
-
-.search-suggestions{
-    position:absolute;
-    top:calc(100% + 6px);
-    left:0;
-    right:0;
-    max-height:330px;
-    overflow-y:auto;
-    padding:8px;
-    border:1px solid #d8e3e8;
-    border-radius:16px;
-    background:#fff;
-    box-shadow:0 18px 40px rgba(35,55,70,0.18);
-    z-index:30;
-}
-
-.search-suggestion{
-    display:flex;
-    width:100%;
-    align-items:center;
-    gap:12px;
-    padding:12px 14px;
-    border-radius:11px;
-    background:transparent;
-    color:#263746;
-    text-align:left;
-}
-
-.search-suggestion:hover,
-.search-suggestion.active{
-    background:#eaf4fa;
-}
-
-.suggestion-key{
-    flex:0 0 auto;
-    min-width:68px;
-    padding:5px 9px;
-    border-radius:9px;
-    background:#dceef8;
-    color:#005b96;
-    font-weight:800;
-    text-align:center;
-}
-
-.suggestion-label{
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-}
-
-.search-empty{
-    padding:18px;
-    color:#71808c;
-    text-align:center;
-}
