@@ -949,16 +949,14 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) =>
-            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
-        ).slice(0, 20);
+        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total).slice(0, 20);
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{ label: 'Frecuencia', data: ordenados.map(item => item[1].total), backgroundColor: '#1e293b', borderRadius: 4 }],
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados, diccionarioCIE, ordenInverso]);
+    }, [datosFiltrados, diccionarioCIE]);
 
     const chartConsultorios = useMemo(() => {
         if (!datosFiltrados || datosFiltrados.length === 0) {
@@ -979,9 +977,7 @@ export default function DashboardProductividad({ isAdmin }) {
             return acc;
         }, {});
 
-        const ordenados = Object.entries(conteo).sort((a, b) =>
-            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
-        );
+        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total);
         return {
             labels: ordenados.map(item => item[0]),
             datasets: [{
@@ -993,7 +989,7 @@ export default function DashboardProductividad({ isAdmin }) {
             dataPV: ordenados.map(item => item[1].pv),
             dataSub: ordenados.map(item => item[1].sub)
         };
-    }, [datosFiltrados, ordenInverso]);
+    }, [datosFiltrados]);
 
     const anchoDinamico = (cantidadItems) => `max(100%, ${cantidadItems * 40}px)`;
 
