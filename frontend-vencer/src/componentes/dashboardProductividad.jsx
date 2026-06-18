@@ -609,7 +609,8 @@ export default function DashboardProductividad({ isAdmin }) {
     const datosFiltradosDivision = useMemo(() => {
         return datosFiltradosFecha.filter(item => {
             if (divisionSeleccionada === 'todas') return true;
-            return (item.division || 'Sin Asignar').trim() === divisionSeleccionada;
+            
+            return nivelarTexto(item.division || 'Sin Asignar') === nivelarTexto(divisionSeleccionada);
         });
     }, [datosFiltradosFecha, divisionSeleccionada]);
 
@@ -630,8 +631,6 @@ export default function DashboardProductividad({ isAdmin }) {
         Object.values(diccionarioEspecialidades).forEach(item => {
             if (item && item.nombre) {
                 if (divisionSeleccionada !== 'todas') {
-                    // LA SOLUCIÓN: Usamos tu función nivelarTexto en lugar de solo toUpperCase
-                    // Así "Ginecología" y "GINECOLOGIA" se vuelven exactamente iguales.
                     const divItem = nivelarTexto(item.division);
                     const divSeleccionadaUpper = nivelarTexto(divisionSeleccionada);
                     
