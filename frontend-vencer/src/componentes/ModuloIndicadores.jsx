@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import localforage from "localforage";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import IndicadoresHosp from "./IndicadoresHosp.jsx";
 import {
   Target,
@@ -15,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  Download,
 } from "lucide-react";
 import { Line } from "react-chartjs-2";
 import {
@@ -275,6 +278,8 @@ const ModuloIndicadores = ({
 
   const [sidebarColapsada, setSidebarColapsada] = useState(false);
   const [sidebarMovilAbierta, setSidebarMovilAbierta] = useState(false);
+  const [descargandoReporte, setDescargandoReporte] = useState(false);
+  const graficaMetasRef = useRef(null);
 
   const regresarAlInicio = () => {
     if (typeof onVolverInicio === "function") {
@@ -555,6 +560,235 @@ const ModuloIndicadores = ({
     };
   }, [datosConsultaExterna, mesGraficoMeta, anioGraficoMeta, seccionSidebar]);
 
+  const descargarReporteIndicadores = async () => {
+    if (!chartMetas || !tablaProductividadConsultorios) return;
+
+    setDescargandoReporte(true);
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "SIEC UMAE No. 48";
+      workbook.created = new Date();
+
+      const periodo = `${MESES[mesGraficoMeta]} ${anioGraficoMeta}`;
+      const hoja = workbook.addWorksheet("Indicadores", {
+        views: [{ state: "frozen", xSplit: 1, ySplit: 22 }],
+        pageSetup: {
+          orientation: "landscape",
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+        },
+      });
+
+      hoja.mergeCells("A1:H1");
+      const titulo = hoja.getCell("A1");
+      titulo.value = "INDICADORES: CONSULTA EXTERNA";
+      titulo.font = {
+        bold: true,
+        size: 18,
+        color: { argb: "FFFFFFFF" },
+      };
+      titulo.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF047857" },
+      };
+      titulo.alignment = { horizontal: "center", vertical: "middle" };
+      hoja.getRow(1).height = 30;
+
+      hoja.mergeCells("A2:H2");
+      const subtitulo = hoja.getCell("A2");
+      subtitulo.value = `Periodo operativo: ${periodo}`;
+      subtitulo.font = {
+        bold: true,
+        size: 12,
+        color: { argb: "FF334155" },
+      };
+      subtitulo.alignment = { horizontal: "center" };
+
+      hoja.mergeCells("A4:H4");
+      const tituloGrafica = hoja.getCell("A4");
+      tituloGrafica.value = "Cumplimiento de Metas Semanales";
+      tituloGrafica.font = {
+        bold: true,
+        size: 14,
+        color: { argb: "FF047857" },
+      };
+
+      const grafica = graficaMetasRef.current;
+      if (grafica) {
+        const imageId = workbook.addImage({
+          base64: grafica.toBase64Image("image/png", 1),
+          extension: "png",
+        });
+        hoja.addImage(imageId, {
+          tl: { col: 0, row: 4 },
+          ext: { width: 760, height: 300 },
+        });
+      }
+
+      const filaInicioTabla = 22;
+      const encabezados = [
+        "Consultorio",
+        ...tablaProductividadConsultorios.dias.map(
+          (dia) => `${dia.getDate()} ${MESES[dia.getMonth()]}`,
+        ),
+        "Total",
+      ];
+      const filaEncabezado = hoja.getRow(filaInicioTabla);
+      filaEncabezado.values = encabezados;
+      filaEncabezado.height = 28;
+
+      filaEncabezado.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF334155" },
+        };
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "middle",
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFCBD5E1" } },
+          left: { style: "thin", color: { argb: "FFCBD5E1" } },
+          bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+          right: { style: "thin", color: { argb: "FFCBD5E1" } },
+        };
+      });
+
+      tablaProductividadConsultorios.filas.forEach((fila, indice) => {
+        const numeroFila = filaInicioTabla + 1 + indice;
+        const valores = [
+          fila.nombre,
+          ...tablaProductividadConsultorios.diasISO.map(
+            (iso) => fila.conteos[iso] || 0,
+          ),
+          fila.totalFila,
+        ];
+        const filaExcel = hoja.getRow(numeroFila);
+        filaExcel.values = valores;
+
+        filaExcel.eachCell((cell, numeroColumna) => {
+          cell.alignment = {
+            horizontal: numeroColumna === 1 ? "left" : "center",
+            vertical: "middle",
+          };
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFE2E8F0" } },
+            left: { style: "thin", color: { argb: "FFE2E8F0" } },
+            bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right: { style: "thin", color: { argb: "FFE2E8F0" } },
+          };
+
+          if (numeroColumna === 1) {
+            cell.font = { bold: true, color: { argb: "FF334155" } };
+          } else if (numeroColumna === encabezados.length) {
+            cell.font = { bold: true, color: { argb: "FF0F172A" } };
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFF1F5F9" },
+            };
+          } else {
+            const valor = Number(cell.value) || 0;
+            let fondo = "FFFFFFFF";
+            let texto = "FFCBD5E1";
+
+            if (valor >= 24) {
+              fondo = "FFD1FAE5";
+              texto = "FF065F46";
+            } else if (valor >= 16) {
+              fondo = "FFFEF3C7";
+              texto = "FF92400E";
+            } else if (valor > 0) {
+              fondo = "FFFFE4E6";
+              texto = "FF9F1239";
+            }
+
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: fondo },
+            };
+            cell.font = { bold: valor > 0, color: { argb: texto } };
+            if (valor === 0) cell.value = "-";
+          }
+        });
+      });
+
+      const filaTotalesNumero =
+        filaInicioTabla + 1 + tablaProductividadConsultorios.filas.length;
+      const filaTotales = hoja.getRow(filaTotalesNumero);
+      filaTotales.values = [
+        "TOTAL DIARIO",
+        ...tablaProductividadConsultorios.diasISO.map(
+          (iso) => tablaProductividadConsultorios.totalesPorDia[iso] || 0,
+        ),
+        tablaProductividadConsultorios.totalGeneral,
+      ];
+      filaTotales.eachCell((cell, numeroColumna) => {
+        cell.font = {
+          bold: true,
+          color: {
+            argb:
+              numeroColumna === encabezados.length
+                ? "FFFFFFFF"
+                : "FF065F46",
+          },
+        };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: {
+            argb:
+              numeroColumna === encabezados.length
+                ? "FF059669"
+                : "FFECFDF5",
+          },
+        };
+        cell.alignment = {
+          horizontal: numeroColumna === 1 ? "left" : "center",
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FF94A3B8" } },
+          left: { style: "thin", color: { argb: "FFCBD5E1" } },
+          bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+          right: { style: "thin", color: { argb: "FFCBD5E1" } },
+        };
+      });
+
+      hoja.getColumn(1).width = 25;
+      for (let columna = 2; columna < encabezados.length; columna++) {
+        hoja.getColumn(columna).width = 10;
+      }
+      hoja.getColumn(encabezados.length).width = 13;
+      hoja.autoFilter = {
+        from: { row: filaInicioTabla, column: 1 },
+        to: {
+          row: filaInicioTabla,
+          column: encabezados.length,
+        },
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(
+        new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `Indicadores_Consulta_Externa_${MESES[mesGraficoMeta]}_${anioGraficoMeta}.xlsx`,
+      );
+    } catch (error) {
+      console.error("Error al generar el reporte de indicadores:", error);
+      alert("No se pudo generar el reporte. Intenta nuevamente.");
+    } finally {
+      setDescargandoReporte(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 md:flex md:h-screen md:overflow-hidden">
       {/* SIDEBAR MENÚ LATERAL */}
@@ -766,39 +1000,59 @@ const ModuloIndicadores = ({
                             </p>
                           </div>
                         </div>
-                        <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-inner">
-                          <Filter size={16} className="text-slate-400 ml-1" />
-                          <select
-                            className="bg-transparent font-bold text-emerald-700 text-sm outline-none cursor-pointer"
-                            value={mesGraficoMeta}
-                            onChange={(e) =>
-                              setMesGraficoMeta(Number(e.target.value))
-                            }
+                        <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
+                          <div className="flex items-center justify-between sm:justify-start gap-2 bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-inner">
+                            <Filter size={16} className="text-slate-400 ml-1" />
+                            <select
+                              className="bg-transparent font-bold text-emerald-700 text-sm outline-none cursor-pointer"
+                              value={mesGraficoMeta}
+                              onChange={(e) =>
+                                setMesGraficoMeta(Number(e.target.value))
+                              }
+                            >
+                              {MESES.map((m, i) => (
+                                <option key={i} value={i}>
+                                  {m}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                            <select
+                              className="bg-transparent font-bold text-emerald-700 text-sm outline-none cursor-pointer"
+                              value={anioGraficoMeta}
+                              onChange={(e) =>
+                                setAnioGraficoMeta(Number(e.target.value))
+                              }
+                            >
+                              {aniosDisponibles.map((a) => (
+                                <option key={a} value={a}>
+                                  {a}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={descargarReporteIndicadores}
+                            disabled={descargandoReporte}
+                            className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+                            title="Descargar gráfica y tabla en Excel"
                           >
-                            {MESES.map((m, i) => (
-                              <option key={i} value={i}>
-                                {m}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                          <select
-                            className="bg-transparent font-bold text-emerald-700 text-sm outline-none cursor-pointer"
-                            value={anioGraficoMeta}
-                            onChange={(e) =>
-                              setAnioGraficoMeta(Number(e.target.value))
-                            }
-                          >
-                            {aniosDisponibles.map((a) => (
-                              <option key={a} value={a}>
-                                {a}
-                              </option>
-                            ))}
-                          </select>
+                            <Download
+                              size={17}
+                              className={
+                                descargandoReporte ? "animate-bounce" : ""
+                              }
+                            />
+                            {descargandoReporte
+                              ? "Generando..."
+                              : "Descargar reporte"}
+                          </button>
                         </div>
                       </div>
                       <div className="h-64 sm:h-80 w-full">
                         <Line
+                          ref={graficaMetasRef}
                           data={chartMetas}
                           options={{
                             responsive: true,
