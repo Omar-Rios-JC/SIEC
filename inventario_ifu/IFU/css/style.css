@@ -503,6 +503,47 @@ tr:hover{
     background:#f9fbfc;
 }
 
+.inventory-total-box{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    min-width:640px;
+    padding:18px 22px;
+    background:linear-gradient(135deg, #e9f8ef 0%, #f5fbf7 100%);
+    border-top:2px solid #26b467;
+    color:#185c37;
+}
+
+.inventory-total-box div{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+}
+
+.inventory-total-box span{
+    font-size:1rem;
+    font-weight:800;
+}
+
+.inventory-total-box small{
+    color:#5c7869;
+    font-size:0.78rem;
+    font-weight:600;
+}
+
+.inventory-total-box strong{
+    min-width:100px;
+    padding:9px 16px;
+    border-radius:12px;
+    background:#26b467;
+    color:white;
+    font-size:1.45rem;
+    font-weight:900;
+    text-align:center;
+    box-shadow:0 6px 14px rgba(38, 180, 103, 0.2);
+}
+
 /* BOTON DESGLOSE */
 
 td button{

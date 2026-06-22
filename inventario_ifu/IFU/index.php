@@ -48,7 +48,7 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
  
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="css/style.css?v=20260617-2">
+    <link rel="stylesheet" href="css/style.css?v=20260622-1">
  
     <style>
         .hidden { display: none !important; }
@@ -62,7 +62,7 @@ if (!isset($_SESSION['usuario']) || ($_SESSION['usuario']['rol'] ?? '') !== $rol
     </script>
  
     <script src="js/xlsx.full.min.js?v=20260527" defer></script>
-    <script src="js/main.js?v=20260622-1" defer></script>
+    <script src="js/main.js?v=20260622-4" defer></script>
 </head>
  
 <body>
