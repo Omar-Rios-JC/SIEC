@@ -134,7 +134,10 @@ async function cargarDatos() {
         refrescarInterfaz();
 
         if (datosTransformados.length || Object.keys(relaciones).length) {
-            mostrarMensaje('Datos cargados correctamente.', 'success');
+            mostrarMensaje(
+                `Datos cargados correctamente: ${datosTransformados.length} claves de inventario y ${Object.keys(relaciones).length} relaciones de metodología.`,
+                'success'
+            );
         } else {
             mostrarMensaje('No hay datos cargados todavía.', 'info');
         }
@@ -431,7 +434,7 @@ function extraerEncabezadoIFU(valor) {
 
     if (!texto) return null;
 
-    const coincidencia = texto.match(/^(\d{4,8})(?:\.0+)?(?:\s*[-–—:]\s*|\s+)?(.*)$/);
+    const coincidencia = texto.match(/^[*†‡#]?\s*(\d{4,8})(?:\.0+)?(?:\s*[-–—:]\s*|\s+)?(.*)$/);
     if (!coincidencia) return null;
 
     const clave = coincidencia[1];
@@ -477,8 +480,7 @@ function actualizarSugerencias() {
     lista.innerHTML = '';
 
     const coincidencias = opcionesBusqueda
-        .filter((opcion) => !termino || normalizarTexto(opcion).includes(termino))
-        .slice(0, 12);
+        .filter((opcion) => !termino || normalizarTexto(opcion).includes(termino));
 
     if (coincidencias.length === 0) {
         const vacio = document.createElement('div');
@@ -605,12 +607,24 @@ function realizarBusqueda() {
                 return;
             }
 
-            divResultados.innerHTML = construirTabla(porDescripcion);
+            divResultados.innerHTML = construirTabla(
+                porDescripcion,
+                false,
+                true,
+                'Total del resultado',
+                `Resultados para: ${inputVal}`
+            );
             filtrarTabla();
             return;
         }
 
-        divResultados.innerHTML = construirTabla(encontrados);
+        divResultados.innerHTML = construirTabla(
+            encontrados,
+            false,
+            true,
+            'Total del resultado',
+            `${encontrados[0].clave} - ${encontrados[0].descripcion}`
+        );
         filtrarTabla();
         return;
     }
@@ -630,13 +644,35 @@ function realizarBusqueda() {
         return;
     }
 
-    divResultados.innerHTML = construirTabla(filas, true);
+    divResultados.innerHTML = construirTabla(
+        filas,
+        true,
+        true,
+        'Total del resultado',
+        `${claveBuscada} - ${relacion.descripcion || 'Sin descripción'}`
+    );
     filtrarTabla();
 }
 
-function construirTabla(filas, incluirDesglose = false, registrarResultado = true) {
+function construirTabla(
+    filas,
+    incluirDesglose = false,
+    registrarResultado = true,
+    etiquetaTotal = 'Total del resultado',
+    tituloConsulta = ''
+) {
+    const totalInventario = filas.reduce(
+        (total, item) => total + normalizarCantidad(item.cantidad),
+        0
+    );
     let tabla = `
-        <div class="table-card">
+        <div class="table-card inventory-table-block">
+            ${tituloConsulta ? `
+                <div class="search-result-title">
+                    <span>Consulta seleccionada</span>
+                    <strong>${escaparHtml(tituloConsulta)}</strong>
+                </div>
+            ` : ''}
             <table>
                 <thead>
                     <tr>
@@ -674,6 +710,13 @@ function construirTabla(filas, incluirDesglose = false, registrarResultado = tru
     tabla += `
                 </tbody>
             </table>
+            <div class="inventory-total-box">
+                <div>
+                    <span>${escaparHtml(etiquetaTotal)}</span>
+                    <small data-visible-count>${filas.length} registro(s)</small>
+                </div>
+                <strong data-inventory-total>${totalInventario.toLocaleString('es-MX')}</strong>
+            </div>
         </div>
     `;
 
@@ -701,13 +744,13 @@ function mostrarDesglose(clavePadre) {
     detalleDiv.innerHTML = `
         <div class="table-card">
             <div class="table-title detalle-title">
-                <span>Desglose de: ${escaparHtml(clavePadre)}</span>
+                <span>Desglose de: ${escaparHtml(clavePadre)} - ${escaparHtml(relacion.descripcion || 'Sin descripción')}</span>
                 <div class="detalle-actions">
                     <button type="button" class="detail-download-btn" onclick="descargarDesglose()">Descargar desglose</button>
                     <button type="button" class="hide-detail-btn" onclick="ocultarDesglose()">Ocultar desglose</button>
                 </div>
             </div>
-            ${construirTabla(filas, true, false)}
+            ${construirTabla(filas, true, false, 'Total del desglose')}
         </div>
     `;
 
@@ -737,6 +780,30 @@ function filtrarTabla() {
         }
 
         fila.style.display = mostrar ? '' : 'none';
+    });
+
+    document.querySelectorAll('.inventory-table-block').forEach((bloque) => {
+        const filasBloque = bloque.querySelectorAll('tbody tr');
+        let totalVisible = 0;
+        let registrosVisibles = 0;
+
+        filasBloque.forEach((fila) => {
+            if (fila.style.display === 'none') return;
+
+            totalVisible += normalizarCantidad(fila.cells[2].innerText);
+            registrosVisibles++;
+        });
+
+        const totalElement = bloque.querySelector('[data-inventory-total]');
+        const conteoElement = bloque.querySelector('[data-visible-count]');
+
+        if (totalElement) {
+            totalElement.textContent = totalVisible.toLocaleString('es-MX');
+        }
+
+        if (conteoElement) {
+            conteoElement.textContent = `${registrosVisibles} registro(s) visible(s)`;
+        }
     });
 }
 
