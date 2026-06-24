@@ -607,12 +607,24 @@ function realizarBusqueda() {
                 return;
             }
 
-            divResultados.innerHTML = construirTabla(porDescripcion);
+            divResultados.innerHTML = construirTabla(
+                porDescripcion,
+                false,
+                true,
+                'Total del resultado',
+                `Resultados para: ${inputVal}`
+            );
             filtrarTabla();
             return;
         }
 
-        divResultados.innerHTML = construirTabla(encontrados);
+        divResultados.innerHTML = construirTabla(
+            encontrados,
+            false,
+            true,
+            'Total del resultado',
+            `${encontrados[0].clave} - ${encontrados[0].descripcion}`
+        );
         filtrarTabla();
         return;
     }
@@ -632,7 +644,13 @@ function realizarBusqueda() {
         return;
     }
 
-    divResultados.innerHTML = construirTabla(filas, true);
+    divResultados.innerHTML = construirTabla(
+        filas,
+        true,
+        true,
+        'Total del resultado',
+        `${claveBuscada} - ${relacion.descripcion || 'Sin descripción'}`
+    );
     filtrarTabla();
 }
 
@@ -640,7 +658,8 @@ function construirTabla(
     filas,
     incluirDesglose = false,
     registrarResultado = true,
-    etiquetaTotal = 'Total del resultado'
+    etiquetaTotal = 'Total del resultado',
+    tituloConsulta = ''
 ) {
     const totalInventario = filas.reduce(
         (total, item) => total + normalizarCantidad(item.cantidad),
@@ -648,6 +667,12 @@ function construirTabla(
     );
     let tabla = `
         <div class="table-card inventory-table-block">
+            ${tituloConsulta ? `
+                <div class="search-result-title">
+                    <span>Consulta seleccionada</span>
+                    <strong>${escaparHtml(tituloConsulta)}</strong>
+                </div>
+            ` : ''}
             <table>
                 <thead>
                     <tr>
@@ -719,7 +744,7 @@ function mostrarDesglose(clavePadre) {
     detalleDiv.innerHTML = `
         <div class="table-card">
             <div class="table-title detalle-title">
-                <span>Desglose de: ${escaparHtml(clavePadre)}</span>
+                <span>Desglose de: ${escaparHtml(clavePadre)} - ${escaparHtml(relacion.descripcion || 'Sin descripción')}</span>
                 <div class="detalle-actions">
                     <button type="button" class="detail-download-btn" onclick="descargarDesglose()">Descargar desglose</button>
                     <button type="button" class="hide-detail-btn" onclick="ocultarDesglose()">Ocultar desglose</button>

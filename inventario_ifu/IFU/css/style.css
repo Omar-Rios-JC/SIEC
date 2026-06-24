@@ -446,6 +446,29 @@ button{
     font-weight:bold;
 }
 
+.search-result-title{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    padding:18px 22px;
+    background:linear-gradient(135deg, #075f98 0%, #0877b9 100%);
+    color:white;
+    border-bottom:1px solid rgba(255,255,255,0.2);
+}
+
+.search-result-title span{
+    font-size:0.72rem;
+    font-weight:800;
+    letter-spacing:0.08em;
+    opacity:0.78;
+    text-transform:uppercase;
+}
+
+.search-result-title strong{
+    font-size:1.2rem;
+    line-height:1.35;
+}
+
 .detalle-title{
     display:flex;
     align-items:center;
