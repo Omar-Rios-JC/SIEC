@@ -42,7 +42,7 @@ try {
             // 1. LEER LA PRIMERA LÍNEA COMO STRING PURO
             $linea1 = fgets($handle);
             
-            // VACUNA 1: Quitamos las comillas dobles externas del bloque completo si existen
+            // Quitamos las comillas dobles externas del bloque completo si existen
             $linea1Limpia = trim($linea1);
             $linea1Limpia = trim($linea1Limpia, '"'); 
             
@@ -68,7 +68,7 @@ try {
             }, $headers);
             $colMap = array_flip($headers);
 
-            // Verificación estricta de tus columnas requeridas fijas
+            // Verificación estricta de columnas requeridas fijas
             $columnasRequeridas = ['FEEGR', 'ESP', 'DIASEST', 'DiagPrincipalEgreso', 'des_motivo_egreso'];
             foreach ($columnasRequeridas as $req) {
                 if (!isset($colMap[$req])) {
@@ -92,7 +92,7 @@ try {
                 $lineaRaw = trim($lineaRaw);
                 if (empty($lineaRaw)) continue;
 
-                // VACUNA 2: Le arrancamos las comillas externas a la fila de datos completa
+                // Le arrancamos las comillas externas a la fila de datos completa
                 $lineaRawLimpia = trim($lineaRaw, '"');
 
                 // Segmentamos las columnas usando el delimitador detectado

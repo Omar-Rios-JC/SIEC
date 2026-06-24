@@ -609,7 +609,7 @@ export default function DashboardProductividad({ isAdmin }) {
     const datosFiltradosDivision = useMemo(() => {
         return datosFiltradosFecha.filter(item => {
             if (divisionSeleccionada === 'todas') return true;
-            
+
             return nivelarTexto(item.division || 'Sin Asignar') === nivelarTexto(divisionSeleccionada);
         });
     }, [datosFiltradosFecha, divisionSeleccionada]);
@@ -633,7 +633,7 @@ export default function DashboardProductividad({ isAdmin }) {
                 if (divisionSeleccionada !== 'todas') {
                     const divItem = nivelarTexto(item.division);
                     const divSeleccionadaUpper = nivelarTexto(divisionSeleccionada);
-                    
+
                     if (divItem !== divSeleccionadaUpper) return;
                 }
                 const nombreLimpio = String(item.nombre).trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -810,6 +810,23 @@ export default function DashboardProductividad({ isAdmin }) {
             ]
         };
     }, [datosConsultaExterna, divisionSeleccionada, especialidadSeleccionada, mesGraficoMeta, anioGraficoMeta]);
+
+    // ==========================================
+    // SINCRONIZACIÓN: FILTRO GLOBAL -> GRÁFICA LOCAL
+    // ==========================================
+    useEffect(() => {
+        // Si el año global cambia a uno específico, lo pasamos al local
+        if (anioSeleccionado !== 'todos') {
+            setAnioGraficoMeta(Number(anioSeleccionado));
+        }
+
+        // Si el mes global es específico, lo pasamos. Si es rango, tomamos el mes de fin.
+        if (mesSeleccionado !== 'todos' && mesSeleccionado !== 'rango') {
+            setMesGraficoMeta(Number(mesSeleccionado));
+        } else if (mesSeleccionado === 'rango') {
+            setMesGraficoMeta(Number(mesFin));
+        }
+    }, [anioSeleccionado, mesSeleccionado, mesFin]);
 
     const chartOptionsLine = {
         maintainAspectRatio: false,
@@ -1480,13 +1497,29 @@ export default function DashboardProductividad({ isAdmin }) {
                                         </div>
 
                                         <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-200">
-                                            <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={mesGraficoMeta} onChange={e => setMesGraficoMeta(Number(e.target.value))}>
+                                            <select
+                                                className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer"
+                                                value={mesGraficoMeta}
+                                                onChange={e => {
+                                                    const nuevoMes = Number(e.target.value);
+                                                    setMesGraficoMeta(nuevoMes);
+                                                    setMesSeleccionado(String(nuevoMes)); // Actualiza el filtro global
+                                                }}
+                                            >
                                                 {MESES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                                             </select>
 
                                             <div className="w-px h-4 bg-slate-300"></div>
 
-                                            <select className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer" value={anioGraficoMeta} onChange={e => setAnioGraficoMeta(Number(e.target.value))}>
+                                            <select
+                                                className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer"
+                                                value={anioGraficoMeta}
+                                                onChange={e => {
+                                                    const nuevoAnio = Number(e.target.value);
+                                                    setAnioGraficoMeta(nuevoAnio);
+                                                    setAnioSeleccionado(String(nuevoAnio)); // Actualiza el filtro global
+                                                }}
+                                            >
                                                 {aniosFiltroActual.map(a => <option key={a} value={a}>{a}</option>)}
                                             </select>
                                         </div>
