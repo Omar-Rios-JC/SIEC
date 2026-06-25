@@ -5,6 +5,7 @@ let ultimoResultado = [];
 let syncTimer = null;
 let opcionesBusqueda = [];
 let sugerenciaActiva = -1;
+let resumenUltimaLectura = null;
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -133,7 +134,10 @@ async function cargarDatos() {
         refrescarInterfaz();
 
         if (datosTransformados.length || Object.keys(relaciones).length) {
-            mostrarMensaje('Datos cargados correctamente.', 'success');
+            mostrarMensaje(
+                `Datos cargados correctamente: ${datosTransformados.length} claves de inventario y ${Object.keys(relaciones).length} relaciones de metodología.`,
+                'success'
+            );
         } else {
             mostrarMensaje('No hay datos cargados todavía.', 'info');
         }
@@ -201,10 +205,18 @@ function leerArchivoExcel(file) {
             try {
                 const data = new Uint8Array(evento.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const hoja = workbook.Sheets[workbook.SheetNames[0]];
-                const cuadricula = XLSX.utils.sheet_to_json(hoja, {
-                    header: 1,
-                    defval: ''
+                const cuadricula = [];
+
+                workbook.SheetNames.forEach((nombreHoja) => {
+                    const hoja = workbook.Sheets[nombreHoja];
+                    const filasHoja = XLSX.utils.sheet_to_json(hoja, {
+                        header: 1,
+                        defval: ''
+                    });
+
+                    if (filasHoja.length > 0) {
+                        cuadricula.push(['__IFU_HOJA__', nombreHoja], ...filasHoja, []);
+                    }
                 });
 
                 resolve(cuadricula);
@@ -320,7 +332,11 @@ async function procesarArchivo(e) {
 
         guardarRespaldoLocal();
         refrescarInterfaz();
-        mostrarMensaje('Inventario actualizado correctamente.', 'success');
+        const resumen = resumenUltimaLectura;
+        const detalle = resumen
+            ? ` ${resumen.totalClaves} claves leídas en ${resumen.bloquesLeidos} bloque(s) de ${resumen.hojasLeidas} hoja(s).`
+            : '';
+        mostrarMensaje(`Inventario actualizado correctamente.${detalle}`, 'success');
     } catch (error) {
         mostrarMensaje(`Error al subir inventario: ${error.message}`, 'error');
     } finally {
@@ -330,56 +346,114 @@ async function procesarArchivo(e) {
 }
 
 function transformarInventario(cuadricula) {
-    let filaEncabezados = -1;
+    const inventarioPorClave = new Map();
+    let bloquesLeidos = 0;
+    const hojasLeidas = cuadricula.filter(
+        (fila) => Array.isArray(fila) && fila[0] === '__IFU_HOJA__'
+    ).length;
 
-    for (let i = 0; i < cuadricula.length; i++) {
-        const texto = normalizarTexto(cuadricula[i].join(' '));
+    for (let indice = 0; indice < cuadricula.length; indice++) {
+        const encabezados = cuadricula[indice] || [];
+        const columnasIFU = encabezados
+            .map((celda, columna) => {
+                const encabezado = extraerEncabezadoIFU(celda);
+                return encabezado ? { ...encabezado, columna } : null;
+            })
+            .filter(Boolean);
 
-        if (texto.includes('50100') || texto.includes('60000')) {
-            filaEncabezados = i;
-            break;
-        }
-    }
+        const contieneClavesBase = columnasIFU.some(
+            (item) => item.clave === '50100' || item.clave === '60000'
+        );
 
-    if (filaEncabezados === -1) {
-        throw new Error('No se encontraron columnas obligatorias 50100 o 60000');
-    }
+        if (columnasIFU.length < 2 && !contieneClavesBase) continue;
 
-    const encabezados = cuadricula[filaEncabezados] || [];
-    const inventario = [];
+        let encontroUnidad = false;
 
-    for (let f = filaEncabezados + 1; f < cuadricula.length; f++) {
-        const filaActual = cuadricula[f] || [];
-        const textoFila = normalizarTexto(filaActual.join(' '));
-        const esFilaUnidad =
-            textoFila.includes('4W') ||
-            textoFila.includes('HGP 48') ||
-            textoFila.includes('UMAE 23') ||
-            textoFila.includes('BAJIO');
+        for (let f = indice + 1; f < cuadricula.length; f++) {
+            const filaActual = cuadricula[f] || [];
 
-        if (esFilaUnidad) {
-            for (let c = 0; c < encabezados.length; c++) {
-                const titulo = encabezados[c] ? encabezados[c].toString().trim() : '';
-                const valorCrudo = filaActual[c] ? filaActual[c].toString().trim() : '0';
-                const coincidencia = titulo.match(/^(\d{4,})\s+(.*)/);
+            if (filaActual.length === 0) break;
+            if (filaActual[0] === '__IFU_HOJA__') break;
 
-                if (coincidencia) {
-                    inventario.push({
-                        clave: coincidencia[1],
-                        descripcion: coincidencia[2],
-                        cantidad: normalizarCantidad(valorCrudo)
-                    });
+            const posiblesEncabezados = filaActual
+                .map((celda) => extraerEncabezadoIFU(celda))
+                .filter(Boolean);
+            if (posiblesEncabezados.length >= 2) break;
+
+            if (!esFilaInventarioUnidad(filaActual)) continue;
+
+            encontroUnidad = true;
+            bloquesLeidos++;
+
+            columnasIFU.forEach(({ clave, descripcion, columna }) => {
+                const valorCrudo = filaActual[columna];
+                const item = {
+                    clave,
+                    descripcion,
+                    cantidad: normalizarCantidad(valorCrudo ?? '0')
+                };
+                const existente = inventarioPorClave.get(clave);
+
+                if (
+                    !existente ||
+                    (existente.cantidad === 0 && item.cantidad !== 0) ||
+                    item.descripcion.length > existente.descripcion.length
+                ) {
+                    inventarioPorClave.set(clave, item);
                 }
-            }
+            });
+        }
+
+        if (encontroUnidad) {
+            indice++;
         }
     }
 
-    return inventario.filter((item, index, self) =>
-        index === self.findIndex((t) =>
-            t.clave === item.clave &&
-            t.descripcion === item.descripcion &&
-            t.cantidad === item.cantidad
-        )
+    const inventario = [...inventarioPorClave.values()].sort((a, b) =>
+        a.clave.localeCompare(b.clave, 'es', { numeric: true })
+    );
+
+    if (inventario.length === 0) {
+        throw new Error('No se encontró la fila de la unidad HGP 48 ni encabezados IFU válidos');
+    }
+
+    resumenUltimaLectura = {
+        totalClaves: inventario.length,
+        bloquesLeidos,
+        hojasLeidas: Math.max(1, hojasLeidas)
+    };
+
+    return inventario;
+}
+
+function extraerEncabezadoIFU(valor) {
+    const texto = String(valor ?? '')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!texto) return null;
+
+    const coincidencia = texto.match(/^[*†‡#]?\s*(\d{4,8})(?:\.0+)?(?:\s*[-–—:]\s*|\s+)?(.*)$/);
+    if (!coincidencia) return null;
+
+    const clave = coincidencia[1];
+    const descripcion = coincidencia[2].trim() || `Clave IFU ${clave}`;
+
+    return { clave, descripcion };
+}
+
+function esFilaInventarioUnidad(fila) {
+    const texto = normalizarTexto(fila.join(' '));
+
+    return (
+        /(^|\s)4W($|\s)/.test(texto) ||
+        texto.includes('HGP 48') ||
+        texto.includes('HGP48') ||
+        texto.includes('UMAE 48') ||
+        texto.includes('UMAE 23') ||
+        texto.includes('CMN DEL BAJIO') ||
+        texto.includes('BAJIO')
     );
 }
 
@@ -406,8 +480,7 @@ function actualizarSugerencias() {
     lista.innerHTML = '';
 
     const coincidencias = opcionesBusqueda
-        .filter((opcion) => !termino || normalizarTexto(opcion).includes(termino))
-        .slice(0, 12);
+        .filter((opcion) => !termino || normalizarTexto(opcion).includes(termino));
 
     if (coincidencias.length === 0) {
         const vacio = document.createElement('div');
@@ -534,12 +607,24 @@ function realizarBusqueda() {
                 return;
             }
 
-            divResultados.innerHTML = construirTabla(porDescripcion);
+            divResultados.innerHTML = construirTabla(
+                porDescripcion,
+                false,
+                true,
+                'Total del resultado',
+                `Resultados para: ${inputVal}`
+            );
             filtrarTabla();
             return;
         }
 
-        divResultados.innerHTML = construirTabla(encontrados);
+        divResultados.innerHTML = construirTabla(
+            encontrados,
+            false,
+            true,
+            'Total del resultado',
+            `${encontrados[0].clave} - ${encontrados[0].descripcion}`
+        );
         filtrarTabla();
         return;
     }
@@ -559,13 +644,35 @@ function realizarBusqueda() {
         return;
     }
 
-    divResultados.innerHTML = construirTabla(filas, true);
+    divResultados.innerHTML = construirTabla(
+        filas,
+        true,
+        true,
+        'Total del resultado',
+        `${claveBuscada} - ${relacion.descripcion || 'Sin descripción'}`
+    );
     filtrarTabla();
 }
 
-function construirTabla(filas, incluirDesglose = false, registrarResultado = true) {
+function construirTabla(
+    filas,
+    incluirDesglose = false,
+    registrarResultado = true,
+    etiquetaTotal = 'Total del resultado',
+    tituloConsulta = ''
+) {
+    const totalInventario = filas.reduce(
+        (total, item) => total + normalizarCantidad(item.cantidad),
+        0
+    );
     let tabla = `
-        <div class="table-card">
+        <div class="table-card inventory-table-block">
+            ${tituloConsulta ? `
+                <div class="search-result-title">
+                    <span>Consulta seleccionada</span>
+                    <strong>${escaparHtml(tituloConsulta)}</strong>
+                </div>
+            ` : ''}
             <table>
                 <thead>
                     <tr>
@@ -603,6 +710,13 @@ function construirTabla(filas, incluirDesglose = false, registrarResultado = tru
     tabla += `
                 </tbody>
             </table>
+            <div class="inventory-total-box">
+                <div>
+                    <span>${escaparHtml(etiquetaTotal)}</span>
+                    <small data-visible-count>${filas.length} registro(s)</small>
+                </div>
+                <strong data-inventory-total>${totalInventario.toLocaleString('es-MX')}</strong>
+            </div>
         </div>
     `;
 
@@ -630,13 +744,13 @@ function mostrarDesglose(clavePadre) {
     detalleDiv.innerHTML = `
         <div class="table-card">
             <div class="table-title detalle-title">
-                <span>Desglose de: ${escaparHtml(clavePadre)}</span>
+                <span>Desglose de: ${escaparHtml(clavePadre)} - ${escaparHtml(relacion.descripcion || 'Sin descripción')}</span>
                 <div class="detalle-actions">
                     <button type="button" class="detail-download-btn" onclick="descargarDesglose()">Descargar desglose</button>
                     <button type="button" class="hide-detail-btn" onclick="ocultarDesglose()">Ocultar desglose</button>
                 </div>
             </div>
-            ${construirTabla(filas, true, false)}
+            ${construirTabla(filas, true, false, 'Total del desglose')}
         </div>
     `;
 
@@ -666,6 +780,30 @@ function filtrarTabla() {
         }
 
         fila.style.display = mostrar ? '' : 'none';
+    });
+
+    document.querySelectorAll('.inventory-table-block').forEach((bloque) => {
+        const filasBloque = bloque.querySelectorAll('tbody tr');
+        let totalVisible = 0;
+        let registrosVisibles = 0;
+
+        filasBloque.forEach((fila) => {
+            if (fila.style.display === 'none') return;
+
+            totalVisible += normalizarCantidad(fila.cells[2].innerText);
+            registrosVisibles++;
+        });
+
+        const totalElement = bloque.querySelector('[data-inventory-total]');
+        const conteoElement = bloque.querySelector('[data-visible-count]');
+
+        if (totalElement) {
+            totalElement.textContent = totalVisible.toLocaleString('es-MX');
+        }
+
+        if (conteoElement) {
+            conteoElement.textContent = `${registrosVisibles} registro(s) visible(s)`;
+        }
     });
 }
 
