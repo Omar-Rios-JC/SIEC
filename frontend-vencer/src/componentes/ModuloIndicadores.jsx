@@ -301,6 +301,12 @@ const ModuloIndicadores = ({
   const [descargandoDetalle, setDescargandoDetalle] = useState(false);
   const [consultorioSeleccionado, setConsultorioSeleccionado] =
     useState("todos");
+  const [turnoDetalleSeleccionado, setTurnoDetalleSeleccionado] =
+    useState("todos");
+  const [especialidadDetalleSeleccionada, setEspecialidadDetalleSeleccionada] =
+    useState("todas");
+  const [fechaDetalleSeleccionada, setFechaDetalleSeleccionada] =
+    useState("todas");
   const graficaMetasRef = useRef(null);
 
   const regresarAlInicio = () => {
@@ -622,16 +628,42 @@ const ModuloIndicadores = ({
       agrupados.get(clave).consultas++;
     });
 
+    const filasAgrupadas = [...agrupados.values()];
     const opcionesConsultorio = [...consultorios].sort((a, b) =>
       a.localeCompare(b, "es", { numeric: true, sensitivity: "base" }),
     );
+    const opcionesTurno = [...new Set(filasAgrupadas.map((fila) => fila.turno))]
+      .sort((a, b) => a.localeCompare(b, "es"));
+    const opcionesEspecialidad = [
+      ...new Set(filasAgrupadas.map((fila) => fila.especialidad)),
+    ].sort((a, b) => a.localeCompare(b, "es"));
+    const opcionesFecha = [
+      ...new Set(filasAgrupadas.map((fila) => fila.fechaISO)),
+    ].sort((a, b) => a.localeCompare(b));
+
     const filtroActivo = opcionesConsultorio.includes(consultorioSeleccionado)
       ? consultorioSeleccionado
       : "todos";
-    const filas = [...agrupados.values()]
+    const turnoActivo = opcionesTurno.includes(turnoDetalleSeleccionado)
+      ? turnoDetalleSeleccionado
+      : "todos";
+    const especialidadActiva = opcionesEspecialidad.includes(
+      especialidadDetalleSeleccionada,
+    )
+      ? especialidadDetalleSeleccionada
+      : "todas";
+    const fechaActiva = opcionesFecha.includes(fechaDetalleSeleccionada)
+      ? fechaDetalleSeleccionada
+      : "todas";
+
+    const filas = filasAgrupadas
       .filter(
         (fila) =>
-          filtroActivo === "todos" || fila.consultorio === filtroActivo,
+          (filtroActivo === "todos" || fila.consultorio === filtroActivo) &&
+          (turnoActivo === "todos" || fila.turno === turnoActivo) &&
+          (especialidadActiva === "todas" ||
+            fila.especialidad === especialidadActiva) &&
+          (fechaActiva === "todas" || fila.fechaISO === fechaActiva),
       )
       .sort(
         (a, b) =>
@@ -644,7 +676,13 @@ const ModuloIndicadores = ({
     return {
       filas,
       opcionesConsultorio,
+      opcionesTurno,
+      opcionesEspecialidad,
+      opcionesFecha,
       filtroActivo,
+      turnoActivo,
+      especialidadActiva,
+      fechaActiva,
       totalConsultas: filas.reduce((total, fila) => total + fila.consultas, 0),
     };
   }, [
@@ -655,6 +693,9 @@ const ModuloIndicadores = ({
     diccionarioMedicos,
     traducirEspecialidad,
     consultorioSeleccionado,
+    turnoDetalleSeleccionado,
+    especialidadDetalleSeleccionada,
+    fechaDetalleSeleccionada,
   ]);
   // ==========================================
   // GRÁFICA DE METAS SEMANALES
@@ -976,10 +1017,28 @@ const ModuloIndicadores = ({
         },
       });
       const periodo = `${MESES[mesGraficoMeta]} ${anioGraficoMeta}`;
-      const filtro =
-        detalleDiarioConsultorios.filtroActivo === "todos"
-          ? "Todos los consultorios"
-          : detalleDiarioConsultorios.filtroActivo;
+      const filtrosAplicados = [
+        `Consultorio: ${
+          detalleDiarioConsultorios.filtroActivo === "todos"
+            ? "Todos"
+            : detalleDiarioConsultorios.filtroActivo
+        }`,
+        `Turno: ${
+          detalleDiarioConsultorios.turnoActivo === "todos"
+            ? "Todos"
+            : detalleDiarioConsultorios.turnoActivo
+        }`,
+        `Especialidad: ${
+          detalleDiarioConsultorios.especialidadActiva === "todas"
+            ? "Todas"
+            : detalleDiarioConsultorios.especialidadActiva
+        }`,
+        `Fecha: ${
+          detalleDiarioConsultorios.fechaActiva === "todas"
+            ? "Todas"
+            : detalleDiarioConsultorios.fechaActiva
+        }`,
+      ].join(" · ");
 
       hoja.mergeCells("A1:G1");
       hoja.getCell("A1").value = "ATENCIÓN DIARIA POR CONSULTORIO";
@@ -1000,7 +1059,8 @@ const ModuloIndicadores = ({
       hoja.getRow(1).height = 30;
 
       hoja.mergeCells("A2:G2");
-      hoja.getCell("A2").value = `Periodo operativo: ${periodo} · Filtro: ${filtro}`;
+      hoja.getCell("A2").value =
+        `Periodo operativo: ${periodo} · ${filtrosAplicados}`;
       hoja.getCell("A2").font = {
         bold: true,
         size: 11,
@@ -1103,7 +1163,7 @@ const ModuloIndicadores = ({
       };
 
       const buffer = await workbook.xlsx.writeBuffer();
-      const nombreFiltro = filtro
+      const nombreFiltro = filtrosAplicados
         .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]+/g, "_")
         .replace(/^_|_$/g, "");
       saveAs(
@@ -1543,27 +1603,7 @@ const ModuloIndicadores = ({
                             </div>
                           </div>
 
-                          <div className="flex w-full lg:w-auto flex-col sm:flex-row gap-2">
-                            <label className="flex min-w-0 sm:min-w-[260px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
-                              <Filter size={16} className="shrink-0 text-slate-400" />
-                              <span className="sr-only">Filtrar por consultorio</span>
-                              <select
-                                value={detalleDiarioConsultorios.filtroActivo}
-                                onChange={(event) =>
-                                  setConsultorioSeleccionado(event.target.value)
-                                }
-                                className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
-                              >
-                                <option value="todos">Todos los consultorios</option>
-                                {detalleDiarioConsultorios.opcionesConsultorio.map(
-                                  (consultorio) => (
-                                    <option key={consultorio} value={consultorio}>
-                                      {consultorio}
-                                    </option>
-                                  ),
-                                )}
-                              </select>
-                            </label>
+                          <div className="flex w-full lg:w-auto">
                             <button
                               type="button"
                               onClick={descargarDetalleConsultorio}
@@ -1584,6 +1624,108 @@ const ModuloIndicadores = ({
                                 : "Descargar Excel"}
                             </button>
                           </div>
+                        </div>
+
+                        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <Filter size={16} className="shrink-0 text-slate-400" />
+                            <span className="sr-only">Filtrar por consultorio</span>
+                            <select
+                              value={detalleDiarioConsultorios.filtroActivo}
+                              onChange={(event) =>
+                                setConsultorioSeleccionado(event.target.value)
+                              }
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            >
+                              <option value="todos">Todos los consultorios</option>
+                              {detalleDiarioConsultorios.opcionesConsultorio.map(
+                                (consultorio) => (
+                                  <option key={consultorio} value={consultorio}>
+                                    {consultorio}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <span className="text-xs font-bold text-slate-500">Turno</span>
+                            <select
+                              value={detalleDiarioConsultorios.turnoActivo}
+                              onChange={(event) =>
+                                setTurnoDetalleSeleccionado(event.target.value)
+                              }
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            >
+                              <option value="todos">Todos los turnos</option>
+                              {detalleDiarioConsultorios.opcionesTurno.map(
+                                (turno) => (
+                                  <option key={turno} value={turno}>
+                                    {turno}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <span className="text-xs font-bold text-slate-500">Especialidad</span>
+                            <select
+                              value={detalleDiarioConsultorios.especialidadActiva}
+                              onChange={(event) =>
+                                setEspecialidadDetalleSeleccionada(
+                                  event.target.value,
+                                )
+                              }
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            >
+                              <option value="todas">Todas las especialidades</option>
+                              {detalleDiarioConsultorios.opcionesEspecialidad.map(
+                                (especialidad) => (
+                                  <option
+                                    key={especialidad}
+                                    value={especialidad}
+                                  >
+                                    {especialidad}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <Calendar
+                              size={16}
+                              className="shrink-0 text-slate-400"
+                            />
+                            <span className="text-xs font-bold text-slate-500">
+                              Fecha
+                            </span>
+                            <input
+                              type="date"
+                              value={
+                                detalleDiarioConsultorios.fechaActiva === "todas"
+                                  ? ""
+                                  : detalleDiarioConsultorios.fechaActiva
+                              }
+                              min={
+                                detalleDiarioConsultorios.opcionesFecha[0] || ""
+                              }
+                              max={
+                                detalleDiarioConsultorios.opcionesFecha[
+                                  detalleDiarioConsultorios.opcionesFecha.length -
+                                    1
+                                ] || ""
+                              }
+                              onChange={(event) =>
+                                setFechaDetalleSeleccionada(
+                                  event.target.value || "todas",
+                                )
+                              }
+                              aria-label="Filtrar por fecha"
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            />
+                          </label>
                         </div>
 
                         <div className="mb-4 flex flex-wrap gap-2">
@@ -1652,7 +1794,7 @@ const ModuloIndicadores = ({
 
                           {detalleDiarioConsultorios.filas.length === 0 && (
                             <div className="p-10 text-center text-sm font-medium text-slate-400">
-                              No hay atenciones para este consultorio en el periodo seleccionado.
+                              No hay atenciones que coincidan con los filtros seleccionados.
                             </div>
                           )}
                         </div>
