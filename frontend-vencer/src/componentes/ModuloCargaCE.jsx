@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import { Database, Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { registrarActualizacion } from '../utils/fechaActualizacion';
 
 export default function ModuloCargaCE({ setVistaActiva, setMensaje, mensaje, cargarDatos }) {
     const [archivo, setArchivo] = useState(null);
@@ -33,7 +34,11 @@ export default function ModuloCargaCE({ setVistaActiva, setMensaje, mensaje, car
                 // Al subir datos nuevos, borramos la "foto" vieja para forzar la descarga de lo nuevo
                 await localforage.removeItem('cache_productividad_vencer');
                 await localforage.removeItem('version_productividad_vencer');
-                
+
+                // Este CSV alimenta Consulta Externa, Paramédicos y Urgencias,
+                // por eso se guarda bajo la misma clave 'productividad'
+                await registrarActualizacion('productividad');
+
                 // Recargamos los datos en el estado global
                 if (cargarDatos) cargarDatos();
                 

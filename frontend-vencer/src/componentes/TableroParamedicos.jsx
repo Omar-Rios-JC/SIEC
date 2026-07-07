@@ -1,4 +1,5 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
+import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
 import { Activity, Stethoscope, Users, CalendarCheck, Clock, MapPin } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 
@@ -100,6 +101,23 @@ export default function TableroParamedicos({
         }
     }, [datosFiltrados, setExportData]);
 
+<<<<<<< Updated upstream
+=======
+    // Fecha REAL en que un administrador subió/actualizó la base de Paramédicos
+    // (comparte clave 'productividad' porque se sube desde el mismo CSV que CE y Urgencias)
+    const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
+
+    useEffect(() => {
+        let cancelado = false;
+        obtenerFechaActualizacion('productividad').then((fecha) => {
+            if (!cancelado) setUltimaFechaBD(fecha);
+        });
+        return () => {
+            cancelado = true;
+        };
+    }, []);
+
+>>>>>>> Stashed changes
     // 3. KPIs
     const kpis = useMemo(() => {
         let citados = 0; let primeraVez = 0;

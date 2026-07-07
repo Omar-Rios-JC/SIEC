@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
+import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
 import {
     UploadCloud, Activity, Users, CalendarCheck, Clock,
     BarChart2, Database, TableProperties, Stethoscope,
@@ -426,44 +427,19 @@ export default function DashboardProductividad({ isAdmin }) {
         return null;
     };
 
-    const ultimaFechaBD = useMemo(() => {
-        if (!datos || datos.length === 0) return 'No disponible';
-        let maxDate = new Date(2000, 0, 1);
-        let found = false;
+    // Fecha REAL en que un administrador subió/actualizó la base de Consulta Externa
+    // (comparte clave 'productividad' porque se sube desde el mismo CSV que Paramédicos y Urgencias)
+    const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
 
-        datos.forEach(d => {
-            let a = d.anio || d.Anio || d.ANIO || d.año || d.Año || d.AÑO;
-            let m = d.mes || d.Mes || d.MES;
-            let dia = 1;
-
-            const f = encontrarFecha(d);
-            if (f) {
-                if (f.includes('-')) {
-                    const p = f.split('-');
-                    if (p[0].length === 4) { a = a || p[0]; m = m || p[1]; dia = p[2]; }
-                    else { a = a || p[2]; m = m || p[1]; dia = p[0]; }
-                } else if (f.includes('/')) {
-                    const p = f.split('/');
-                    if (p[0].length === 4) { a = a || p[0]; m = m || p[1]; dia = p[2]; }
-                    else { a = a || p[2]; m = m || p[1]; dia = p[0]; }
-                }
-            }
-
-            if (a && m) {
-                const currentDate = new Date(parseInt(a), parseInt(m) - 1, parseInt(dia));
-                if (currentDate > maxDate) {
-                    maxDate = currentDate;
-                    found = true;
-                }
-            }
+    useEffect(() => {
+        let cancelado = false;
+        obtenerFechaActualizacion('productividad').then((fecha) => {
+            if (!cancelado) setUltimaFechaBD(fecha);
         });
-
-        if (!found) return 'No disponible';
-        const dd = String(maxDate.getDate()).padStart(2, '0');
-        const mm = String(maxDate.getMonth() + 1).padStart(2, '0');
-        const yyyy = maxDate.getFullYear();
-        return `${dd}/${mm}/${yyyy}`;
-    }, [datos]);
+        return () => {
+            cancelado = true;
+        };
+    }, []);
 
     // ==========================================
     // CUBETAS DE DATOS BASE (Separación Robusta)

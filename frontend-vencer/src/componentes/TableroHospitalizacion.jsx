@@ -1,4 +1,5 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
+import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Users, Clock, ClipboardList, TrendingUp } from 'lucide-react';
 
@@ -74,6 +75,21 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
         const totalDias = datos.reduce((sum, d) => sum + (Number(d.dias_estancia) || 0), 0);
         return { total: totalEgresos, promedioEstancia: (totalDias / totalEgresos).toFixed(1), totalDias };
     }, [datos]);
+<<<<<<< Updated upstream
+=======
+    // Fecha REAL en que un administrador subió/actualizó la base de Hospitalización
+    const [ultimaFechaBD, setUltimaFechaBD] = useState("Cargando...");
+
+    useEffect(() => {
+        let cancelado = false;
+        obtenerFechaActualizacion("hospitalizacion").then((fecha) => {
+            if (!cancelado) setUltimaFechaBD(fecha);
+        });
+        return () => {
+            cancelado = true;
+        };
+    }, []);
+>>>>>>> Stashed changes
 
     const chartDivisiones = useMemo(() => {
         if (!datos || datos.length === 0) return { labels: [], datasets: [], dataDias: [], promedios: [] };

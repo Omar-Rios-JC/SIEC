@@ -1,6 +1,20 @@
+<<<<<<< Updated upstream
 import React, { useMemo, useEffect } from 'react';
 import { HeartPulse, Users, CalendarCheck, Clock, MapPin } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
+=======
+import React, { useMemo, useEffect, useState } from "react";
+import { obtenerFechaActualizacion } from "../utils/fechaActualizacion";
+import {
+  HeartPulse,
+  Users,
+  CalendarCheck,
+  Clock,
+  MapPin,
+  Activity,
+} from "lucide-react";
+import { Doughnut, Bar } from "react-chartjs-2";
+>>>>>>> Stashed changes
 
 // ==========================================
 // SUB-COMPONENTE: Tabla de Datos
@@ -77,6 +91,7 @@ export default function TableroUrgencias({
     diccionarioEspecialidades = {},
     setExportData 
 }) {
+<<<<<<< Updated upstream
     
     // 1. SINCRONIZACIÓN CON EL PADRE PARA EXCEL
     useEffect(() => {
@@ -103,6 +118,172 @@ export default function TableroUrgencias({
             espontaneos: datos.length - citados, 
             primeraVez, 
             subsecuentes: datos.length - primeraVez 
+=======
+  // 1. SINCRONIZACIÓN CON EL PADRE PARA EXCEL
+  useEffect(() => {
+    if (setExportData) {
+      setExportData(datos || []);
+    }
+  }, [datos, setExportData]);
+
+  // 2. KPIs
+  const kpis = useMemo(() => {
+    let citados = 0;
+    let primeraVez = 0;
+    if (!datos || datos.length === 0)
+      return {
+        total: 0,
+        citados: 0,
+        espontaneos: 0,
+        primeraVez: 0,
+        subsecuentes: 0,
+      };
+      
+
+    datos.forEach((d) => {
+      const citadoVal = String(d.citado || d.CITADO || "0")
+        .trim()
+        .toLowerCase()
+        .replace(".0", "");
+      const pvVal = String(d.primera_vez || d.PRIMERA_VEZ || "0")
+        .trim()
+        .toLowerCase()
+        .replace(".0", "");
+      if (citadoVal === "1" || citadoVal === "citado") citados++;
+      if (pvVal === "1" || pvVal === "primera vez") primeraVez++;
+    });
+
+    return {
+      total: datos.length,
+      citados,
+      espontaneos: datos.length - citados,
+      primeraVez,
+      subsecuentes: datos.length - primeraVez,
+    };
+  }, [datos]);
+
+  // 3. TURNOS
+  const chartTurnos = useMemo(() => {
+    if (!datos || datos.length === 0)
+      return { labels: [], datasets: [], dataPV: [], dataSub: [] };
+    const conteo = datos.reduce((acc, curr) => {
+      const turno = curr.turno || curr.TURNO || "Sin Asignar";
+      if (!acc[turno]) acc[turno] = { total: 0, pv: 0, sub: 0 };
+      acc[turno].total++;
+      const pvVal = String(curr.primera_vez || curr.PRIMERA_VEZ || "0")
+        .trim()
+        .toLowerCase()
+        .replace(".0", "");
+      if (pvVal === "1" || pvVal === "primera vez") acc[turno].pv++;
+      else acc[turno].sub++;
+      return acc;
+    }, {});
+    const ordenados = Object.entries(conteo).sort(
+      (a, b) => b[1].total - a[1].total,
+    );
+    return {
+      labels: ordenados.map((item) => item[0]),
+      datasets: [
+        {
+          data: ordenados.map((item) => item[1].total),
+          backgroundColor: [
+            "#ea580c",
+            "#f97316",
+            "#fb923c",
+            "#475569",
+            "#1e293b",
+          ],
+          borderWidth: 0,
+        },
+      ],
+      dataPV: ordenados.map((item) => item[1].pv),
+      dataSub: ordenados.map((item) => item[1].sub),
+    };
+  }, [datos]);
+
+  // Fecha REAL en que un administrador subió/actualizó la base de Urgencias
+  // (comparte clave 'productividad' porque se sube desde el mismo CSV que CE y Paramédicos)
+  const [ultimaFechaBD, setUltimaFechaBD] = useState("Cargando...");
+
+  useEffect(() => {
+    let cancelado = false;
+    obtenerFechaActualizacion("productividad").then((fecha) => {
+      if (!cancelado) setUltimaFechaBD(fecha);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // 4. ÁREAS / ESPECIALIDADES
+  const chartEspecialidades = useMemo(() => {
+    if (!datos || datos.length === 0)
+      return { labels: [], datasets: [], dataPV: [], dataSub: [] };
+    const conteo = datos.reduce((acc, curr) => {
+      const area = String(
+        curr.especialidad || curr.ESPECIALIDAD || "Sin Área Registrada",
+      )
+        .trim()
+        .toUpperCase();
+      if (!acc[area]) acc[area] = { total: 0, pv: 0, sub: 0 };
+      acc[area].total++;
+      const pvVal = String(curr.primera_vez || curr.PRIMERA_VEZ || "0")
+        .trim()
+        .toLowerCase()
+        .replace(".0", "");
+      if (pvVal === "1" || pvVal === "primera vez") acc[area].pv++;
+      else acc[area].sub++;
+      return acc;
+    }, {});
+    const ordenados = Object.entries(conteo).sort(
+      (a, b) => b[1].total - a[1].total,
+    );
+    return {
+      labels: ordenados.map((item) => item[0]),
+      datasets: [
+        {
+          label: "Atenciones",
+          data: ordenados.map((item) => item[1].total),
+          backgroundColor: "#ea580c",
+          borderRadius: 4,
+        },
+      ],
+      dataPV: ordenados.map((item) => item[1].pv),
+      dataSub: ordenados.map((item) => item[1].sub),
+    };
+  }, [datos]);
+
+  // 5. MÉDICOS
+  const chartMedicos = useMemo(() => {
+    if (!datos || datos.length === 0)
+      return {
+        labels: [],
+        datasets: [],
+        dataPV: [],
+        dataSub: [],
+        dataExtra: [],
+      };
+    const conteo = datos.reduce((acc, curr) => {
+      const matricula = String(curr.matricula_medico || "Sin Matrícula")
+        .trim()
+        .replace(".0", "");
+      const nombreMedico =
+        diccionarioMedicos[matricula] || `Matr. ${matricula}`;
+      let areaCruda = String(
+        curr.especialidad || curr.ESPECIALIDAD || "Sin Área",
+      )
+        .trim()
+        .toUpperCase();
+      const nombreEspecialidad =
+        diccionarioEspecialidades[areaCruda]?.nombre || areaCruda;
+
+      if (!acc[nombreMedico])
+        acc[nombreMedico] = {
+          total: 0,
+          pv: 0,
+          sub: 0,
+          especialidad: nombreEspecialidad,
+>>>>>>> Stashed changes
         };
     }, [datos]);
 

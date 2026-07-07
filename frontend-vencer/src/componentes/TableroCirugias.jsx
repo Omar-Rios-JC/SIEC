@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import Papa from "papaparse";
+import { obtenerFechaActualizacion } from "../utils/fechaActualizacion";
 import {
   Scissors,
   Users,
@@ -1690,6 +1691,23 @@ export default function TableroCirugias({
     };
   }, [datos]);
 
+<<<<<<< Updated upstream
+=======
+  // Fecha REAL en que un administrador subió/actualizó la base de Cirugías
+  // (ya no se calcula desde los datos, se lee del registro guardado al momento de la carga)
+  const [ultimaFechaBD, setUltimaFechaBD] = useState("Cargando...");
+
+  useEffect(() => {
+    let cancelado = false;
+    obtenerFechaActualizacion("cirugias").then((fecha) => {
+      if (!cancelado) setUltimaFechaBD(fecha);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+>>>>>>> Stashed changes
   const opcionesFiltrosCirugias = useMemo(() => {
     const aniosDetectados = new Set();
     const divisionesDetectadas = new Set(DIVISIONES_CIRUGIA_FIJAS);
