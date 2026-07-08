@@ -212,13 +212,10 @@ if (!isset($_SESSION['admin_id'])) {
 
             <div class="card-body">
                 <form id="formCSV" enctype="multipart/form-data" method="post">
-                    <input type="hidden" name="a" value="CargarCSV">
-
-                    <!-- Campo archivo CSV -->
                     <div class="row align-items-end g-3">
                         <div class="col-md-9">
                             <label for="csv" class="form-label fw-semibold">Selecciona tu archivo en formato CSV:</label>
-                            <input type="file" name="csv" id="csv" class="form-control rounded-3 shadow-sm" accept=".csv" required>
+                            <input type="file" name="archivo_csv" id="csv" class="form-control rounded-3 shadow-sm" accept=".csv" required>
                         </div>
                         <div class="col-md-3 text-end">
                             <button type="submit" class="btn btn-urgencia w-100 py-2 shadow-sm">
@@ -335,7 +332,7 @@ if (!isset($_SESSION['admin_id'])) {
             const formData = new FormData(this);
             submitButton.disabled = true; // Evita doble clic
 
-            fetch('../../controladores/vencer.php', {
+            fetch('../../api/upload_vencer.php', {
                     method: 'POST',
                     body: formData
                 })
@@ -343,35 +340,24 @@ if (!isset($_SESSION['admin_id'])) {
                 .then(data => {
                     contenedor.innerHTML = '';
 
-                    // Detectar tipo de mensaje
-                    let icon = 'bi-info-circle-fill';
-                    let alertClass = 'info';
-
-                    if (data.message.includes('✅') || data.message.toLowerCase().includes('insertados')) {
-                        icon = 'bi-check-circle-fill';
-                        alertClass = 'success';
-                    } else if (data.message.includes('❌') || data.status === 'error') {
-                        icon = 'bi-x-circle-fill';
-                        alertClass = 'danger';
-                    } else if (data.message.includes('⚠️') || data.message.toLowerCase().includes('advertencia')) {
-                        icon = 'bi-exclamation-triangle-fill';
-                        alertClass = 'warning';
-                    } else if (data.message.includes('🔄') || data.message.toLowerCase().includes('actualizados')) {
-                        icon = 'bi-arrow-repeat';
-                        alertClass = 'primary';
-                    }
+                    // Evaluamos la respuesta booleana de nuestra nueva API
+                    const isSuccess = data.success === true;
+                    const icon = isSuccess ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
+                    const alertClass = isSuccess ? 'success' : 'danger';
 
                     const alerta = document.createElement('div');
                     alerta.className = `alert alert-${alertClass} alert-dismissible fade show mb-2 d-flex align-items-center`;
                     alerta.setAttribute('role', 'alert');
+                    
+                    // Usamos white-space: pre-line para que se respeten los saltos de línea \n del PHP
                     alerta.innerHTML = `
             <i class="bi ${icon} me-2 fs-5"></i>
-            <div>${data.message}</div>
+            <div style="white-space: pre-line;">${data.message}</div>
             <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
         `;
                     contenedor.appendChild(alerta);
 
-                    if (alertClass !== 'danger') {
+                    if (isSuccess) {
                         setTimeout(() => {
                             alerta.classList.remove('show');
                             alerta.classList.add('hide');
@@ -381,7 +367,7 @@ if (!isset($_SESSION['admin_id'])) {
                             }, 500);
                         }, 8000);
                     } else {
-                        submitButton.disabled = false; // Reactivar botón si hubo error
+                        submitButton.disabled = false; // Reactivar botón si hubo error de validación
                     }
                 })
                 .catch(err => {
