@@ -216,6 +216,14 @@ try {
             
             $pdo->commit();
             
+<<<<<<< HEAD
+=======
+            file_put_contents(
+    __DIR__ . '/ultima_actualizacion_hospitalizacion.txt',
+    time()
+);
+
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
             echo json_encode([
                 'success' => true, 
                 'message' => "¡Carga Masiva Exitosa! Formato encapsulado de la plataforma procesado correctamente. Egresos nuevos: $registrosInsertados, Duplicados saltados: $duplicadosSaltados."

@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 import React, { useMemo, useEffect } from 'react';
+=======
+import React, { useMemo, useEffect, useState } from 'react';
+import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 import { Activity, Stethoscope, Users, CalendarCheck, Clock, MapPin } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
 
@@ -100,6 +105,23 @@ export default function TableroParamedicos({
         }
     }, [datosFiltrados, setExportData]);
 
+<<<<<<< HEAD
+=======
+    // Fecha REAL en que un administrador subió/actualizó la base de Paramédicos
+    // (comparte clave 'productividad' porque se sube desde el mismo CSV que CE y Urgencias)
+    const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
+
+    useEffect(() => {
+        let cancelado = false;
+        obtenerFechaActualizacion('productividad').then((fecha) => {
+            if (!cancelado) setUltimaFechaBD(fecha);
+        });
+        return () => {
+            cancelado = true;
+        };
+    }, []);
+
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
     // 3. KPIs
     const kpis = useMemo(() => {
         let citados = 0; let primeraVez = 0;
@@ -269,12 +291,32 @@ export default function TableroParamedicos({
     return (
         <div id="seccion-paramedicos-completa" className="w-full animate-in fade-in duration-500">
             {/* 1. ENCABEZADO */}
+<<<<<<< HEAD
             <div className="mb-8">
                 <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
                     <span className="text-emerald-600 bg-emerald-100 p-2 rounded-xl"><Stethoscope size={28} /></span>
                     Productividad Paramédica
                 </h2>
             </div>
+=======
+            <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
+
+    <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+        <span className="text-emerald-600 bg-emerald-100 p-2 rounded-xl">
+            <Stethoscope size={28} />
+        </span>
+        Productividad Paramédica
+    </h2>
+    <p className="text-sm font-bold text-slate-500 bg-white shadow-sm px-4 py-2 rounded-lg border border-slate-200 inline-flex items-center gap-2">
+        <Activity size={16} className="text-[#822626]" />
+        Actualizado hasta:
+        <span className="text-[#822626] font-black">
+            {ultimaFechaBD}
+        </span>
+    </p>
+
+</div>
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
             {/* 2. KPIs (Se mantienen igual) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

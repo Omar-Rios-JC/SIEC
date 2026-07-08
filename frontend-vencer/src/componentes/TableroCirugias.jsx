@@ -1,5 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import Papa from "papaparse";
+<<<<<<< HEAD
+=======
+import { obtenerFechaActualizacion } from "../utils/fechaActualizacion";
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 import {
   Scissors,
   Users,
@@ -14,6 +18,10 @@ import {
   FileQuestion,
   ClipboardCheck,
   FileText,
+<<<<<<< HEAD
+=======
+  Clock,
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 } from "lucide-react";
 import { Doughnut, Bar } from "react-chartjs-2";
 import {
@@ -26,6 +34,10 @@ import {
   BarElement,
   Title,
 } from "chart.js";
+<<<<<<< HEAD
+=======
+import axios from "axios";
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
 ChartJS.register(
   ArcElement,
@@ -37,6 +49,39 @@ ChartJS.register(
   Title,
 );
 
+<<<<<<< HEAD
+=======
+const parseFecha = (fecha) => {
+  if (!fecha) return null;
+
+  let partes;
+
+  if (typeof fecha === "string" && fecha.includes("-")) {
+    partes = fecha.split("-");
+  } else if (typeof fecha === "string") {
+    partes = fecha.split("/");
+  } else {
+    return null;
+  }
+
+  let año, mes, dia;
+
+  if (partes[0].length === 4) {
+    año = partes[0];
+    mes = partes[1];
+    dia = partes[2];
+  } else {
+    dia = partes[0];
+    mes = partes[1];
+    año = partes[2];
+  }
+
+  const date = new Date(año, mes - 1, dia);
+
+  return isNaN(date.getTime()) ? null : date;
+};
+
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 const COLORS = {
   primary: "#991b1b",
   success: "#0f766e",
@@ -75,9 +120,15 @@ const AREA_FILTER_OPTIONS = [
   { value: "PEDIATRICA", label: "Pediátrica" },
 ];
 
+<<<<<<< HEAD
 const DIVISIONES_CIRUGIA_FIJAS = AREA_FILTER_OPTIONS
   .filter((opcion) => opcion.value !== AREA_FILTRO_TODAS)
   .map((opcion) => opcion.label);
+=======
+const DIVISIONES_CIRUGIA_FIJAS = AREA_FILTER_OPTIONS.filter(
+  (opcion) => opcion.value !== AREA_FILTRO_TODAS,
+).map((opcion) => opcion.label);
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
 const esValorDivisionValido = (valor) => {
   const limpio = quitarAcentos(repararTextoRoto(valor))
@@ -87,6 +138,7 @@ const esValorDivisionValido = (valor) => {
 
   return Boolean(
     limpio &&
+<<<<<<< HEAD
       ![
         "SIN DIVISION",
         "SIN DIVISIÓN",
@@ -100,6 +152,21 @@ const esValorDivisionValido = (valor) => {
         "NULL",
         "-",
       ].includes(limpio),
+=======
+    ![
+      "SIN DIVISION",
+      "SIN DIVISIÓN",
+      "SIN AREA",
+      "SIN ÁREA",
+      "SIN DATO",
+      "NO REGISTRADO",
+      "NO REGISTRADA",
+      "N/A",
+      "NA",
+      "NULL",
+      "-",
+    ].includes(limpio),
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
   );
 };
 
@@ -1496,7 +1563,14 @@ const KpiCard = ({ titulo, valor, icono: Icono, color }) => {
 };
 
 const Card = ({ id, titulo, icono: Icono, color, children }) => (
+<<<<<<< HEAD
   <div id={id} className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col shadow-sm">
+=======
+  <div
+    id={id}
+    className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col shadow-sm"
+  >
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
     <div className="flex gap-3 mb-5 items-center">
       <div className="p-2 rounded-xl bg-slate-50">
         {React.createElement(Icono, { size: 18, style: { color } })}
@@ -1509,7 +1583,16 @@ const Card = ({ id, titulo, icono: Icono, color, children }) => (
   </div>
 );
 
+<<<<<<< HEAD
 const TablaResumenCirugias = ({ labels = [], data = [], titulo = "Categoría", valor = "Total" }) => {
+=======
+const TablaResumenCirugias = ({
+  labels = [],
+  data = [],
+  titulo = "Categoría",
+  valor = "Total",
+}) => {
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
   if (!labels?.length || !data?.length) return null;
 
   const filas = labels.map((label, index) => ({
@@ -1531,16 +1614,35 @@ const TablaResumenCirugias = ({ labels = [], data = [], titulo = "Categoría", v
           </thead>
           <tbody>
             {filas.map((fila, index) => (
+<<<<<<< HEAD
               <tr key={`${fila.label}-${index}`} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-3 py-2 text-slate-700 font-semibold">{fila.label}</td>
                 <td className="px-3 py-2 text-right text-slate-900 font-black">{fila.total.toLocaleString("es-MX")}</td>
+=======
+              <tr
+                key={`${fila.label}-${index}`}
+                className="border-t border-slate-100 hover:bg-slate-50"
+              >
+                <td className="px-3 py-2 text-slate-700 font-semibold">
+                  {fila.label}
+                </td>
+                <td className="px-3 py-2 text-right text-slate-900 font-black">
+                  {fila.total.toLocaleString("es-MX")}
+                </td>
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
               </tr>
             ))}
           </tbody>
           <tfoot className="bg-slate-50 text-slate-900 font-black">
             <tr>
               <td className="px-3 py-2">TOTAL GENERAL</td>
+<<<<<<< HEAD
               <td className="px-3 py-2 text-right">{totalGeneral.toLocaleString("es-MX")}</td>
+=======
+              <td className="px-3 py-2 text-right">
+                {totalGeneral.toLocaleString("es-MX")}
+              </td>
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
             </tr>
           </tfoot>
         </table>
@@ -1550,7 +1652,16 @@ const TablaResumenCirugias = ({ labels = [], data = [], titulo = "Categoría", v
 };
 
 const obtenerFechaFiltroCirugia = (item) => {
+<<<<<<< HEAD
   return item?.fechaProgramacion || item?.fechaSolicitud || item?.fechaCancelacion || null;
+=======
+  return (
+    item?.fechaProgramacion ||
+    item?.fechaSolicitud ||
+    item?.fechaCancelacion ||
+    null
+  );
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 };
 
 const obtenerDivisionCirugia = (item) => {
@@ -1690,6 +1801,23 @@ export default function TableroCirugias({
     };
   }, [datos]);
 
+<<<<<<< HEAD
+=======
+  // Fecha REAL en que un administrador subió/actualizó la base de Cirugías
+  // (ya no se calcula desde los datos, se lee del registro guardado al momento de la carga)
+  const [ultimaFechaBD, setUltimaFechaBD] = useState("Cargando...");
+
+  useEffect(() => {
+    let cancelado = false;
+    obtenerFechaActualizacion("cirugias").then((fecha) => {
+      if (!cancelado) setUltimaFechaBD(fecha);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
   const opcionesFiltrosCirugias = useMemo(() => {
     const aniosDetectados = new Set();
     const divisionesDetectadas = new Set(DIVISIONES_CIRUGIA_FIJAS);
@@ -1704,7 +1832,12 @@ export default function TableroCirugias({
 
       const pasaDivision =
         divisionSeleccionada === "todas" ||
+<<<<<<< HEAD
         normalizarParaComparar(division) === normalizarParaComparar(divisionSeleccionada);
+=======
+        normalizarParaComparar(division) ===
+          normalizarParaComparar(divisionSeleccionada);
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
       if (pasaDivision && item.especialidad) {
         especialidades.add(item.especialidad);
@@ -1742,7 +1875,14 @@ export default function TableroCirugias({
       const fecha = obtenerFechaFiltroCirugia(item);
 
       if (anioSeleccionado !== "todos") {
+<<<<<<< HEAD
         if (!fecha || String(fecha.getFullYear()) !== String(anioSeleccionado)) {
+=======
+        if (
+          !fecha ||
+          String(fecha.getFullYear()) !== String(anioSeleccionado)
+        ) {
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
           return false;
         }
       }
@@ -1752,18 +1892,37 @@ export default function TableroCirugias({
         const mes = fecha.getMonth();
         if (mes < Number(mesInicio) || mes > Number(mesFin)) return false;
       } else if (mesSeleccionado !== "todos") {
+<<<<<<< HEAD
         if (!fecha || fecha.getMonth() !== Number(mesSeleccionado)) return false;
+=======
+        if (!fecha || fecha.getMonth() !== Number(mesSeleccionado))
+          return false;
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
       }
 
       if (divisionSeleccionada !== "todas") {
         const division = obtenerDivisionCirugia(item);
+<<<<<<< HEAD
         if (normalizarParaComparar(division) !== normalizarParaComparar(divisionSeleccionada)) {
+=======
+        if (
+          normalizarParaComparar(division) !==
+          normalizarParaComparar(divisionSeleccionada)
+        ) {
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
           return false;
         }
       }
 
       if (especialidadSeleccionada !== "todas") {
+<<<<<<< HEAD
         if (normalizarParaComparar(item.especialidad) !== normalizarParaComparar(especialidadSeleccionada)) {
+=======
+        if (
+          normalizarParaComparar(item.especialidad) !==
+          normalizarParaComparar(especialidadSeleccionada)
+        ) {
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
           return false;
         }
       }
@@ -2716,10 +2875,25 @@ export default function TableroCirugias({
 
   return (
     <div className="min-h-screen p-6 space-y-6 bg-gradient-to-br from-slate-50 via-white to-red-50">
+<<<<<<< HEAD
       <h1 className="text-4xl font-black flex gap-4 items-center text-slate-900">
         <Scissors className="text-red-700" size={40} />
         Tablero de Cirugías
       </h1>
+=======
+      <div className="mb-2 flex justify-between items-center flex-wrap gap-4">
+        <h1 className="text-4xl font-black flex gap-4 items-center text-slate-900">
+          <Scissors className="text-red-700" size={40} />
+          Tablero de Cirugías
+        </h1>
+
+        <p className="text-sm font-bold text-slate-500 bg-white shadow-sm px-4 py-2 rounded-lg border border-slate-200 inline-flex items-center gap-2">
+          <Activity size={16} className="text-[#822626]" />
+          Actualizado hasta:
+          <span className="text-[#822626] font-black">{ultimaFechaBD}</span>
+        </p>
+      </div>
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
         <KpiCard
@@ -2764,7 +2938,17 @@ export default function TableroCirugias({
           <div className="h-[260px]">
             <Doughnut data={chartEstatus} options={doughnutOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={chartEstatus.labels} data={chartEstatus.datasets[0].data} titulo="Estatus" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={chartEstatus.labels}
+              data={chartEstatus.datasets[0].data}
+              titulo="Estatus"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
 
         <Card
@@ -2776,7 +2960,17 @@ export default function TableroCirugias({
           <div className="h-[260px]">
             <Doughnut data={chartSexo} options={doughnutOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={chartSexo.labels} data={chartSexo.datasets[0].data} titulo="Sexo" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={chartSexo.labels}
+              data={chartSexo.datasets[0].data}
+              titulo="Sexo"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
 
         <Card
@@ -2788,16 +2982,45 @@ export default function TableroCirugias({
           <div className="h-[260px]">
             <Doughnut data={chartConcertada} options={doughnutOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={chartConcertada.labels} data={chartConcertada.datasets[0].data} titulo="Concertada" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={chartConcertada.labels}
+              data={chartConcertada.datasets[0].data}
+              titulo="Concertada"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
       </div>
 
       <div className="grid xl:grid-cols-2 gap-6">
+<<<<<<< HEAD
         <Card id="graficoC_4" titulo="Tipo de Solicitud" icono={FileText} color={COLORS.info}>
           <div className="h-[320px]">
             <Bar data={topTipoSolicitud} options={horizontalOptions} />
           </div>
           {mostrarTablas && <TablaResumenCirugias labels={topTipoSolicitud.labels} data={topTipoSolicitud.datasets[0].data} titulo="Tipo" />}
+=======
+        <Card
+          id="graficoC_4"
+          titulo="Tipo de Solicitud"
+          icono={FileText}
+          color={COLORS.info}
+        >
+          <div className="h-[320px]">
+            <Bar data={topTipoSolicitud} options={horizontalOptions} />
+          </div>
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={topTipoSolicitud.labels}
+              data={topTipoSolicitud.datasets[0].data}
+              titulo="Tipo"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
 
         <Card
@@ -2809,16 +3032,46 @@ export default function TableroCirugias({
           <div className="h-[320px]">
             <Bar data={chartTiempos} options={barOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={chartTiempos.labels} data={chartTiempos.datasets[0].data} titulo="Tiempo" valor="Minutos" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={chartTiempos.labels}
+              data={chartTiempos.datasets[0].data}
+              titulo="Tiempo"
+              valor="Minutos"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
       </div>
 
       <div className="grid xl:grid-cols-2 gap-6">
+<<<<<<< HEAD
         <Card id="graficoC_6" titulo="Top Cirujanos" icono={Users} color={COLORS.info}>
           <div className="h-[420px]">
             <Bar data={topCirujanos} options={horizontalOptions} />
           </div>
           {mostrarTablas && <TablaResumenCirugias labels={topCirujanos.labels} data={topCirujanos.datasets[0].data} titulo="Cirujano" />}
+=======
+        <Card
+          id="graficoC_6"
+          titulo="Top Cirujanos"
+          icono={Users}
+          color={COLORS.info}
+        >
+          <div className="h-[420px]">
+            <Bar data={topCirujanos} options={horizontalOptions} />
+          </div>
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={topCirujanos.labels}
+              data={topCirujanos.datasets[0].data}
+              titulo="Cirujano"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
 
         <Card
@@ -2830,7 +3083,17 @@ export default function TableroCirugias({
           <div className="h-[420px]">
             <Bar data={topEspecialidades} options={horizontalOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={topEspecialidades.labels} data={topEspecialidades.datasets[0].data} titulo="Especialidad" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={topEspecialidades.labels}
+              data={topEspecialidades.datasets[0].data}
+              titulo="Especialidad"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
       </div>
 
@@ -2847,7 +3110,15 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={chartEdad.labels}
+<<<<<<< HEAD
               data={chartEdad.labels.map((_, index) => Math.abs(chartEdad.datasets[0].data[index] || 0) + Math.abs(chartEdad.datasets[1].data[index] || 0))}
+=======
+              data={chartEdad.labels.map(
+                (_, index) =>
+                  Math.abs(chartEdad.datasets[0].data[index] || 0) +
+                  Math.abs(chartEdad.datasets[1].data[index] || 0),
+              )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
               titulo="Grupo de edad"
             />
           )}
@@ -2862,7 +3133,17 @@ export default function TableroCirugias({
           <div className="h-[320px]">
             <Bar data={chartDiferimiento} options={diferimientoOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={chartDiferimiento.labels} data={chartDiferimiento.datasets[0].data} titulo="Diferimiento" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={chartDiferimiento.labels}
+              data={chartDiferimiento.datasets[0].data}
+              titulo="Diferimiento"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
       </div>
 
@@ -3126,7 +3407,17 @@ export default function TableroCirugias({
             <div id="graficoC_10" className="h-[480px]">
               <Bar data={chartMotivosCancelacion} options={horizontalOptions} />
             </div>
+<<<<<<< HEAD
             {mostrarTablas && <TablaResumenCirugias labels={chartMotivosCancelacion.labels} data={chartMotivosCancelacion.datasets[0].data} titulo="Motivo" />}
+=======
+            {mostrarTablas && (
+              <TablaResumenCirugias
+                labels={chartMotivosCancelacion.labels}
+                data={chartMotivosCancelacion.datasets[0].data}
+                titulo="Motivo"
+              />
+            )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
           </div>
 
           <div>
@@ -3137,7 +3428,17 @@ export default function TableroCirugias({
             <div id="graficoC_11" className="h-[480px]">
               <Bar data={chartMotivosSuspension} options={horizontalOptions} />
             </div>
+<<<<<<< HEAD
             {mostrarTablas && <TablaResumenCirugias labels={chartMotivosSuspension.labels} data={chartMotivosSuspension.datasets[0].data} titulo="Motivo" />}
+=======
+            {mostrarTablas && (
+              <TablaResumenCirugias
+                labels={chartMotivosSuspension.labels}
+                data={chartMotivosSuspension.datasets[0].data}
+                titulo="Motivo"
+              />
+            )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
           </div>
         </div>
 
@@ -3157,7 +3458,17 @@ export default function TableroCirugias({
           <div className="h-[480px]">
             <Bar data={topCIE10} options={horizontalOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={topCIE10.labels} data={topCIE10.datasets[0].data} titulo="CIE10" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={topCIE10.labels}
+              data={topCIE10.datasets[0].data}
+              titulo="CIE10"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
 
         <Card
@@ -3169,7 +3480,17 @@ export default function TableroCirugias({
           <div className="h-[480px]">
             <Bar data={topCIE9} options={horizontalOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={topCIE9.labels} data={topCIE9.datasets[0].data} titulo="CIE9" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={topCIE9.labels}
+              data={topCIE9.datasets[0].data}
+              titulo="CIE9"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
       </div>
 
@@ -3183,7 +3504,17 @@ export default function TableroCirugias({
           <div className="h-[350px]">
             <Bar data={topSalas} options={horizontalOptions} />
           </div>
+<<<<<<< HEAD
           {mostrarTablas && <TablaResumenCirugias labels={topSalas.labels} data={topSalas.datasets[0].data} titulo="Sala" />}
+=======
+          {mostrarTablas && (
+            <TablaResumenCirugias
+              labels={topSalas.labels}
+              data={topSalas.datasets[0].data}
+              titulo="Sala"
+            />
+          )}
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         </Card>
       </div>
     </div>
