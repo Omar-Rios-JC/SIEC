@@ -69,14 +69,22 @@ try {
             }
 
             // INSERT IGNORE es clave para el índice UNIQUE
+<<<<<<< HEAD
+            $stmt = $pdo->prepare("INSERT IGNORE INTO productividad_externa 
+                (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+=======
             $stmt = $pdo->prepare("INSERT INTO productividad_externa
                 (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $pdo->beginTransaction();
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
             $registrosInsertados = 0;
             $duplicadosSaltados = 0;
 
+<<<<<<< HEAD
+=======
             /* ==========================================================
    Detectar automáticamente el mes y año del archivo
    ========================================================== */
@@ -126,6 +134,7 @@ rewind($handle);
 
 fgetcsv($handle, 10000, $delimitador);
 
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
             while (($data = fgetcsv($handle, 10000, $delimitador)) !== FALSE) {
                 if(count($data) < 5 || empty(trim($data[0]))) continue; 
 
@@ -197,7 +206,10 @@ fgetcsv($handle, 10000, $delimitador);
             }
             fclose($handle);
             
+<<<<<<< HEAD
+=======
             $pdo->commit();
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
             file_put_contents('ultima_actualizacion.txt', time());
             echo json_encode([
                 'success' => true, 
@@ -210,6 +222,10 @@ fgetcsv($handle, 10000, $delimitador);
         echo json_encode(['success' => false, 'message' => 'No se recibió el archivo "archivo_csv".']);
     }
 
+<<<<<<< HEAD
+} catch (PDOException $e) {
+    echo json_encode(['success' => false, 'message' => 'Error Crítico BD: ' . $e->getMessage()]);
+=======
 } catch (Exception $e) {
 
     if ($pdo->inTransaction()) {
@@ -220,5 +236,6 @@ fgetcsv($handle, 10000, $delimitador);
         'success'=>false,
         'message'=>$e->getMessage()
     ]);
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 }
 ?>

@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import { Bed, Upload, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+<<<<<<< HEAD
+=======
 import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
 export default function ModuloCargaHosp({ setVistaActiva, setMensaje, mensaje, cargarDatos }) {
     const [archivo, setArchivo] = useState(null);
@@ -34,9 +37,13 @@ export default function ModuloCargaHosp({ setVistaActiva, setMensaje, mensaje, c
                 // Limpieza específica de Hospitalización
                 await localforage.removeItem('cache_hospitalizacion_vencer');
                 await localforage.removeItem('version_hospitalizacion_vencer');
+<<<<<<< HEAD
+                
+=======
 
                 await registrarActualizacion('hospitalizacion');
 
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
                 if (cargarDatos) cargarDatos();
             } else {
                 setMensaje(`Error: ${respuesta.data.message}`);

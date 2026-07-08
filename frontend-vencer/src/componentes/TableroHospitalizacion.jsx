@@ -1,7 +1,13 @@
+<<<<<<< HEAD
+import React, { useMemo, useEffect } from 'react';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { Users, Clock, ClipboardList, TrendingUp } from 'lucide-react';
+=======
 import React, { useMemo, useEffect, useState } from 'react';
 import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Users, Clock, ClipboardList, TrendingUp, Activity } from 'lucide-react';
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
 // =================================================================
 // SUB-COMPONENTE LOCAL: Tabla de Datos Estilo Producción Unificado
@@ -75,6 +81,8 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
         const totalDias = datos.reduce((sum, d) => sum + (Number(d.dias_estancia) || 0), 0);
         return { total: totalEgresos, promedioEstancia: (totalDias / totalEgresos).toFixed(1), totalDias };
     }, [datos]);
+<<<<<<< HEAD
+=======
     // Fecha REAL en que un administrador subió/actualizó la base de Hospitalización
     const [ultimaFechaBD, setUltimaFechaBD] = useState("Cargando...");
 
@@ -87,6 +95,7 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
             cancelado = true;
         };
     }, []);
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
     const chartDivisiones = useMemo(() => {
         if (!datos || datos.length === 0) return { labels: [], datasets: [], dataDias: [], promedios: [] };
@@ -167,13 +176,24 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
         };
     }, [datos]);
 
+<<<<<<< HEAD
+=======
     console.log(datos[0]);
 
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
     const chartOptionsVertical = { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } };
 
     return (
         <div id="seccion-hospitalizacion-completa" className="w-full animate-in fade-in duration-500">
             {/* ENCABEZADO */}
+<<<<<<< HEAD
+            <div className="mb-8">
+                <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                    <span className="text-emerald-600 bg-emerald-100 p-2 rounded-xl"><ClipboardList size={28} /></span>
+                    Productividad de Hospitalización
+                </h2>
+            </div>
+=======
             <div className="mb-8 flex justify-between items-center flex-wrap gap-4">
 
     <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
@@ -192,6 +212,7 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
     </p>
 
 </div>
+>>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
             {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
