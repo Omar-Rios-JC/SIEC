@@ -69,12 +69,62 @@ try {
             }
 
             // INSERT IGNORE es clave para el índice UNIQUE
-            $stmt = $pdo->prepare("INSERT IGNORE INTO productividad_externa 
+            $stmt = $pdo->prepare("INSERT INTO productividad_externa
                 (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $pdo->beginTransaction();
 
             $registrosInsertados = 0;
             $duplicadosSaltados = 0;
+
+            /* ==========================================================
+   Detectar automáticamente el mes y año del archivo
+   ========================================================== */
+
+$primeraLinea = fgetcsv($handle, 10000, $delimitador);
+
+if ($primeraLinea === false) {
+    throw new Exception("El archivo CSV está vacío.");
+}
+
+$fechaBruta = trim($primeraLinea[$colMap['FECHA_ATENCION']]);
+$fechaSola = explode(' ', $fechaBruta)[0];
+
+$f = date_create_from_format('d/m/Y', $fechaSola);
+
+if (!$f) {
+    $f = date_create_from_format('Y-m-d', $fechaSola);
+}
+
+if (!$f) {
+    throw new Exception("No fue posible detectar la fecha del archivo.");
+}
+
+$mesArchivo = (int)$f->format('m');
+$anioArchivo = (int)$f->format('Y');
+
+/* ==========================================================
+   Eliminar únicamente ese mes
+   ========================================================== */
+
+$delete = $pdo->prepare("
+DELETE FROM productividad_externa
+WHERE mes = ?
+AND anio = ?
+");
+
+$delete->execute([
+    $mesArchivo,
+    $anioArchivo
+]);
+
+/* ==========================================================
+   Regresamos el puntero al inicio del archivo
+   ========================================================== */
+
+rewind($handle);
+
+fgetcsv($handle, 10000, $delimitador);
 
             while (($data = fgetcsv($handle, 10000, $delimitador)) !== FALSE) {
                 if(count($data) < 5 || empty(trim($data[0]))) continue; 
@@ -147,6 +197,7 @@ try {
             }
             fclose($handle);
             
+            $pdo->commit();
             file_put_contents('ultima_actualizacion.txt', time());
             echo json_encode([
                 'success' => true, 
@@ -159,7 +210,15 @@ try {
         echo json_encode(['success' => false, 'message' => 'No se recibió el archivo "archivo_csv".']);
     }
 
-} catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Error Crítico BD: ' . $e->getMessage()]);
+} catch (Exception $e) {
+
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    echo json_encode([
+        'success'=>false,
+        'message'=>$e->getMessage()
+    ]);
 }
 ?>
