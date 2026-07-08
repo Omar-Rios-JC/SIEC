@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import { Scissors, Upload, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
-import { registrarActualizacion } from '../utils/fechaActualizacion';
+import { 
+    obtenerFechaActualizacion,
+    registrarActualizacion
+} from '../utils/fechaActualizacion';
 
 export default function ModuloCargaCirugias({ setVistaActiva, setMensaje, mensaje, cargarDatosCirugias }) {
     const [archivo, setArchivo] = useState(null);
@@ -33,8 +36,6 @@ export default function ModuloCargaCirugias({ setVistaActiva, setMensaje, mensaj
 
                 await localforage.removeItem('cache_cirugias_vencer');
                 await localforage.removeItem('version_cirugias_vencer');
-
-                await registrarActualizacion('cirugias');
 
                 if (cargarDatosCirugias) cargarDatosCirugias();
             } else {

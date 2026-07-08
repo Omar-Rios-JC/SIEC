@@ -2,7 +2,7 @@
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=utf-8');
 
-$archivo = __DIR__ . '/ultima_actualizacion.txt';
+$archivo = __DIR__ . '/ultima_actualizacion_hospitalizacion.txt';
 
 $fecha = file_exists($archivo)
     ? trim(file_get_contents($archivo))

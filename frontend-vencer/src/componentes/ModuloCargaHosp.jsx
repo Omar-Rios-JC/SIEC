@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import { Bed, Upload, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
-import { registrarActualizacion } from '../utils/fechaActualizacion';
+import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
 
 export default function ModuloCargaHosp({ setVistaActiva, setMensaje, mensaje, cargarDatos }) {
     const [archivo, setArchivo] = useState(null);

@@ -169,6 +169,8 @@ const DIVISIONES_CIRUGIAS_PERMITIDAS = [
 ];
 
 export default function DashboardProductividad({ isAdmin }) {
+// Fecha REAL de actualización de la base de datos
+const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
     // ESTADOS DE NAVEGACIÓN
     const [vistaActiva, setVistaActiva] = useState('dashboard');
     const [ordenInverso, setOrdenInverso] = useState(false);
@@ -426,20 +428,27 @@ export default function DashboardProductividad({ isAdmin }) {
         }
         return null;
     };
-
-    // Fecha REAL en que un administrador subió/actualizó la base de Consulta Externa
-    // (comparte clave 'productividad' porque se sube desde el mismo CSV que Paramédicos y Urgencias)
-    const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
-
     useEffect(() => {
-        let cancelado = false;
-        obtenerFechaActualizacion('productividad').then((fecha) => {
-            if (!cancelado) setUltimaFechaBD(fecha);
-        });
-        return () => {
-            cancelado = true;
-        };
-    }, []);
+    const cargarFecha = async () => {
+        try {
+            let clave = 'productividad';
+
+            if (areaSidebar === 'cirugias') {
+                clave = 'cirugias';
+            } else if (areaSidebar === 'hospitalizacion') {
+                clave = 'hospitalizacion';
+            }
+
+            const fecha = await obtenerFechaActualizacion(clave);
+            setUltimaFechaBD(fecha || 'Sin fecha');
+        } catch (error) {
+            console.error("Error obteniendo fecha BD:", error);
+            setUltimaFechaBD('Sin fecha');
+        }
+    };
+
+    cargarFecha();
+}, [areaSidebar, vistaActiva]);
 
     // ==========================================
     // CUBETAS DE DATOS BASE (Separación Robusta)
@@ -803,6 +812,23 @@ export default function DashboardProductividad({ isAdmin }) {
             setMesGraficoMeta(Number(mesFin));
         }
     }, [anioSeleccionado, mesSeleccionado, mesFin]);
+
+    useEffect(() => {
+    const cargarFecha = async () => {
+        let clave = 'productividad';
+
+        if (areaSidebar === 'cirugias') {
+            clave = 'cirugias';
+        } else if (areaSidebar === 'hospitalizacion') {
+            clave = 'hospitalizacion';
+        }
+
+        const fecha = await obtenerFechaActualizacion(clave);
+        setUltimaFechaBD(fecha);
+    };
+
+    cargarFecha();
+}, [areaSidebar, vistaActiva]);
 
     const chartOptionsLine = {
         maintainAspectRatio: false,
@@ -1323,8 +1349,10 @@ export default function DashboardProductividad({ isAdmin }) {
                             </span>
                         </button>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-black text-slate-800 capitalize">{areaSidebar.replace('_', ' ')}</h1>
-                        </div>
+    <h1 className="text-xl md:text-2xl font-black text-slate-800 capitalize">
+        {areaSidebar.replace('_', ' ')}
+    </h1>
+</div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
