@@ -11,6 +11,63 @@ $dbname = 'if0_41994851_siec';
 $username = 'if0_41994851';
 $password = 'BIguNSKaR7Wnk';
 
+function normalizarValorClave($valor)
+{
+    $texto = trim((string) $valor);
+    $texto = preg_replace('/\s+/u', ' ', $texto);
+
+    if (function_exists('mb_strtoupper')) {
+        return mb_strtoupper($texto, 'UTF-8');
+    }
+
+    return strtoupper($texto);
+}
+
+function construirClaveRegistro(array $valores)
+{
+    return hash('sha256', json_encode(array_map('normalizarValorClave', $valores), JSON_UNESCAPED_UNICODE));
+}
+
+function cargarConteosHospitalizacion(PDO $pdo)
+{
+    $conteos = [];
+    $sql = "SELECT
+                division,
+                especialidad,
+                anio,
+                mes,
+                dias_estancia,
+                diagnostico_egreso,
+                motivo_egreso,
+                COUNT(*) AS total
+            FROM hospitalizacion_externa
+            GROUP BY
+                division,
+                especialidad,
+                anio,
+                mes,
+                dias_estancia,
+                diagnostico_egreso,
+                motivo_egreso";
+
+    $stmt = $pdo->query($sql);
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $clave = construirClaveRegistro([
+            $row['division'],
+            $row['especialidad'],
+            $row['anio'],
+            $row['mes'],
+            $row['dias_estancia'],
+            $row['diagnostico_egreso'],
+            $row['motivo_egreso'],
+        ]);
+
+        $conteos[$clave] = (int) $row['total'];
+    }
+
+    return $conteos;
+}
+
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -78,6 +135,7 @@ try {
             }
 
             // Iniciar transacción masiva para burlar los límites de CPU del hosting gratuito
+            $conteosExistentes = cargarConteosHospitalizacion($pdo);
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("INSERT IGNORE INTO hospitalizacion_externa 
@@ -181,7 +239,7 @@ try {
                     $motivoFinal = mb_convert_encoding($motivoFinal, 'UTF-8', 'Windows-1252');
                 }
 
-                $stmt->execute([
+                $registro = [
                     $division, 
                     $especialidad, 
                     $anioImss, 
@@ -189,7 +247,16 @@ try {
                     $diasEstancia, 
                     $diagnosticoFinal, 
                     $motivoFinal
-                ]);
+                ];
+
+                $claveRegistro = construirClaveRegistro($registro);
+                if (($conteosExistentes[$claveRegistro] ?? 0) > 0) {
+                    $conteosExistentes[$claveRegistro]--;
+                    $duplicadosSaltados++;
+                    continue;
+                }
+
+                $stmt->execute($registro);
 
                 if ($stmt->rowCount() > 0) $registrosInsertados++; else $duplicadosSaltados++;
             }
@@ -215,6 +282,7 @@ try {
             // =================================================================
             
             $pdo->commit();
+            file_put_contents(__DIR__ . '/ultima_actualizacion_hospitalizacion.txt', time());
             
             echo json_encode([
                 'success' => true, 
@@ -223,7 +291,7 @@ try {
         }
     }
 } catch (PDOException $e) {
-    if ($pdo->inTransaction()) {
+    if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     http_response_code(500);
