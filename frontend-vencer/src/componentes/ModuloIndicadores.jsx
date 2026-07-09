@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import axios from "axios";
 import localforage from "localforage";
 import ExcelJS from "exceljs";
@@ -64,6 +70,43 @@ const MESES = [
   "Nov",
   "Dic",
 ];
+
+const cargarProductividadIndicadores = async () => {
+  const limite = 2000;
+  const maxPaginas = 80;
+  const registros = [];
+
+  for (let pagina = 0; pagina < maxPaginas; pagina += 1) {
+    const offset = pagina * limite;
+    const respuesta = await axios.get("/api/api_productividad.php", {
+      params: { limit: limite, offset },
+      timeout: 45000,
+    });
+
+    const bloque = respuesta.data;
+    if (!Array.isArray(bloque)) return [];
+
+    if (bloque.length > limite) {
+      return bloque;
+    }
+
+    if (pagina === 1 && registros.length > 0 && bloque.length > 0) {
+      const primeroAnterior = JSON.stringify(registros[0]);
+      const primeroActual = JSON.stringify(bloque[0]);
+      if (primeroAnterior === primeroActual) {
+        return registros;
+      }
+    }
+
+    registros.push(...bloque);
+
+    if (bloque.length < limite) {
+      return registros;
+    }
+  }
+
+  return registros;
+};
 
 // ==========================================
 // FUNCIONES UTILITARIAS INDEPENDIENTES
@@ -253,6 +296,18 @@ const unificarNombreConsultorio = (crudo) => {
   return str;
 };
 
+const normalizarTurno = (crudo) => {
+  const valor = nivelarTexto(crudo);
+
+  if (!valor || valor === "0" || valor === "NULL") return "SIN TURNO";
+  if (valor.includes("MATUT")) return "MATUTINO";
+  if (valor.includes("VESPERT")) return "VESPERTINO";
+  if (valor.includes("NOCT")) return "NOCTURNO";
+  if (valor.includes("JORNADA") || valor.includes("ACUMUL")) return "JORNADA ACUMULADA";
+
+  return valor;
+};
+
 // ==========================================
 // COMPONENTE PRINCIPAL
 // ==========================================
@@ -269,6 +324,7 @@ const ModuloIndicadores = ({
   const [diccionarioEspecialidades, setDiccionarioEspecialidades] = useState(
     {},
   );
+  const [diccionarioMedicos, setDiccionarioMedicos] = useState({});
 
   const fechaActual = new Date();
   const [mesGraficoMeta, setMesGraficoMeta] = useState(fechaActual.getMonth());
@@ -279,6 +335,15 @@ const ModuloIndicadores = ({
   const [sidebarColapsada, setSidebarColapsada] = useState(false);
   const [sidebarMovilAbierta, setSidebarMovilAbierta] = useState(false);
   const [descargandoReporte, setDescargandoReporte] = useState(false);
+  const [descargandoDetalle, setDescargandoDetalle] = useState(false);
+  const [consultorioSeleccionado, setConsultorioSeleccionado] =
+    useState("todos");
+  const [turnoDetalleSeleccionado, setTurnoDetalleSeleccionado] =
+    useState("todos");
+  const [especialidadDetalleSeleccionada, setEspecialidadDetalleSeleccionada] =
+    useState("todas");
+  const [fechaDetalleSeleccionada, setFechaDetalleSeleccionada] =
+    useState("todas");
   const graficaMetasRef = useRef(null);
 
   const regresarAlInicio = () => {
@@ -301,8 +366,8 @@ const ModuloIndicadores = ({
         "cache_productividad_vencer",
       );
       if (datosLocales && datosLocales.length > 0) setDatos(datosLocales);
-      const resDatos = await axios.get("/api/api_productividad.php");
-      if (Array.isArray(resDatos.data)) setDatos(resDatos.data);
+      const datosServidor = await cargarProductividadIndicadores();
+      if (Array.isArray(datosServidor)) setDatos(datosServidor);
     } catch (err) {
       console.error(err);
     } finally {
@@ -312,9 +377,12 @@ const ModuloIndicadores = ({
 
   const cargarCatalogos = async () => {
     try {
-      const resEsp = await axios.get(
-        `/api/api_crud_especialidades.php?t=${new Date().getTime()}`,
-      );
+      const marcaTiempo = new Date().getTime();
+      const [resEsp, resMedicos] = await Promise.all([
+        axios.get(`/api/api_crud_especialidades.php?t=${marcaTiempo}`),
+        axios.get(`/api/api_medicos.php?t=${marcaTiempo}`),
+      ]);
+
       if (Array.isArray(resEsp.data)) {
         const diccEsp = resEsp.data.reduce((acc, item) => {
           const clave = String(item.clave).trim().toUpperCase();
@@ -323,6 +391,19 @@ const ModuloIndicadores = ({
           return acc;
         }, {});
         setDiccionarioEspecialidades(diccEsp);
+      }
+
+      if (Array.isArray(resMedicos.data)) {
+        const diccMedicos = resMedicos.data.reduce((acc, item) => {
+          const matricula = String(item.matricula || "")
+            .trim()
+            .replace(/\.0$/, "")
+            .replace(/\s/g, "");
+          const nombre = String(item.nombre || "").trim();
+          if (matricula && nombre) acc[matricula] = nombre;
+          return acc;
+        }, {});
+        setDiccionarioMedicos(diccMedicos);
       }
     } catch (err) {
       console.error("Error cargando catálogos", err);
@@ -334,7 +415,7 @@ const ModuloIndicadores = ({
     cargarCatalogos();
   }, []);
 
-  const traducirEspecialidad = (valorCrudo) => {
+  const traducirEspecialidad = useCallback((valorCrudo) => {
     if (!valorCrudo) return "Desconocida";
     let espRaw = String(valorCrudo)
       .trim()
@@ -358,7 +439,7 @@ const ModuloIndicadores = ({
       respaldoInquebrantable[espRaw] ||
       espRaw
     );
-  };
+  }, [diccionarioEspecialidades]);
 
   const aniosDisponibles = useMemo(() => {
     const anios = new Set();
@@ -384,16 +465,21 @@ const ModuloIndicadores = ({
         "6600",
         "6900",
         "NUTRICION",
+        "INHALOTERAPIA",
+        "FONIATRIA",
         "TRABAJO SOCIAL",
         "PSICOLOGIA",
+        "REHABILITACION",
         "URGENCIAS",
         "ADMISION CONTINUA",
+        "OBSERVACION",
+        "CHOQUE",
       ];
       return !ignorar.some(
         (ig) => espNivelada.includes(ig) || espTraducida.includes(ig),
       );
     });
-  }, [datos, diccionarioEspecialidades]);
+  }, [datos, traducirEspecialidad]);
 
   // ==========================================
   // TABLA: FUSIÓN DE DATOS Y ORDEN ALFANUMÉRICO
@@ -487,6 +573,167 @@ const ModuloIndicadores = ({
     return { dias, diasISO, filas, totalGeneral, totalesPorDia };
   }, [datosConsultaExterna, mesGraficoMeta, anioGraficoMeta, seccionSidebar]);
 
+  const detalleDiarioConsultorios = useMemo(() => {
+    if (
+      seccionSidebar !== "consulta_externa" ||
+      datosConsultaExterna.length === 0
+    ) {
+      return null;
+    }
+
+    const diasISO = new Set(
+      obtenerDiasOperativos(mesGraficoMeta, anioGraficoMeta).map((dia) => {
+        const anio = dia.getFullYear();
+        const mes = String(dia.getMonth() + 1).padStart(2, "0");
+        const numeroDia = String(dia.getDate()).padStart(2, "0");
+        return `${anio}-${mes}-${numeroDia}`;
+      }),
+    );
+    const agrupados = new Map();
+    const consultorios = new Set();
+
+    datosConsultaExterna.forEach((registro) => {
+      const fechaObj = extraerFechaLimpiaYMD(encontrarFecha(registro));
+      if (!fechaObj) return;
+
+      const fechaISO = `${fechaObj.anio}-${String(fechaObj.mes).padStart(2, "0")}-${String(fechaObj.dia).padStart(2, "0")}`;
+      if (!diasISO.has(fechaISO)) return;
+
+      const consultorio = unificarNombreConsultorio(
+        registro.nombre_consultorio ||
+          registro.NOMBRE_CONSULTORIO ||
+          registro.consultorio ||
+          registro.CONSULTORIO ||
+          registro.Consultorio ||
+          registro.desc_consultorio,
+      );
+      const matricula = String(
+        registro.matricula_medico ||
+          registro.MATRICULA_MEDICO ||
+          registro.matricula ||
+          "",
+      )
+        .trim()
+        .replace(/\.0$/, "")
+        .replace(/\s/g, "");
+      const medico =
+        registro.nombre_medico ||
+        registro.NOMBRE_MEDICO ||
+        diccionarioMedicos[matricula] ||
+        (matricula ? `Matr. ${matricula}` : "SIN MÉDICO ESPECIFICADO");
+      const especialidad = traducirEspecialidad(
+        registro.especialidad || registro.ESPECIALIDAD,
+      );
+      const turno = normalizarTurno(
+        registro.turno ||
+          registro.TURNO ||
+          registro.desc_turno ||
+          registro.DESCRIPCION_TURNO,
+      );
+      const clave = [
+        fechaISO,
+        consultorio,
+        turno,
+        matricula || medico,
+        especialidad,
+      ].join("|");
+
+      consultorios.add(consultorio);
+      if (!agrupados.has(clave)) {
+        const fecha = new Date(
+          fechaObj.anio,
+          fechaObj.mes - 1,
+          fechaObj.dia,
+          12,
+        );
+        agrupados.set(clave, {
+          fechaISO,
+          fechaTexto: fecha.toLocaleDateString("es-MX", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
+          diaSemana: fecha.toLocaleDateString("es-MX", { weekday: "long" }),
+          consultorio,
+          turno,
+          medico: String(medico).trim(),
+          especialidad,
+          consultas: 0,
+        });
+      }
+
+      agrupados.get(clave).consultas++;
+    });
+
+    const filasAgrupadas = [...agrupados.values()];
+    const opcionesConsultorio = [...consultorios].sort((a, b) =>
+      a.localeCompare(b, "es", { numeric: true, sensitivity: "base" }),
+    );
+    const opcionesTurno = [...new Set(filasAgrupadas.map((fila) => fila.turno))]
+      .sort((a, b) => a.localeCompare(b, "es"));
+    const opcionesEspecialidad = [
+      ...new Set(filasAgrupadas.map((fila) => fila.especialidad)),
+    ].sort((a, b) => a.localeCompare(b, "es"));
+    const opcionesFecha = [
+      ...new Set(filasAgrupadas.map((fila) => fila.fechaISO)),
+    ].sort((a, b) => a.localeCompare(b));
+
+    const filtroActivo = opcionesConsultorio.includes(consultorioSeleccionado)
+      ? consultorioSeleccionado
+      : "todos";
+    const turnoActivo = opcionesTurno.includes(turnoDetalleSeleccionado)
+      ? turnoDetalleSeleccionado
+      : "todos";
+    const especialidadActiva = opcionesEspecialidad.includes(
+      especialidadDetalleSeleccionada,
+    )
+      ? especialidadDetalleSeleccionada
+      : "todas";
+    const fechaActiva = opcionesFecha.includes(fechaDetalleSeleccionada)
+      ? fechaDetalleSeleccionada
+      : "todas";
+
+    const filas = filasAgrupadas
+      .filter(
+        (fila) =>
+          (filtroActivo === "todos" || fila.consultorio === filtroActivo) &&
+          (turnoActivo === "todos" || fila.turno === turnoActivo) &&
+          (especialidadActiva === "todas" ||
+            fila.especialidad === especialidadActiva) &&
+          (fechaActiva === "todas" || fila.fechaISO === fechaActiva),
+      )
+      .sort(
+        (a, b) =>
+          a.fechaISO.localeCompare(b.fechaISO) ||
+          a.consultorio.localeCompare(b.consultorio, "es", { numeric: true }) ||
+          a.turno.localeCompare(b.turno, "es") ||
+          a.medico.localeCompare(b.medico, "es"),
+      );
+
+    return {
+      filas,
+      opcionesConsultorio,
+      opcionesTurno,
+      opcionesEspecialidad,
+      opcionesFecha,
+      filtroActivo,
+      turnoActivo,
+      especialidadActiva,
+      fechaActiva,
+      totalConsultas: filas.reduce((total, fila) => total + fila.consultas, 0),
+    };
+  }, [
+    datosConsultaExterna,
+    mesGraficoMeta,
+    anioGraficoMeta,
+    seccionSidebar,
+    diccionarioMedicos,
+    traducirEspecialidad,
+    consultorioSeleccionado,
+    turnoDetalleSeleccionado,
+    especialidadDetalleSeleccionada,
+    fechaDetalleSeleccionada,
+  ]);
   // ==========================================
   // GRÁFICA DE METAS SEMANALES
   // ==========================================
@@ -789,6 +1036,186 @@ const ModuloIndicadores = ({
     }
   };
 
+  const descargarDetalleConsultorio = async () => {
+    if (!detalleDiarioConsultorios?.filas.length) return;
+
+    setDescargandoDetalle(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "SIEC UMAE No. 48";
+      workbook.created = new Date();
+      const hoja = workbook.addWorksheet("Detalle consultorios", {
+        views: [{ state: "frozen", ySplit: 5 }],
+        pageSetup: {
+          orientation: "landscape",
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+        },
+      });
+      const periodo = `${MESES[mesGraficoMeta]} ${anioGraficoMeta}`;
+      const filtrosAplicados = [
+        `Consultorio: ${
+          detalleDiarioConsultorios.filtroActivo === "todos"
+            ? "Todos"
+            : detalleDiarioConsultorios.filtroActivo
+        }`,
+        `Turno: ${
+          detalleDiarioConsultorios.turnoActivo === "todos"
+            ? "Todos"
+            : detalleDiarioConsultorios.turnoActivo
+        }`,
+        `Especialidad: ${
+          detalleDiarioConsultorios.especialidadActiva === "todas"
+            ? "Todas"
+            : detalleDiarioConsultorios.especialidadActiva
+        }`,
+        `Fecha: ${
+          detalleDiarioConsultorios.fechaActiva === "todas"
+            ? "Todas"
+            : detalleDiarioConsultorios.fechaActiva
+        }`,
+      ].join(" · ");
+
+      hoja.mergeCells("A1:G1");
+      hoja.getCell("A1").value = "ATENCIÓN DIARIA POR CONSULTORIO";
+      hoja.getCell("A1").font = {
+        bold: true,
+        size: 18,
+        color: { argb: "FFFFFFFF" },
+      };
+      hoja.getCell("A1").fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF047857" },
+      };
+      hoja.getCell("A1").alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+      hoja.getRow(1).height = 30;
+
+      hoja.mergeCells("A2:G2");
+      hoja.getCell("A2").value =
+        `Periodo operativo: ${periodo} · ${filtrosAplicados}`;
+      hoja.getCell("A2").font = {
+        bold: true,
+        size: 11,
+        color: { argb: "FF334155" },
+      };
+      hoja.getCell("A2").alignment = { horizontal: "center" };
+
+      hoja.mergeCells("A3:G3");
+      hoja.getCell("A3").value =
+        `Consultas incluidas: ${detalleDiarioConsultorios.totalConsultas.toLocaleString("es-MX")}`;
+      hoja.getCell("A3").font = {
+        bold: true,
+        color: { argb: "FF047857" },
+      };
+      hoja.getCell("A3").alignment = { horizontal: "center" };
+
+      const encabezados = [
+        "Fecha",
+        "Día",
+        "Consultorio",
+        "Turno",
+        "Médico",
+        "Especialidad",
+        "Consultas",
+      ];
+      const filaEncabezado = hoja.getRow(5);
+      filaEncabezado.values = encabezados;
+      filaEncabezado.height = 26;
+      filaEncabezado.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF334155" },
+        };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFCBD5E1" } },
+          left: { style: "thin", color: { argb: "FFCBD5E1" } },
+          bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+          right: { style: "thin", color: { argb: "FFCBD5E1" } },
+        };
+      });
+
+      detalleDiarioConsultorios.filas.forEach((fila, indice) => {
+        const filaExcel = hoja.getRow(6 + indice);
+        filaExcel.values = [
+          fila.fechaISO,
+          fila.diaSemana,
+          fila.consultorio,
+          fila.turno,
+          fila.medico,
+          fila.especialidad,
+          fila.consultas,
+        ];
+        filaExcel.eachCell((cell, numeroColumna) => {
+          cell.alignment = {
+            horizontal: numeroColumna === 7 ? "center" : "left",
+            vertical: "middle",
+          };
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFE2E8F0" } },
+            left: { style: "thin", color: { argb: "FFE2E8F0" } },
+            bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right: { style: "thin", color: { argb: "FFE2E8F0" } },
+          };
+          if (indice % 2 === 1) {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFF8FAFC" },
+            };
+          }
+          if (numeroColumna === 7) {
+            cell.font = { bold: true, color: { argb: "FF047857" } };
+          }
+        });
+      });
+
+      const filaTotal = hoja.getRow(6 + detalleDiarioConsultorios.filas.length);
+      hoja.mergeCells(`A${filaTotal.number}:F${filaTotal.number}`);
+      filaTotal.getCell(1).value = "TOTAL DE CONSULTAS";
+      filaTotal.getCell(7).value = detalleDiarioConsultorios.totalConsultas;
+      filaTotal.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF059669" },
+        };
+        cell.alignment = { horizontal: "center" };
+      });
+
+      [14, 14, 24, 18, 34, 32, 12].forEach((ancho, indice) => {
+        hoja.getColumn(indice + 1).width = ancho;
+      });
+      hoja.autoFilter = {
+        from: { row: 5, column: 1 },
+        to: { row: 5, column: encabezados.length },
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const nombreFiltro = filtrosAplicados
+        .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]+/g, "_")
+        .replace(/^_|_$/g, "");
+      saveAs(
+        new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `Detalle_Consultorios_${nombreFiltro}_${MESES[mesGraficoMeta]}_${anioGraficoMeta}.xlsx`,
+      );
+    } catch (error) {
+      console.error("Error al generar el detalle por consultorio:", error);
+      alert("No se pudo generar el reporte del consultorio.");
+    } finally {
+      setDescargandoDetalle(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-slate-50 md:flex md:h-screen md:overflow-hidden">
       {/* SIDEBAR MENÚ LATERAL */}
@@ -1195,6 +1622,221 @@ const ModuloIndicadores = ({
                         </table>
                       </div>
                     </div>
+                    {/* Detalle diario de médicos por consultorio */}
+                    {detalleDiarioConsultorios && (
+                      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                          <div className="flex items-start gap-3">
+                            <div className="bg-emerald-50 p-2 rounded-lg">
+                              <Users size={24} className="text-emerald-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-slate-800 text-base sm:text-lg">
+                                Atención Diaria por Consultorio
+                              </h3>
+                              <p className="text-xs font-medium text-slate-500 mt-1">
+                                Médico y especialidad que atendieron durante el periodo operativo
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex w-full lg:w-auto">
+                            <button
+                              type="button"
+                              onClick={descargarDetalleConsultorio}
+                              disabled={
+                                descargandoDetalle ||
+                                detalleDiarioConsultorios.filas.length === 0
+                              }
+                              className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Download
+                                size={17}
+                                className={
+                                  descargandoDetalle ? "animate-bounce" : ""
+                                }
+                              />
+                              {descargandoDetalle
+                                ? "Generando..."
+                                : "Descargar Excel"}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <Filter size={16} className="shrink-0 text-slate-400" />
+                            <span className="sr-only">Filtrar por consultorio</span>
+                            <select
+                              value={detalleDiarioConsultorios.filtroActivo}
+                              onChange={(event) =>
+                                setConsultorioSeleccionado(event.target.value)
+                              }
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            >
+                              <option value="todos">Todos los consultorios</option>
+                              {detalleDiarioConsultorios.opcionesConsultorio.map(
+                                (consultorio) => (
+                                  <option key={consultorio} value={consultorio}>
+                                    {consultorio}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <span className="text-xs font-bold text-slate-500">Turno</span>
+                            <select
+                              value={detalleDiarioConsultorios.turnoActivo}
+                              onChange={(event) =>
+                                setTurnoDetalleSeleccionado(event.target.value)
+                              }
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            >
+                              <option value="todos">Todos los turnos</option>
+                              {detalleDiarioConsultorios.opcionesTurno.map(
+                                (turno) => (
+                                  <option key={turno} value={turno}>
+                                    {turno}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <span className="text-xs font-bold text-slate-500">Especialidad</span>
+                            <select
+                              value={detalleDiarioConsultorios.especialidadActiva}
+                              onChange={(event) =>
+                                setEspecialidadDetalleSeleccionada(
+                                  event.target.value,
+                                )
+                              }
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            >
+                              <option value="todas">Todas las especialidades</option>
+                              {detalleDiarioConsultorios.opcionesEspecialidad.map(
+                                (especialidad) => (
+                                  <option
+                                    key={especialidad}
+                                    value={especialidad}
+                                  >
+                                    {especialidad}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <Calendar
+                              size={16}
+                              className="shrink-0 text-slate-400"
+                            />
+                            <span className="text-xs font-bold text-slate-500">
+                              Fecha
+                            </span>
+                            <input
+                              type="date"
+                              value={
+                                detalleDiarioConsultorios.fechaActiva === "todas"
+                                  ? ""
+                                  : detalleDiarioConsultorios.fechaActiva
+                              }
+                              min={
+                                detalleDiarioConsultorios.opcionesFecha[0] || ""
+                              }
+                              max={
+                                detalleDiarioConsultorios.opcionesFecha[
+                                  detalleDiarioConsultorios.opcionesFecha.length -
+                                    1
+                                ] || ""
+                              }
+                              onChange={(event) =>
+                                setFechaDetalleSeleccionada(
+                                  event.target.value || "todas",
+                                )
+                              }
+                              aria-label="Filtrar por fecha"
+                              className="w-full cursor-pointer bg-transparent text-sm font-bold text-emerald-700 outline-none"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mb-4 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                            {detalleDiarioConsultorios.filas.length.toLocaleString(
+                              "es-MX",
+                            )} grupos de atención
+                          </span>
+                          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                            {detalleDiarioConsultorios.totalConsultas.toLocaleString(
+                              "es-MX",
+                            )} consultas
+                          </span>
+                        </div>
+
+                        <div className="max-h-[520px] w-full overflow-auto custom-scrollbar border rounded-2xl shadow-sm">
+                          <table className="min-w-[1020px] w-full text-left text-xs border-collapse">
+                            <thead className="sticky top-0 z-20 bg-slate-100 text-slate-600">
+                              <tr>
+                                <th className="p-3 border-b">Fecha</th>
+                                <th className="p-3 border-b">Día</th>
+                                <th className="p-3 border-b">Consultorio</th>
+                                <th className="p-3 border-b">Turno</th>
+                                <th className="p-3 border-b">Médico</th>
+                                <th className="p-3 border-b">Especialidad</th>
+                                <th className="p-3 border-b text-center">
+                                  Consultas
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {detalleDiarioConsultorios.filas.map(
+                                (fila, indice) => (
+                                  <tr
+                                    key={`${fila.fechaISO}-${fila.consultorio}-${fila.turno}-${fila.medico}-${fila.especialidad}`}
+                                    className={`border-b border-slate-100 transition-colors hover:bg-emerald-50/50 ${indice % 2 === 1 ? "bg-slate-50/60" : "bg-white"}`}
+                                  >
+                                    <td className="p-3 whitespace-nowrap font-bold text-slate-700">
+                                      {fila.fechaTexto}
+                                    </td>
+                                    <td className="p-3 capitalize text-slate-500">
+                                      {fila.diaSemana}
+                                    </td>
+                                    <td className="p-3 font-bold text-emerald-700">
+                                      {fila.consultorio}
+                                    </td>
+                                    <td className="p-3 font-bold text-slate-500">
+                                      {fila.turno}
+                                    </td>
+                                    <td className="p-3 font-semibold text-slate-700">
+                                      {fila.medico}
+                                    </td>
+                                    <td className="p-3 text-slate-600">
+                                      {fila.especialidad}
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <span className="inline-flex min-w-9 justify-center rounded-full bg-emerald-100 px-2 py-1 font-black text-emerald-800">
+                                        {fila.consultas}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ),
+                              )}
+                            </tbody>
+                          </table>
+
+                          {detalleDiarioConsultorios.filas.length === 0 && (
+                            <div className="p-10 text-center text-sm font-medium text-slate-400">
+                              No hay atenciones que coincidan con los filtros seleccionados.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
