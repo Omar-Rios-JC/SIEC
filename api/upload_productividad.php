@@ -4,6 +4,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 // Fuerza a leer correctamente los saltos de línea de cualquier Excel
 ini_set('auto_detect_line_endings', TRUE);
+ini_set('max_execution_time', 300);
+ini_set('memory_limit', '256M');
 
 $host = 'sql112.infinityfree.com';
 $dbname = 'if0_41994851_siec'; 
@@ -145,18 +147,22 @@ try {
             }, $headers);
             $colMap = array_flip($headers);
 
-            // INSERCIÓN DIRECTA: Sin IGNORE 
-            $stmt = $pdo->prepare("INSERT IGNORE INTO productividad_externa 
-    (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $registrosPendientes = [];
+            $periodosCarga = [];
 
             $insertados = 0;
             $errores_fecha = 0;
-            $duplicados = 0;
+            $filasLeidas = 0;
+            $filasCortas = 0;
+            $registrosPorPeriodo = [];
 
             while (($data = fgetcsv($handle, 10000, $delimitador)) !== FALSE) {
-                if (count($data) < 5)
+                $filasLeidas++;
+
+                if (count($data) < 5) {
+                    $filasCortas++;
                     continue;
+                }
 
                 // Convierte la fecha a Año-Mes-Día usando el "escáner láser"
                 $fechaMysql = arreglarFecha($data[$colMap['FECHA_ATENCION']] ?? '');
@@ -203,7 +209,7 @@ try {
 
                 $divisionFinal = $diccionario[$cveEsp]['division'] ?? "Sin Asignar";
 
-                $stmt->execute([
+                $registro = [
                     $divisionFinal,
                     $especialidadFinal,
                     trim($data[$colMap['MATRIC_MEDICO']] ?? ''),
@@ -217,24 +223,56 @@ try {
                     $mapPrimeraVez[trim($data[$colMap['PRIMERA_VEZ']] ?? '')] ?? "Dato Raro",
                     $diagRaw,
                     trim($data[$colMap['CVE_PRESUP_ADSCR']] ?? '')
-                ]);
+                ];
 
-                if ($stmt->rowCount() > 0) {
-                    $insertados++;
-                } else {
-                    $duplicados++;
-                }
+                $registrosPendientes[] = $registro;
+                $periodosCarga[$anio_corte . '-' . $mes_corte] = [
+                    'anio' => $anio_corte,
+                    'mes' => $mes_corte,
+                ];
+                $registrosPorPeriodo[$anio_corte . '-' . $mes_corte] = ($registrosPorPeriodo[$anio_corte . '-' . $mes_corte] ?? 0) + 1;
             }
             fclose($handle);
-            file_put_contents('ultima_actualizacion.txt', time());
+            if (empty($registrosPendientes)) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => "No se encontraron registros validos para cargar. Errores de fecha: $errores_fecha."
+                ]);
+                exit;
+            }
+
+            $pdo->beginTransaction();
+
+            $stmtDelete = $pdo->prepare("DELETE FROM productividad_externa WHERE anio = ? AND mes = ?");
+            $periodosReemplazados = 0;
+            foreach ($periodosCarga as $periodo) {
+                $stmtDelete->execute([(int) $periodo['anio'], (int) $periodo['mes']]);
+                $periodosReemplazados++;
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO productividad_externa
+                (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+            foreach ($registrosPendientes as $registro) {
+                $stmt->execute($registro);
+                $insertados++;
+            }
+
+            $pdo->commit();
+            file_put_contents(__DIR__ . '/ultima_actualizacion.txt', time());
 
             echo json_encode([
                 'success' => true,
-                'message' => "¡Completado! Nuevos: $insertados, Duplicados: $duplicados, Errores de fecha: $errores_fecha."
+                'message' => "Carga completada. Filas leidas: $filasLeidas, Registros cargados: $insertados, Periodos reemplazados: $periodosReemplazados, Filas incompletas: $filasCortas, Errores de fecha: $errores_fecha.",
+                'periodos' => $registrosPorPeriodo
             ]);
         }
     }
 } catch (PDOException $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo json_encode(['success' => false, 'message' => 'Error BD: ' . $e->getMessage()]);
 }
 ?>

@@ -520,26 +520,48 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
 
     const datosParamedicosFiltrados = useMemo(() => {
         const soloParamedicos = datos.filter(d => {
-            const esp = String(d.especialidad || d.ESPECIALIDAD || '').toUpperCase();
-            const criterios = ['6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'REHABILITACION'];
-            return criterios.some(c => esp.includes(c));
+            const espCruda = String(d.especialidad || d.ESPECIALIDAD || '');
+            const espNivelada = nivelarTexto(espCruda);
+            const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
+            const criterios = [
+                '6300',
+                '6600',
+                '6900',
+                'TRABAJO SOCIAL',
+                'PSICOLOGIA',
+                'NUTRICION',
+                'INHALOTERAPIA',
+                'FONIATRIA',
+                'REHABILITACION'
+            ];
+            return criterios.some(c => espNivelada.includes(c) || espTraducida.includes(c));
         });
         return aplicarFiltroFecha(soloParamedicos);
-    }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+    }, [datos, diccionarioEspecialidades, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
 
     const datosUrgenciasFiltrados = useMemo(() => {
         if (!datos || datos.length === 0) return [];
 
         const soloUrgencias = datos.filter(d => {
-            const espCruda = String(d.especialidad || d.ESPECIALIDAD || d.servicio || '').toUpperCase();
-            const espTraducida = traducirEspecialidad(espCruda);
+            const espCruda = String(d.especialidad || d.ESPECIALIDAD || d.servicio || '');
+            const espNivelada = nivelarTexto(espCruda);
+            const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
 
-            const criterios = ['5001', 'A600', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
-            return criterios.some(c => espTraducida.includes(c) || espCruda.includes(c));
+            const criterios = [
+                '5001',
+                'A600',
+                'URGENCIAS',
+                'TOCO',
+                'PRIMER CONTACTO',
+                'ADMISION CONTINUA',
+                'OBSERVACION',
+                'CHOQUE'
+            ];
+            return criterios.some(c => espTraducida.includes(c) || espNivelada.includes(c));
         });
 
         return aplicarFiltroFecha(soloUrgencias);
-    }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+    }, [datos, diccionarioEspecialidades, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
 
     // Segmentación analítica limpia para periodos IMSS, Divisiones y Especialidades de Hospitalización
     const datosHospitalizacionFiltrados = useMemo(() => {
@@ -642,11 +664,11 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         }
 
         if (areaSidebar === 'urgencias') {
-            const criterios = ['URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
+            const criterios = ['URGENCIAS', 'TOCO', 'PRIMER CONTACTO', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
             return listaCompleta.filter(esp => criterios.some(c => esp.includes(c)));
         }
 
-        const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
+        const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS', 'TOCO', 'PRIMER CONTACTO', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
         return listaCompleta.filter(esp => !ignorar.some(ignorada => esp.includes(ignorada)));
 
     }, [diccionarioEspecialidades, areaSidebar, divisionSeleccionada]);
