@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import { Scissors, Upload, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
-<<<<<<< HEAD
-=======
 import { 
     obtenerFechaActualizacion,
     registrarActualizacion
 } from '../utils/fechaActualizacion';
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
 export default function ModuloCargaCirugias({ setVistaActiva, setMensaje, mensaje, cargarDatosCirugias }) {
     const [archivo, setArchivo] = useState(null);

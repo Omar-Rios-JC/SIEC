@@ -4,9 +4,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 // 1. Configuración de Base de Datos
 $host = 'sql112.infinityfree.com';
-$dbname = 'if0_41994851_siec'; 
-$username = 'if0_41994851';
-$password = 'BIguNSKaR7Wnk';
+$dbname = 'if0_41125231_vencer'; 
+$username = 'if0_41125231';
+$password = 'DEtK59bqZzA';
 
 try {
     // Usamos utf8mb4 y forzamos el set names para Ñ y acentos
@@ -69,72 +69,13 @@ try {
             }
 
             // INSERT IGNORE es clave para el índice UNIQUE
-<<<<<<< HEAD
             $stmt = $pdo->prepare("INSERT IGNORE INTO productividad_externa 
                 (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-=======
-            $stmt = $pdo->prepare("INSERT INTO productividad_externa
-                (division, especialidad, matricula_medico, consultorio, fecha_atencion, dia, mes, anio, turno, citado, primera_vez, diagnostico_principal, clave_presupuestal) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $pdo->beginTransaction();
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
             $registrosInsertados = 0;
             $duplicadosSaltados = 0;
 
-<<<<<<< HEAD
-=======
-            /* ==========================================================
-   Detectar automáticamente el mes y año del archivo
-   ========================================================== */
-
-$primeraLinea = fgetcsv($handle, 10000, $delimitador);
-
-if ($primeraLinea === false) {
-    throw new Exception("El archivo CSV está vacío.");
-}
-
-$fechaBruta = trim($primeraLinea[$colMap['FECHA_ATENCION']]);
-$fechaSola = explode(' ', $fechaBruta)[0];
-
-$f = date_create_from_format('d/m/Y', $fechaSola);
-
-if (!$f) {
-    $f = date_create_from_format('Y-m-d', $fechaSola);
-}
-
-if (!$f) {
-    throw new Exception("No fue posible detectar la fecha del archivo.");
-}
-
-$mesArchivo = (int)$f->format('m');
-$anioArchivo = (int)$f->format('Y');
-
-/* ==========================================================
-   Eliminar únicamente ese mes
-   ========================================================== */
-
-$delete = $pdo->prepare("
-DELETE FROM productividad_externa
-WHERE mes = ?
-AND anio = ?
-");
-
-$delete->execute([
-    $mesArchivo,
-    $anioArchivo
-]);
-
-/* ==========================================================
-   Regresamos el puntero al inicio del archivo
-   ========================================================== */
-
-rewind($handle);
-
-fgetcsv($handle, 10000, $delimitador);
-
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
             while (($data = fgetcsv($handle, 10000, $delimitador)) !== FALSE) {
                 if(count($data) < 5 || empty(trim($data[0]))) continue; 
 
@@ -206,10 +147,6 @@ fgetcsv($handle, 10000, $delimitador);
             }
             fclose($handle);
             
-<<<<<<< HEAD
-=======
-            $pdo->commit();
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
             file_put_contents('ultima_actualizacion.txt', time());
             echo json_encode([
                 'success' => true, 
@@ -222,20 +159,7 @@ fgetcsv($handle, 10000, $delimitador);
         echo json_encode(['success' => false, 'message' => 'No se recibió el archivo "archivo_csv".']);
     }
 
-<<<<<<< HEAD
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'message' => 'Error Crítico BD: ' . $e->getMessage()]);
-=======
-} catch (Exception $e) {
-
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-
-    echo json_encode([
-        'success'=>false,
-        'message'=>$e->getMessage()
-    ]);
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 }
 ?>

@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import localforage from 'localforage';
 import { Database, Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-<<<<<<< HEAD
-=======
 import { obtenerFechaActualizacion } from '../utils/fechaActualizacion';
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
 
 export default function ModuloCargaCE({ setVistaActiva, setMensaje, mensaje, cargarDatos }) {
     const [archivo, setArchivo] = useState(null);
@@ -30,22 +27,6 @@ export default function ModuloCargaCE({ setVistaActiva, setMensaje, mensaje, car
             });
 
             if (respuesta.data.success) {
-<<<<<<< HEAD
-                setMensaje(`¡Éxito! ${respuesta.data.message}`);
-                setArchivo(null);
-                
-                // LIMPIEZA DE CACHÉ (IndexedDB)
-                // Al subir datos nuevos, borramos la "foto" vieja para forzar la descarga de lo nuevo
-                await localforage.removeItem('cache_productividad_vencer');
-                await localforage.removeItem('version_productividad_vencer');
-                
-                // Recargamos los datos en el estado global
-                if (cargarDatos) cargarDatos();
-                
-            } else {
-                setMensaje(`Error: ${respuesta.data.message}`);
-            }
-=======
     setMensaje(`¡Éxito! ${respuesta.data.message}`);
     setArchivo(null);
 
@@ -61,7 +42,6 @@ export default function ModuloCargaCE({ setVistaActiva, setMensaje, mensaje, car
 } else {
     setMensaje(`Error: ${respuesta.data.message}`);
 }
->>>>>>> f01db6b1ce85c058bf31e25e14622d40c3461e89
         } catch (error) {
             console.error("Error al subir:", error);
             setMensaje("Error crítico al conectar con el servidor.");
