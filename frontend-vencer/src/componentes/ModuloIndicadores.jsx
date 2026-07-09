@@ -71,6 +71,43 @@ const MESES = [
   "Dic",
 ];
 
+const cargarProductividadIndicadores = async () => {
+  const limite = 2000;
+  const maxPaginas = 80;
+  const registros = [];
+
+  for (let pagina = 0; pagina < maxPaginas; pagina += 1) {
+    const offset = pagina * limite;
+    const respuesta = await axios.get("/api/api_productividad.php", {
+      params: { limit: limite, offset },
+      timeout: 45000,
+    });
+
+    const bloque = respuesta.data;
+    if (!Array.isArray(bloque)) return [];
+
+    if (bloque.length > limite) {
+      return bloque;
+    }
+
+    if (pagina === 1 && registros.length > 0 && bloque.length > 0) {
+      const primeroAnterior = JSON.stringify(registros[0]);
+      const primeroActual = JSON.stringify(bloque[0]);
+      if (primeroAnterior === primeroActual) {
+        return registros;
+      }
+    }
+
+    registros.push(...bloque);
+
+    if (bloque.length < limite) {
+      return registros;
+    }
+  }
+
+  return registros;
+};
+
 // ==========================================
 // FUNCIONES UTILITARIAS INDEPENDIENTES
 // ==========================================
@@ -329,8 +366,8 @@ const ModuloIndicadores = ({
         "cache_productividad_vencer",
       );
       if (datosLocales && datosLocales.length > 0) setDatos(datosLocales);
-      const resDatos = await axios.get("/api/api_productividad.php");
-      if (Array.isArray(resDatos.data)) setDatos(resDatos.data);
+      const datosServidor = await cargarProductividadIndicadores();
+      if (Array.isArray(datosServidor)) setDatos(datosServidor);
     } catch (err) {
       console.error(err);
     } finally {
