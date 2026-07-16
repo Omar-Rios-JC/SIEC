@@ -100,10 +100,19 @@ let cacheDiccionarioCIE = {};
 const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExtra, dataExtra, total = true }) => {
     if (!labels || !data) return null;
 
-    const mostrarDesglose = dataPV && dataSub;
-    const totalPV = mostrarDesglose ? dataPV.reduce((a, b) => a + b, 0) : 0;
-    const totalSub = mostrarDesglose ? dataSub.reduce((a, b) => a + b, 0) : 0;
-    const totalGeneral = data.reduce((a, b) => a + b, 0);
+    const labelsSeguros = Array.isArray(labels) ? labels : [];
+    const dataSegura = Array.isArray(data) ? data : [];
+    const dataPVSegura = Array.isArray(dataPV) ? dataPV : [];
+    const dataSubSegura = Array.isArray(dataSub) ? dataSub : [];
+    const mostrarDesglose = Array.isArray(dataPV) && Array.isArray(dataSub);
+    const numeroSeguro = (valor) => {
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : 0;
+    };
+    const formatearNumero = (valor) => numeroSeguro(valor).toLocaleString();
+    const totalPV = mostrarDesglose ? dataPVSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+    const totalSub = mostrarDesglose ? dataSubSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+    const totalGeneral = dataSegura.reduce((a, b) => a + numeroSeguro(b), 0);
 
     return (
         <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-300 h-full">
@@ -120,11 +129,14 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                         </tr>
                     </thead>
                     <tbody>
-                        {labels.map((label, index) => {
+                        {labelsSeguros.map((label, index) => {
+                            const valor = numeroSeguro(dataSegura[index]);
+                            const pv = numeroSeguro(dataPVSegura[index]);
+                            const sub = numeroSeguro(dataSubSegura[index]);
                             let indice = '0.00';
-                            if (dataPV && dataPV[index] > 0) {
-                                indice = (dataSub[index] / dataPV[index]).toFixed(2);
-                            } else if (dataSub && dataSub[index] > 0) {
+                            if (pv > 0) {
+                                indice = (sub / pv).toFixed(2);
+                            } else if (sub > 0) {
                                 indice = '∞';
                             }
 
@@ -132,10 +144,10 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                                 <tr key={index} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                                     <td className="py-2 px-3">{String(label).replace('Dr. ', 'Lic. ')}</td>
                                     {dataExtra && <td className="py-2 px-3 text-xs font-bold text-slate-400">{dataExtra[index]}</td>}
-                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#c2410c] font-medium">{dataPV[index].toLocaleString()}</td>}
-                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#822626] font-medium">{dataSub[index].toLocaleString()}</td>}
+                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#c2410c] font-medium">{formatearNumero(pv)}</td>}
+                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#822626] font-medium">{formatearNumero(sub)}</td>}
                                     {mostrarDesglose && <td className="py-2 px-3 text-center text-slate-500 font-bold bg-slate-50/50">{indice}</td>}
-                                    <td className="py-2 px-3 text-right font-black text-slate-700">{data[index].toLocaleString()}</td>
+                                    <td className="py-2 px-3 text-right font-black text-slate-700">{formatearNumero(valor)}</td>
                                 </tr>
                             );
                         })}
@@ -461,7 +473,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
             const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
 
             // Si el nombre o el código pertenece a otra área, lo ignoramos de Consulta Externa
-            const ignorar = ['TOCO', 'PRIMER CONTACTO', '5001', '6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'TRABAJO SOCIAL', 'PSICOLOGIA', 'REHABILITACION', 'URGENCIAS', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
+            const ignorar = ['TOCO', 'PRIMER CONTACTO', '5001', '6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'TRABAJO SOCIAL', 'PSICOLOGIA', 'URGENCIAS', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
 
             return !ignorar.some(ignorada => espNivelada.includes(ignorada) || espTraducida.includes(ignorada));
         });
@@ -531,8 +543,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                 'PSICOLOGIA',
                 'NUTRICION',
                 'INHALOTERAPIA',
-                'FONIATRIA',
-                'REHABILITACION'
+                'FONIATRIA'
             ];
             return criterios.some(c => espNivelada.includes(c) || espTraducida.includes(c));
         });
@@ -650,7 +661,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
 
         if (Object.keys(diccionarioEspecialidades).length === 0) {
             if (areaSidebar === 'paramedicos') {
-                ['TRABAJO SOCIAL', 'PSICOLOGIA', 'NUTRICION', 'REHABILITACION'].forEach(e => setEsp.add(e));
+                ['TRABAJO SOCIAL', 'PSICOLOGIA', 'NUTRICION'].forEach(e => setEsp.add(e));
             } else if (areaSidebar === 'urgencias') {
                 ['CONSULTAS EN PRIMER CONTACTO', 'URGENCIAS TOCOCIRUGIA'].forEach(e => setEsp.add(e));
             }
@@ -1568,7 +1579,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                                 titulo1={chartDivisiones.mostrandoEspecialidades ? 'Especialidad' : 'División'}
                                                 titulo2="Consultas"
                                                 labels={chartDivisiones.labels}
-                                                data={chartDivisiones.datasets[0].data}
+                                                data={chartDivisiones.datasets[0]?.data || []}
                                                 dataPV={chartDivisiones.dataPV}
                                                 dataSub={chartDivisiones.dataSub}
                                             />
@@ -1577,26 +1588,26 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                     <div id="graficoE_3" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px]">
                                         <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">Consultas por Turno</h3>
                                         <div className="relative flex-1 min-h-[220px]"><Doughnut data={chartTurnos} options={{ maintainAspectRatio: false }} /></div>
-                                        {mostrarTablas && <TablaDatos titulo1="Turno" titulo2="Consultas" labels={chartTurnos.labels} data={chartTurnos.datasets[0].data} dataPV={chartTurnos.dataPV} dataSub={chartTurnos.dataSub} />}
+                                        {mostrarTablas && <TablaDatos titulo1="Turno" titulo2="Consultas" labels={chartTurnos.labels} data={chartTurnos.datasets[0]?.data || []} dataPV={chartTurnos.dataPV} dataSub={chartTurnos.dataSub} />}
                                     </div>
                                 </div>
 
                                 <div id="graficoE_4" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col mb-6">
                                     <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Top 20 Productividad por Médico</h3>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartMedicos.labels.length), height: '100%' }}><Bar data={chartMedicos} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Médico" titulo2="Consultas" labels={chartMedicos.labels} data={chartMedicos.datasets[0].data} dataPV={chartMedicos.dataPV} dataSub={chartMedicos.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Médico" titulo2="Consultas" labels={chartMedicos.labels} data={chartMedicos.datasets[0]?.data || []} dataPV={chartMedicos.dataPV} dataSub={chartMedicos.dataSub} />}
                                 </div>
 
                                 <div id="graficoE_5" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col mb-6">
                                     <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Top 20 Diagnósticos Principales</h3>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartDiagnosticos.labels.length), height: '100%' }}><Bar data={chartDiagnosticos} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Diagnóstico" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0].data} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Diagnóstico" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0]?.data || []} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} />}
                                 </div>
 
                                 <div id="graficoE_6" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col">
                                     <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Distribución por Consultorio</h3>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartConsultorios.labels.length), height: '100%' }}><Bar data={chartConsultorios} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Consultorio" titulo2="Consultas" labels={chartConsultorios.labels} data={chartConsultorios.datasets[0].data} dataPV={chartConsultorios.dataPV} dataSub={chartConsultorios.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Consultorio" titulo2="Consultas" labels={chartConsultorios.labels} data={chartConsultorios.datasets[0]?.data || []} dataPV={chartConsultorios.dataPV} dataSub={chartConsultorios.dataSub} />}
                                 </div>
                             </div>
                         )}
