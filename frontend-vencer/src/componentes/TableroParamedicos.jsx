@@ -8,10 +8,19 @@ import { Doughnut, Bar } from 'react-chartjs-2';
 // ==========================================
 const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExtra, dataExtra, total = true }) => {
     if (!labels || !data) return null;
-    const mostrarDesglose = dataPV && dataSub;
-    const totalPV = mostrarDesglose ? dataPV.reduce((a, b) => a + b, 0) : 0;
-    const totalSub = mostrarDesglose ? dataSub.reduce((a, b) => a + b, 0) : 0;
-    const totalGeneral = data.reduce((a, b) => a + b, 0);
+    const labelsSeguros = Array.isArray(labels) ? labels : [];
+    const dataSegura = Array.isArray(data) ? data : [];
+    const dataPVSegura = Array.isArray(dataPV) ? dataPV : [];
+    const dataSubSegura = Array.isArray(dataSub) ? dataSub : [];
+    const mostrarDesglose = Array.isArray(dataPV) && Array.isArray(dataSub);
+    const numeroSeguro = (valor) => {
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : 0;
+    };
+    const formatearNumero = (valor) => numeroSeguro(valor).toLocaleString();
+    const totalPV = mostrarDesglose ? dataPVSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+    const totalSub = mostrarDesglose ? dataSubSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+    const totalGeneral = dataSegura.reduce((a, b) => a + numeroSeguro(b), 0);
 
     return (
         <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-300 h-full">
@@ -28,9 +37,12 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                         </tr>
                     </thead>
                     <tbody>
-                        {labels.map((label, index) => {
+                        {labelsSeguros.map((label, index) => {
+                            const valor = numeroSeguro(dataSegura[index]);
+                            const pv = numeroSeguro(dataPVSegura[index]);
+                            const sub = numeroSeguro(dataSubSegura[index]);
                             let indice = '0.00';
-                            if (dataPV && dataPV[index] > 0) indice = (dataSub[index] / dataPV[index]).toFixed(2);
+                            if (pv > 0) indice = (sub / pv).toFixed(2);
                             else if (dataSub && dataSub[index] > 0) indice = '∞'; 
 
                             return (
@@ -39,10 +51,10 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                                         {label.toString().replace('Dr. ', 'Lic. ')}
                                     </td>
                                     {dataExtra && <td className="py-2 px-3 text-xs font-bold text-slate-400">{dataExtra[index]}</td>}
-                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#c2410c] font-medium">{dataPV[index].toLocaleString()}</td>}
-                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#822626] font-medium">{dataSub[index].toLocaleString()}</td>}
+                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#c2410c] font-medium">{formatearNumero(pv)}</td>}
+                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#822626] font-medium">{formatearNumero(sub)}</td>}
                                     {mostrarDesglose && <td className="py-2 px-3 text-center text-slate-500 font-bold bg-slate-50/50">{indice}</td>}
-                                    <td className="py-2 px-3 text-right font-black text-slate-700">{data[index].toLocaleString()}</td>
+                                    <td className="py-2 px-3 text-right font-black text-slate-700">{formatearNumero(valor)}</td>
                                 </tr>
                             );
                         })}
@@ -70,7 +82,7 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
 const anchoDinamico = (cantidad) => cantidad > 15 ? `${cantidad * 40}px` : '100%';
 
 // Criterios de filtrado para áreas paramédicas
-const CRITERIOS_PARAMEDICOS = ['6300', '6600', '6900', 'NUTRICION', 'NUTRICIÓN', 'PSICOLOGIA', 'PSICOLOGÍA', 'TRABAJO SOCIAL', 'INHALOTERAPIA', 'FONIATRIA', 'REHABILITACION'];
+const CRITERIOS_PARAMEDICOS = ['6300', '6600', '6900', 'NUTRICION', 'NUTRICIÓN', 'PSICOLOGIA', 'PSICOLOGÍA', 'TRABAJO SOCIAL', 'INHALOTERAPIA', 'FONIATRIA'];
 
 // ==========================================
 // COMPONENTE PRINCIPAL: TABLERO PARAMÉDICOS
@@ -329,7 +341,7 @@ export default function TableroParamedicos({
                     <div className="relative flex-1 min-h-[220px]">
                         <Doughnut data={chartTurnos} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
                     </div>
-                    {mostrarTablas && <TablaDatos titulo1="Turno" titulo2="Consultas" labels={chartTurnos.labels} data={chartTurnos.datasets[0].data} dataPV={chartTurnos.dataPV} dataSub={chartTurnos.dataSub} />}
+                    {mostrarTablas && <TablaDatos titulo1="Turno" titulo2="Consultas" labels={chartTurnos.labels} data={chartTurnos.datasets[0]?.data || []} dataPV={chartTurnos.dataPV} dataSub={chartTurnos.dataSub} />}
                 </div>
 
                 {/* GRÁFICA 2: ÁREAS (Versión Grid) */}
@@ -338,7 +350,7 @@ export default function TableroParamedicos({
                     <div className="relative flex-1 min-h-[220px]">
                         <Bar data={chartEspecialidades} options={chartOptionsVertical} />
                     </div>
-                    {mostrarTablas && <TablaDatos titulo1="Área" titulo2="Consultas" labels={chartEspecialidades.labels} data={chartEspecialidades.datasets[0].data} dataPV={chartEspecialidades.dataPV} dataSub={chartEspecialidades.dataSub} />}
+                    {mostrarTablas && <TablaDatos titulo1="Área" titulo2="Consultas" labels={chartEspecialidades.labels} data={chartEspecialidades.datasets[0]?.data || []} dataPV={chartEspecialidades.dataPV} dataSub={chartEspecialidades.dataSub} />}
                 </div>
             </div>
 
@@ -374,7 +386,7 @@ export default function TableroParamedicos({
                                     dataExtra={chartMedicos.dataExtra} 
                                     titulo2="Consultas" 
                                     labels={chartMedicos.labels} 
-                                    data={chartMedicos.datasets[0].data} 
+                                    data={chartMedicos.datasets[0]?.data || []} 
                                     dataPV={chartMedicos.dataPV} 
                                     dataSub={chartMedicos.dataSub} 
                                 />
@@ -392,7 +404,7 @@ export default function TableroParamedicos({
                                 <Bar data={chartDiagnosticos} options={chartOptionsVertical} />
                             </div>
                         </div>
-                        {mostrarTablas && <div className="lg:col-span-2 h-[400px] overflow-hidden"><TablaDatos titulo1="Diagnóstico" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0].data} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} total={false} /></div>}
+                        {mostrarTablas && <div className="lg:col-span-2 h-[400px] overflow-hidden"><TablaDatos titulo1="Diagnóstico" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0]?.data || []} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} total={false} /></div>}
                     </div>
                 </div>
 
@@ -412,7 +424,7 @@ export default function TableroParamedicos({
                         </div>
                         {mostrarTablas && (
                             <div className="lg:col-span-2 h-[400px] overflow-hidden">
-                                <TablaDatos titulo1="Consultorio" titulo2="Consultas" labels={chartConsultorios.labels} data={chartConsultorios.datasets[0].data} dataPV={chartConsultorios.dataPV} dataSub={chartConsultorios.dataSub} />
+                                <TablaDatos titulo1="Consultorio" titulo2="Consultas" labels={chartConsultorios.labels} data={chartConsultorios.datasets[0]?.data || []} dataPV={chartConsultorios.dataPV} dataSub={chartConsultorios.dataSub} />
                             </div>
                         )}
                     </div>
