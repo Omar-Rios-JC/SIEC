@@ -15,9 +15,17 @@ $password = 'BIguNSKaR7Wnk';
 // ==========================================
 // FUNCIÓN LIBRE: NO RECHAZA NINGUNA FECHA
 // ==========================================
-function arreglarFecha($fechaStr)
+function normalizarEntero($valor)
+{
+    $valor = trim((string) $valor);
+    return is_numeric($valor) ? (int) $valor : null;
+}
+
+function arreglarFecha($fechaStr, $mesEsperado = null, $anioEsperado = null)
 {
     $fechaStr = trim($fechaStr);
+    $mesEsperado = normalizarEntero($mesEsperado);
+    $anioEsperado = normalizarEntero($anioEsperado);
 
     // Si la celda está vacía (fila fantasma), es lo único que devolverá false
     if (empty($fechaStr))
@@ -70,21 +78,42 @@ function arreglarFecha($fechaStr)
             $dia = $p3;
         } elseif ($p3 > 1000) {
             $anio = $p3;
-            if ($p2 > 12) {
+
+            if ($mesEsperado && $p1 === $mesEsperado && $p2 >= 1 && $p2 <= 31) {
                 $mes = $p1;
                 $dia = $p2;
-            } else {
+            } elseif ($mesEsperado && $p2 === $mesEsperado && $p1 >= 1 && $p1 <= 31) {
                 $dia = $p1;
                 $mes = $p2;
+            } elseif ($p2 > 12) {
+                $mes = $p1;
+                $dia = $p2;
+            } elseif ($p1 > 12) {
+                $dia = $p1;
+                $mes = $p2;
+            } else {
+                // Los CSV oficiales de productividad vienen como mes/dia/anio.
+                $mes = $p1;
+                $dia = $p2;
             }
         } else {
-            $anio = $p3 + 2000;
-            if ($p2 > 12) {
+            $anio = $anioEsperado ?: ($p3 + 2000);
+
+            if ($mesEsperado && $p1 === $mesEsperado && $p2 >= 1 && $p2 <= 31) {
                 $mes = $p1;
                 $dia = $p2;
-            } else {
+            } elseif ($mesEsperado && $p2 === $mesEsperado && $p1 >= 1 && $p1 <= 31) {
                 $dia = $p1;
                 $mes = $p2;
+            } elseif ($p2 > 12) {
+                $mes = $p1;
+                $dia = $p2;
+            } elseif ($p1 > 12) {
+                $dia = $p1;
+                $mes = $p2;
+            } else {
+                $mes = $p1;
+                $dia = $p2;
             }
         }
 
@@ -146,6 +175,10 @@ try {
                 return trim(preg_replace('/[\x00-\x1F\x7F\xEF\xBB\xBF]/', '', $h));
             }, $headers);
             $colMap = array_flip($headers);
+            $colMapNormalizado = [];
+            foreach ($headers as $idx => $header) {
+                $colMapNormalizado[strtolower($header)] = $idx;
+            }
 
             $registrosPendientes = [];
             $periodosCarga = [];
@@ -165,7 +198,10 @@ try {
                 }
 
                 // Convierte la fecha a Año-Mes-Día usando el "escáner láser"
-                $fechaMysql = arreglarFecha($data[$colMap['FECHA_ATENCION']] ?? '');
+                $mesCsv = isset($colMapNormalizado['mes']) ? normalizarEntero($data[$colMapNormalizado['mes']] ?? null) : null;
+                $anioCsv = isset($colMapNormalizado['anio']) ? normalizarEntero($data[$colMapNormalizado['anio']] ?? null) : null;
+
+                $fechaMysql = arreglarFecha($data[$colMap['FECHA_ATENCION']] ?? '', $mesCsv, $anioCsv);
                 if (!$fechaMysql) {
                     $errores_fecha++;
                     continue;
@@ -191,6 +227,11 @@ try {
                         $mes_corte = 1;
                         $anio_corte++;
                     }
+                }
+
+                if ($mesCsv >= 1 && $mesCsv <= 12 && $anioCsv >= 1900) {
+                    $mes_corte = $mesCsv;
+                    $anio_corte = $anioCsv;
                 }
 
                 $diagRaw = html_entity_decode(trim($data[$colMap['DIAG_PRINCIPAL']] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
