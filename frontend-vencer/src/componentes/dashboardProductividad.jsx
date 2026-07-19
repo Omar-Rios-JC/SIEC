@@ -885,6 +885,189 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         };
     }, [datosFiltrados]);
 
+    const tablaConsultasEspecialidadPeriodo = useMemo(() => {
+        const filasMap = {};
+        const periodosMap = new Map();
+        const especialidadesReferencia = {
+            '1000': 'Alergia e Inmunología',
+            '1400': 'Cardiología',
+            '1500': 'Cirugía Cardiotorácica',
+            '2100': 'Ginecología',
+            '2101': 'Biología de la Reproducción Humana',
+            '2103': 'Urología Ginecológica',
+            '2104': 'Ginecología endócrina',
+            '2105': 'Clínica de Displasia',
+            '2106': 'Clínica de Mama',
+            '2400': 'Obstetricia',
+            '2401': 'Medicina Materno Fetal',
+            '2500': 'Medicina Interna',
+            '3000': 'Oftalmología',
+            '3200': 'Pediatría',
+            '3201': 'Cardiología Pediátrica',
+            '3202': 'Endocrinología Pediátrica',
+            '3203': 'Gastroenterología Pediátrica',
+            '3204': 'Hematología Pediátrica',
+            '3205': 'Infectología Pediátrica',
+            '3206': 'Neumología Pediátrica',
+            '3207': 'Neurología Pediátrica',
+            '3208': 'Oncología Pediátrica',
+            '3209': 'Reumatología Pediátrica',
+            '3500': 'Psiquiatría',
+            '3800': 'Traumatología y ortopedia',
+            '3801': 'Traumatología',
+            '4100': 'Urología',
+            '4400': 'Cirugía Pediátrica',
+            '4401': 'Nefrología Pediátrica',
+            '4402': 'Neurocirugía Pediátrica',
+            '4600': 'Cirugía Plástica y Reconstructiva',
+            '5001': 'Consultas en Primer Contacto',
+            '6300': 'Trabajo Social',
+            '6600': 'Psicología',
+            '6900': 'Nutrición y Dietética',
+            '5100': 'Cirugía oncológica',
+            '5103': 'Ginecología Oncológica',
+            '6500': 'Genética Médica',
+            '6800': 'Medicina Física y Rehabilitación',
+            '8800': 'Anestesiología',
+            '8802': 'Clínica del Dolor',
+            'A600': 'Urgencias Tococirugía',
+            'MT01': 'SPPSTIMSS - Médico Especialista (Médico General)'
+        };
+        const clavesPorDescripcion = Object.entries(diccionarioEspecialidades).reduce((acc, [clave, info]) => {
+            const descripcion = nivelarTexto(info?.nombre || '');
+            if (descripcion && !acc[descripcion]) acc[descripcion] = clave;
+            return acc;
+        }, {});
+
+        Object.entries(especialidadesReferencia).forEach(([clave, descripcion]) => {
+            const descripcionNivelada = nivelarTexto(descripcion);
+            if (descripcionNivelada && !clavesPorDescripcion[descripcionNivelada]) clavesPorDescripcion[descripcionNivelada] = clave;
+        });
+
+        const aliasEspecialidadesReferencia = {
+            [nivelarTexto('Trabajo Social')]: '6300',
+            [nivelarTexto('Psicología')]: '6600',
+            [nivelarTexto('Psicologia')]: '6600',
+            [nivelarTexto('Nutrición')]: '6900',
+            [nivelarTexto('Nutricion')]: '6900',
+            [nivelarTexto('Nutrición y Dietética')]: '6900',
+            [nivelarTexto('Nutricion y Dietetica')]: '6900',
+            [nivelarTexto('Consultas en Primer Contacto')]: '5001',
+            [nivelarTexto('Primer Contacto')]: '5001',
+            [nivelarTexto('Urgencias')]: 'A600',
+            [nivelarTexto('Urgencias Tococirugía')]: 'A600',
+            [nivelarTexto('Urgencias Tococirugia')]: 'A600',
+            [nivelarTexto('Urgencias Toco Cirugía')]: 'A600',
+            [nivelarTexto('Urgencias Toco Cirugia')]: 'A600',
+            [nivelarTexto('Admisión Continua')]: 'A600',
+            [nivelarTexto('Admision Continua')]: 'A600',
+            [nivelarTexto('Observación')]: 'A600',
+            [nivelarTexto('Observacion')]: 'A600',
+            [nivelarTexto('Choque')]: 'A600'
+        };
+
+        Object.entries(aliasEspecialidadesReferencia).forEach(([descripcion, clave]) => {
+            if (descripcion && !clavesPorDescripcion[descripcion]) clavesPorDescripcion[descripcion] = clave;
+        });
+
+        const obtenerDescripcionCatalogo = (clave) => diccionarioEspecialidades[clave]?.nombre || especialidadesReferencia[clave] || '';
+        const limpiarClaveEspecialidad = (valorCrudo) => {
+            const texto = String(valorCrudo || '')
+                .trim()
+                .toUpperCase()
+                .replace('COD:', '')
+                .replace('COD: ', '')
+                .replace('.0', '')
+                .trim();
+            const compacta = texto.replace(/[^0-9A-Z]/g, '');
+            return /^(\d{3,5}|[A-Z]{1,3}\d{2,4})$/.test(compacta) ? compacta : '';
+        };
+
+        const obtenerEspecialidad = (valorCrudo) => {
+            const valorTexto = String(valorCrudo || '').trim();
+            const claveDirecta = limpiarClaveEspecialidad(valorTexto);
+
+            if (claveDirecta) {
+                const descripcionCatalogo = obtenerDescripcionCatalogo(claveDirecta);
+                if (!descripcionCatalogo) return null;
+                return { cve: claveDirecta, descripcion: descripcionCatalogo };
+            }
+
+            const descripcionNivelada = nivelarTexto(valorTexto);
+            const claveCatalogo = clavesPorDescripcion[descripcionNivelada] || '';
+            if (!claveCatalogo) return null;
+
+            return {
+                cve: claveCatalogo,
+                descripcion: obtenerDescripcionCatalogo(claveCatalogo) || valorTexto
+            };
+        };
+
+        datos.forEach(item => {
+            let anio = item.anio || item.Anio || item.ANIO || item.año || item.Año || item.AÑO;
+            let mes = item.mes || item.Mes || item.MES;
+
+            const fecha = encontrarFecha(item);
+            if ((!anio || !mes) && fecha) {
+                const partes = String(fecha).includes('-') ? String(fecha).split('-') : String(fecha).split('/');
+                if (partes.length >= 2) {
+                    if (partes[0].length === 4) {
+                        anio = anio || partes[0];
+                        mes = mes || partes[1];
+                    } else {
+                        anio = anio || partes[2];
+                        mes = mes || partes[1];
+                    }
+                }
+            }
+
+            if (!anio || !mes) return;
+
+            const mesIndex = Number(mes) - 1;
+            if (!Number.isFinite(mesIndex) || mesIndex < 0 || mesIndex > 11) return;
+
+            const anioTexto = String(anio);
+            const periodoKey = `${anioTexto}-${String(mesIndex + 1).padStart(2, '0')}`;
+            if (!periodosMap.has(periodoKey)) {
+                periodosMap.set(periodoKey, {
+                    key: periodoKey,
+                    anio: anioTexto,
+                    mesIndex,
+                    etiqueta: `${MESES[mesIndex]}-${anioTexto.slice(-2)}`
+                });
+            }
+
+            const especialidad = obtenerEspecialidad(item.especialidad || item.ESPECIALIDAD || item.servicio || 'Sin Descripcion');
+            if (!especialidad) return;
+            const cve = especialidad.cve || '';
+            const descripcion = especialidad.descripcion || 'Sin Descripcion';
+            const filaKey = `${cve || 'SIN-CVE'}-${nivelarTexto(descripcion)}`;
+
+            if (!filasMap[filaKey]) {
+                filasMap[filaKey] = { cve, descripcion, conteos: {}, total: 0 };
+            }
+
+            filasMap[filaKey].conteos[periodoKey] = (filasMap[filaKey].conteos[periodoKey] || 0) + 1;
+            filasMap[filaKey].total++;
+        });
+
+        const periodos = [...periodosMap.values()].sort((a, b) => Number(a.anio) - Number(b.anio) || a.mesIndex - b.mesIndex);
+        const filas = Object.values(filasMap).sort((a, b) => {
+            const claveA = a.cve || a.descripcion;
+            const claveB = b.cve || b.descripcion;
+            return claveA.localeCompare(claveB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        const totalesPorPeriodo = {};
+        let totalGeneral = 0;
+
+        periodos.forEach(periodo => {
+            const totalPeriodo = filas.reduce((total, fila) => total + (fila.conteos[periodo.key] || 0), 0);
+            totalesPorPeriodo[periodo.key] = totalPeriodo;
+            totalGeneral += totalPeriodo;
+        });
+
+        return { periodos, filas, totalesPorPeriodo, totalGeneral };
+    }, [datos, diccionarioEspecialidades]);
     const chartDivisiones = useMemo(() => {
         // Bandera para saber en qué nivel estamos
         const mostrandoEspecialidades = divisionSeleccionada !== 'todas';
@@ -1470,7 +1653,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                             <div className="flex justify-center items-center py-20 text-[#822626] font-bold"><Activity className="animate-spin mr-3" /> Calculando estadísticas...</div>
                         ) : error ? (
                             <div className="text-red-600 font-bold text-center py-20">{error}</div>
-                        ) : datosFiltrados.length === 0 ? (
+                        ) : datosFiltrados.length === 0 && tablaConsultasEspecialidadPeriodo.filas.length === 0 ? (
                             <div className="text-center p-16 border-2 border-dashed border-slate-300 rounded-2xl text-slate-400 mt-10">
                                 <Activity size={48} className="mx-auto mb-4 opacity-50" />
                                 <p className="font-bold text-lg">No hay datos para esta selección</p>
@@ -1523,6 +1706,76 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                     </div>
                                 </div>
 
+                                {tablaConsultasEspecialidadPeriodo.filas.length > 0 && (
+                                    <div id="tablaE_especialidades_periodo" className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-slate-100 p-2 rounded-lg"><TableProperties size={22} className="text-[#822626]" /></div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">Consultas por Especialidad (incluye Paramédicos y Urgencias)</h3>
+                                                    <p className="text-xs text-slate-500">Resumen general por año / periodo</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs font-black text-[#822626] bg-slate-100 px-3 py-1 rounded-full">
+                                                {tablaConsultasEspecialidadPeriodo.totalGeneral.toLocaleString()}
+                                            </span>
+                                        </div>
+
+                                        <div className="w-full overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl shadow-sm">
+                                            <table className="min-w-max w-full text-[11px] text-left border-collapse">
+                                                <thead className="text-slate-700">
+                                                    <tr className="bg-slate-100">
+                                                        <th rowSpan={3} className="p-3 border border-slate-300 bg-slate-200 sticky left-0 z-40 uppercase text-xs font-black" style={{ minWidth: '120px', verticalAlign: 'middle' }}>Cve Especialidad</th>
+                                                        <th rowSpan={3} className="p-3 border border-slate-300 bg-slate-200 sticky z-30 uppercase text-xs font-black" style={{ left: '120px', minWidth: '320px', verticalAlign: 'middle' }}>Descripcion</th>
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <th key={periodo.key} className="px-3 py-2 border border-slate-300 text-center text-[10px] uppercase tracking-wide font-black text-slate-500">Año / Periodo</th>
+                                                        ))}
+                                                        <th rowSpan={3} className="p-3 border border-slate-300 bg-[#822626] text-white sticky right-0 z-30 text-right uppercase text-xs font-black" style={{ minWidth: '90px', verticalAlign: 'middle' }}>Total</th>
+                                                    </tr>
+                                                    <tr className="bg-slate-50">
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <th key={`${periodo.key}-anio`} className="px-3 py-2 border border-slate-300 text-center font-black text-slate-700">{periodo.anio}</th>
+                                                        ))}
+                                                    </tr>
+                                                    <tr className="bg-white">
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <th key={`${periodo.key}-mes`} className="px-3 py-2 border border-slate-300 text-center font-black text-[#822626]" style={{ minWidth: '76px' }}>{periodo.etiqueta}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {tablaConsultasEspecialidadPeriodo.filas.map(fila => (
+                                                        <tr key={`${fila.cve}-${fila.descripcion}`} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="p-3 border border-slate-200 bg-white sticky left-0 z-20 font-bold text-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.03)]">{fila.cve || ''}</td>
+                                                            <td className="p-3 border border-slate-200 bg-white sticky z-10 font-semibold text-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.03)]" style={{ left: '120px' }}>{fila.descripcion}</td>
+                                                            {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => {
+                                                                const valor = fila.conteos[periodo.key] || 0;
+                                                                return (
+                                                                    <td key={`${fila.cve}-${fila.descripcion}-${periodo.key}`} className={`px-3 py-2 border border-slate-200 text-center ${valor > 0 ? 'font-bold text-slate-700' : 'text-slate-300'}`}>
+                                                                        {valor > 0 ? valor.toLocaleString() : ''}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                            <td className="p-3 border border-slate-200 bg-slate-100 sticky right-0 z-10 font-black text-right text-slate-900 shadow-[-4px_0_10px_rgba(0,0,0,0.03)]">{fila.total.toLocaleString()}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot className="sticky bottom-0 z-20">
+                                                    <tr>
+                                                        <td className="p-3 border border-slate-300 bg-slate-200 sticky left-0 z-40 uppercase text-xs font-black text-slate-800">Total</td>
+                                                        <td className="p-3 border border-slate-300 bg-slate-200 sticky z-30 uppercase text-xs font-black text-slate-800" style={{ left: '120px' }}>Total</td>
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <td key={`${periodo.key}-total`} className="px-3 py-2 border border-slate-300 bg-slate-100 text-center font-black text-[#822626]">
+                                                                {(tablaConsultasEspecialidadPeriodo.totalesPorPeriodo[periodo.key] || 0).toLocaleString()}
+                                                            </td>
+                                                        ))}
+                                                        <td className="p-3 border border-slate-300 bg-[#822626] text-white sticky right-0 z-30 font-black text-right text-sm">{tablaConsultasEspecialidadPeriodo.totalGeneral.toLocaleString()}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                                 <div id="graficoE_1" className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                                         <div className="flex items-center gap-3">
@@ -1567,7 +1820,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                     <div id="graficoE_2" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px]">
                                         <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">
-                                            {chartDivisiones.mostrandoEspecialidades ? 'Distribución por Especialidad' : 'Distribución por División'}
+                                            {chartDivisiones.mostrandoEspecialidades ? 'Distribución por Especialidad Específica' : 'Distribución por División Específica'}
                                         </h3>
 
                                         <div className="relative flex-1 min-h-[220px]">
