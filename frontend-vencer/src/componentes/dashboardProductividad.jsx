@@ -180,6 +180,40 @@ const DIVISIONES_CIRUGIAS_PERMITIDAS = [
     'URGENCIAS'
 ];
 
+const valorReporteCirugias = (valor, fallback = 'SIN DATO') => {
+    if (valor === null || valor === undefined || valor === '') return fallback;
+    return String(valor);
+};
+
+const formatearFechaReporteCirugias = (valor) => {
+    if (!valor) return 'SIN FECHA';
+
+    const fecha = valor instanceof Date ? valor : new Date(valor);
+
+    if (Number.isNaN(fecha.getTime())) {
+        return String(valor);
+    }
+
+    return fecha.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+};
+
+const fechaArchivoReporteCirugias = () =>
+    new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+
+const contarRegistrosCirugiasPor = (registros, obtenerClave) => {
+    const conteo = registros.reduce((acc, registro) => {
+        const clave = valorReporteCirugias(obtenerClave(registro), 'SIN DATO');
+        acc[clave] = (acc[clave] || 0) + 1;
+        return acc;
+    }, {});
+
+    return Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+};
+
 export default function DashboardProductividad({ isAdmin }) {
 // Fecha REAL de actualización de la base de datos
 const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
@@ -1237,19 +1271,956 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         }
     };
 
+    const exportarReporteCirugias = async () => {
+        if (datosCirugias.length === 0) {
+            alert("El modulo de Cirugias todavia no tiene datos cargados para exportar con los filtros actuales.");
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            rojoOscuro: '6B1F1F',
+            rojo: '991B1B',
+            rojoClaro: 'FEE2E2',
+            vinoClaro: 'FCE7E7',
+            dorado: 'B45309',
+            doradoClaro: 'FEF3C7',
+            azul: '0369A1',
+            azulClaro: 'E0F2FE',
+            verde: '047857',
+            verdeClaro: 'D1FAE5',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF',
+            alerta: 'FEF3C7',
+            riesgo: 'FEE2E2'
+        };
+
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const normalizar = (valor, fallback = 'SIN DATO') => {
+            if (valor === null || valor === undefined || String(valor).trim() === '') return fallback;
+            return String(valor).trim();
+        };
+        const normalizarMayus = (valor, fallback = 'SIN DATO') => normalizar(valor, fallback).toUpperCase();
+        const numero = (valor) => {
+            const n = Number(valor);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const obtenerEstatus = (registro) => normalizarMayus(registro.estatus || registro.estatusOriginal, 'SIN ESTATUS');
+        const fechaArchivo = () => fechaArchivoReporteCirugias();
+        const etiquetaMes = () => {
+            if (mesSeleccionado === 'todos') return 'Todos';
+            if (mesSeleccionado === 'rango') {
+                return `${meses[Number(mesInicio)] || ''} a ${meses[Number(mesFin)] || ''}`.trim();
+            }
+            return meses[Number(mesSeleccionado)] || String(mesSeleccionado);
+        };
+        const etiquetaFiltro = (valor) => valor === 'todas' || valor === 'todos' ? 'Todos' : normalizar(valor);
+
+        const totalCirugias = datosCirugias.length;
+        const resumenEstatus = datosCirugias.reduce(
+            (acc, registro) => {
+                const estatus = obtenerEstatus(registro);
+
+                if (estatus.includes('REALIZ')) {
+                    acc.realizadas += 1;
+                } else if (estatus.includes('CANCEL')) {
+                    acc.canceladas += 1;
+                } else {
+                    acc.otras += 1;
+                }
+
+                return acc;
+            },
+            { realizadas: 0, canceladas: 0, otras: 0 }
+        );
+
+        const diferimientosValidos = datosCirugias
+            .map((registro) => Number(registro.diferimiento))
+            .filter((dias) => Number.isFinite(dias) && dias >= 0);
+        const totalDiferimiento = diferimientosValidos.reduce((sum, dias) => sum + dias, 0);
+        const promedioDiferimiento = diferimientosValidos.length > 0 ? totalDiferimiento / diferimientosValidos.length : 0;
+        const mayorDiferimiento = diferimientosValidos.length > 0 ? Math.max(...diferimientosValidos) : 0;
+
+        const resumenPor = (obtenerClave, registros = datosCirugias, fallback = 'SIN ESPECIFICAR') => {
+            const resumen = registros.reduce((acc, registro) => {
+                const clave = normalizarMayus(obtenerClave(registro), fallback);
+
+                if (!acc[clave]) {
+                    acc[clave] = {
+                        categoria: clave,
+                        total: 0,
+                        realizadas: 0,
+                        canceladas: 0,
+                        otras: 0,
+                        diferimiento: 0,
+                        diferimientoRegistros: 0
+                    };
+                }
+
+                const item = acc[clave];
+                const estatus = obtenerEstatus(registro);
+                const dias = Number(registro.diferimiento);
+
+                item.total += 1;
+
+                if (estatus.includes('REALIZ')) {
+                    item.realizadas += 1;
+                } else if (estatus.includes('CANCEL')) {
+                    item.canceladas += 1;
+                } else {
+                    item.otras += 1;
+                }
+
+                if (Number.isFinite(dias) && dias >= 0) {
+                    item.diferimiento += dias;
+                    item.diferimientoRegistros += 1;
+                }
+
+                return acc;
+            }, {});
+
+            return Object.values(resumen)
+                .map((item) => ({
+                    ...item,
+                    promedioDiferimiento: item.diferimientoRegistros > 0 ? item.diferimiento / item.diferimientoRegistros : 0,
+                    porcentajeRealizadas: item.total > 0 ? item.realizadas / item.total : 0
+                }))
+                .sort((a, b) => b.total - a.total);
+        };
+
+        const datosCancelados = datosCirugias.filter((registro) => obtenerEstatus(registro).includes('CANCEL'));
+        const datosConSuspension = datosCirugias.filter((registro) => {
+            const motivo = normalizarMayus(registro.ultimoMotivoSuspension, '');
+            return motivo && !motivo.includes('SIN SUSPENSION') && motivo !== 'NO REGISTRADO';
+        });
+
+        const resumenDivisiones = resumenPor((registro) => registro.division, datosCirugias, 'SIN DIVISION');
+        const resumenEspecialidades = resumenPor((registro) => registro.especialidad, datosCirugias, 'SIN ESPECIALIDAD');
+        const resumenCirujanos = resumenPor((registro) => registro.nombreCirujano, datosCirugias, 'SIN CIRUJANO');
+        const resumenSalas = resumenPor((registro) => registro.sala, datosCirugias, 'SIN SALA');
+        const resumenCie10 = resumenPor((registro) => registro.cie10, datosCirugias, 'SIN CIE10');
+        const resumenEstatusDetalle = resumenPor((registro) => registro.estatusOriginal || registro.estatus, datosCirugias, 'SIN ESTATUS');
+        const resumenMotivosCancelacion = resumenPor((registro) => registro.motivoCancelacion, datosCancelados, 'SIN MOTIVO');
+        const resumenMotivosSuspension = resumenPor((registro) => registro.ultimoMotivoSuspension, datosConSuspension, 'SIN MOTIVO');
+
+        const aplicarTitulo = (sheet, titulo, subtitulo, ultimaColumna) => {
+            sheet.views = [{ showGridLines: false }];
+            sheet.mergeCells(1, 1, 1, ultimaColumna);
+
+            const tituloCell = sheet.getCell(1, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+            tituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+            sheet.getRow(1).height = 28;
+
+            sheet.mergeCells(2, 1, 2, ultimaColumna);
+
+            const subtituloCell = sheet.getCell(2, 1);
+            subtituloCell.value = subtitulo;
+            subtituloCell.font = { size: 10, color: { argb: colores.slate } };
+            subtituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            subtituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        const pintarEncabezado = (row, color = colores.rojoOscuro) => {
+            row.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: colores.blanco } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } },
+                    left: { style: 'thin', color: { argb: colores.borde } },
+                    right: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+        };
+
+        const pintarFilaDatos = (row) => {
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = {
+                    bottom: { style: 'thin', color: { argb: 'E2E8F0' } }
+                };
+            });
+        };
+
+        const agregarTablaResumen = (sheet, titulo, startRow, headers, rows, color = colores.rojoOscuro) => {
+            sheet.mergeCells(startRow, 1, startRow, headers.length);
+            const tituloCell = sheet.getCell(startRow, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 12, color: { argb: colores.texto } };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+            const headerRow = sheet.getRow(startRow + 1);
+            headerRow.values = headers;
+            pintarEncabezado(headerRow, color);
+
+            rows.forEach((item, index) => {
+                const row = sheet.getRow(startRow + 2 + index);
+                row.values = item;
+                pintarFilaDatos(row);
+            });
+
+            return startRow + rows.length + 3;
+        };
+
+        const crearHojaAgrupada = (nombreHoja, titulo, datos, primeraColumna, top = null) => {
+            const sheet = workbook.addWorksheet(nombreHoja);
+            aplicarTitulo(
+                sheet,
+                titulo,
+                `Generado el ${new Date().toLocaleString('es-MX')} | Registros filtrados: ${totalCirugias.toLocaleString('es-MX')}`,
+                6
+            );
+
+            sheet.columns = [
+                { width: 46 },
+                { width: 14 },
+                { width: 14 },
+                { width: 14 },
+                { width: 14 },
+                { width: 18 }
+            ];
+
+            const filas = (top ? datos.slice(0, top) : datos).map((item) => [
+                item.categoria,
+                item.total,
+                item.realizadas,
+                item.canceladas,
+                item.otras,
+                Number(item.promedioDiferimiento.toFixed(1))
+            ]);
+
+            const nextRow = agregarTablaResumen(
+                sheet,
+                titulo,
+                4,
+                [primeraColumna, 'Total', 'Realizadas', 'Canceladas', 'Otras', 'Prom. diferimiento'],
+                filas,
+                colores.rojo
+            );
+
+            const totalRow = sheet.getRow(nextRow);
+            totalRow.values = ['TOTAL GENERAL', totalCirugias, resumenEstatus.realizadas, resumenEstatus.canceladas, resumenEstatus.otras, Number(promedioDiferimiento.toFixed(1))];
+            totalRow.font = { bold: true, color: { argb: colores.texto } };
+            totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.vinoClaro } };
+            totalRow.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+
+            sheet.autoFilter = {
+                from: { row: 5, column: 1 },
+                to: { row: Math.max(5, nextRow - 1), column: 6 }
+            };
+            sheet.views = [{ state: 'frozen', ySplit: 5, showGridLines: false }];
+            sheet.getColumn(2).numFmt = '#,##0';
+            sheet.getColumn(3).numFmt = '#,##0';
+            sheet.getColumn(4).numFmt = '#,##0';
+            sheet.getColumn(5).numFmt = '#,##0';
+            sheet.getColumn(6).numFmt = '0.0';
+
+            return sheet;
+        };
+
+        const resumen = workbook.addWorksheet('Resumen');
+        aplicarTitulo(
+            resumen,
+            'Reporte de Cirugias',
+            `Generado el ${new Date().toLocaleString('es-MX')}`,
+            8
+        );
+
+        resumen.columns = [
+            { width: 22 },
+            { width: 18 },
+            { width: 22 },
+            { width: 18 },
+            { width: 24 },
+            { width: 18 },
+            { width: 26 },
+            { width: 22 }
+        ];
+
+        const pintarCard = (colInicio, colFin, titulo, valor, fillColor) => {
+            resumen.mergeCells(4, colInicio, 4, colFin);
+            resumen.mergeCells(5, colInicio, 5, colFin);
+
+            const labelCell = resumen.getCell(4, colInicio);
+            labelCell.value = titulo;
+            labelCell.font = { bold: true, size: 10, color: { argb: colores.blanco } };
+            labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+
+            const valueCell = resumen.getCell(5, colInicio);
+            valueCell.value = valor;
+            valueCell.font = { bold: true, size: 16, color: { argb: colores.texto } };
+            valueCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        pintarCard(1, 2, 'Total cirugias', totalCirugias, colores.rojo);
+        pintarCard(3, 4, 'Realizadas', resumenEstatus.realizadas, colores.verde);
+        pintarCard(5, 6, 'Canceladas', resumenEstatus.canceladas, colores.dorado);
+        pintarCard(7, 8, 'Prom. diferimiento', Number(promedioDiferimiento.toFixed(1)), colores.slate);
+
+        resumen.getRow(8).values = ['Filtro', 'Valor', '', '', 'Filtro', 'Valor'];
+        pintarEncabezado(resumen.getRow(8), colores.slate);
+        const filtros = [
+            ['Anio', anioSeleccionado === 'todos' ? 'Todos' : String(anioSeleccionado)],
+            ['Mes', etiquetaMes()],
+            ['Division', etiquetaFiltro(divisionSeleccionada)],
+            ['Especialidad', etiquetaFiltro(especialidadSeleccionada)]
+        ];
+
+        filtros.forEach((item, index) => {
+            const row = resumen.getRow(9 + Math.floor(index / 2));
+            const offset = index % 2 === 0 ? 0 : 4;
+            row.getCell(1 + offset).value = item[0];
+            row.getCell(2 + offset).value = item[1];
+            row.getCell(1 + offset).font = { bold: true, color: { argb: colores.slate } };
+            row.getCell(2 + offset).alignment = { wrapText: true };
+        });
+
+        agregarTablaResumen(
+            resumen,
+            'Top especialidades',
+            13,
+            ['Especialidad', 'Total', 'Realizadas', 'Canceladas', 'Otras', 'Prom. diferimiento'],
+            resumenEspecialidades.slice(0, 8).map((item) => [
+                item.categoria,
+                item.total,
+                item.realizadas,
+                item.canceladas,
+                item.otras,
+                Number(item.promedioDiferimiento.toFixed(1))
+            ]),
+            colores.rojo
+        );
+
+        resumen.mergeCells(13, 7, 13, 8);
+        const tituloEstatus = resumen.getCell(13, 7);
+        tituloEstatus.value = 'Estatus quirurgico';
+        tituloEstatus.font = { bold: true, size: 12, color: { argb: colores.texto } };
+        tituloEstatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        const headerEstatus = resumen.getRow(14);
+        headerEstatus.getCell(7).value = 'Estatus';
+        headerEstatus.getCell(8).value = 'Total';
+        [7, 8].forEach((col) => {
+            const cell = headerEstatus.getCell(col);
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.dorado } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        resumenEstatusDetalle.slice(0, 8).forEach((item, index) => {
+            const row = resumen.getRow(15 + index);
+            row.getCell(7).value = item.categoria;
+            row.getCell(8).value = item.total;
+            [7, 8].forEach((col) => {
+                row.getCell(col).border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+                row.getCell(col).alignment = { vertical: 'top', wrapText: true };
+            });
+        });
+
+        const filaIndicadores = 25;
+        resumen.mergeCells(filaIndicadores, 1, filaIndicadores, 8);
+        const indicadorCell = resumen.getCell(filaIndicadores, 1);
+        indicadorCell.value = 'Indicadores de diferimiento';
+        indicadorCell.font = { bold: true, size: 12, color: { argb: colores.texto } };
+        indicadorCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        const headerDiferimiento = resumen.getRow(filaIndicadores + 1);
+        headerDiferimiento.values = ['Registros con diferimiento', 'Promedio', 'Mayor diferimiento', 'Menor a 20 dias', '20 dias o mas'];
+        pintarEncabezado(headerDiferimiento, colores.slate);
+
+        const diferimientoRow = resumen.getRow(filaIndicadores + 2);
+        const menores20 = diferimientosValidos.filter((dias) => dias < 20).length;
+        const mayores20 = diferimientosValidos.filter((dias) => dias >= 20).length;
+        diferimientoRow.values = [
+            diferimientosValidos.length,
+            Number(promedioDiferimiento.toFixed(1)),
+            mayorDiferimiento,
+            menores20,
+            mayores20
+        ];
+        pintarFilaDatos(diferimientoRow);
+
+        resumen.views = [{ showGridLines: false }];
+
+        const detalle = workbook.addWorksheet('Detalle');
+        aplicarTitulo(
+            detalle,
+            'Detalle de cirugias',
+            `Registros filtrados: ${totalCirugias.toLocaleString('es-MX')}`,
+            27
+        );
+
+        detalle.columns = [
+            { width: 8 },
+            { width: 36 },
+            { width: 20 },
+            { width: 8 },
+            { width: 12 },
+            { width: 24 },
+            { width: 30 },
+            { width: 24 },
+            { width: 24 },
+            { width: 18 },
+            { width: 34 },
+            { width: 18 },
+            { width: 30 },
+            { width: 30 },
+            { width: 18 },
+            { width: 18 },
+            { width: 20 },
+            { width: 24 },
+            { width: 42 },
+            { width: 42 },
+            { width: 18 },
+            { width: 16 },
+            { width: 18 },
+            { width: 16 },
+            { width: 16 },
+            { width: 18 },
+            { width: 16 }
+        ];
+
+        const headerDetalle = detalle.getRow(4);
+        headerDetalle.values = [
+            '#',
+            'Nombre completo',
+            'Identificador',
+            'Edad',
+            'Sexo',
+            'Division',
+            'Especialidad',
+            'Estatus',
+            'Tipo de solicitud',
+            'Cirugia concertada',
+            'Cirujano',
+            'Sala',
+            'CIE10',
+            'CIE9',
+            'Fecha solicitud',
+            'Fecha cancelacion',
+            'Fecha programacion',
+            'Reprogramacion',
+            'Motivo de cancelacion',
+            'Ultimo motivo de suspension',
+            'Dias de diferimiento',
+            'Entrada a sala',
+            'Inicio anestesia',
+            'Inicio Qx',
+            'Fin Qx',
+            'Fin anestesia',
+            'Salida sala'
+        ];
+        pintarEncabezado(headerDetalle, colores.rojoOscuro);
+
+        datosCirugias.forEach((registro, index) => {
+            const row = detalle.getRow(5 + index);
+            const diasDiferimiento = Number(registro.diferimiento);
+            const estatus = obtenerEstatus(registro);
+
+            row.values = [
+                index + 1,
+                normalizar(registro.nombrePaciente || registro.paciente, 'SIN NOMBRE'),
+                normalizar(registro.identificadorPaciente || registro.identificador, 'SIN IDENTIFICADOR'),
+                registro.edad ?? '',
+                normalizar(registro.sexo, ''),
+                normalizarMayus(registro.division, 'SIN DIVISION'),
+                normalizarMayus(registro.especialidad, 'SIN ESPECIALIDAD'),
+                normalizar(registro.estatusOriginal || registro.estatus, 'SIN ESTATUS'),
+                normalizar(registro.tipoSolicitud, 'NO REGISTRADO'),
+                normalizar(registro.concertada, 'SIN DATO'),
+                normalizar(registro.nombreCirujano, 'SIN NOMBRE'),
+                normalizar(registro.sala, 'SIN SALA'),
+                normalizar(registro.cie10, 'SIN CIE10'),
+                normalizar(registro.cie9, 'SIN CIE9'),
+                formatearFechaReporteCirugias(registro.fechaSolicitud || registro.fechaSolicitudRaw),
+                formatearFechaReporteCirugias(registro.fechaCancelacion || registro.fechaCancelacionRaw),
+                formatearFechaReporteCirugias(registro.fechaProgramacion || registro.fechaProgramacionRaw),
+                normalizar(registro.reprogramacionRaw, 'SIN DATO'),
+                normalizar(registro.motivoCancelacion, 'NO REGISTRADO'),
+                normalizar(registro.ultimoMotivoSuspension, 'SIN SUSPENSION'),
+                Number.isFinite(diasDiferimiento) ? diasDiferimiento : '',
+                normalizar(registro.entradaSala, ''),
+                normalizar(registro.inicioAnestesia, ''),
+                normalizar(registro.inicioQx, ''),
+                normalizar(registro.finQx, ''),
+                normalizar(registro.finAnestesia, ''),
+                normalizar(registro.salidaSala, '')
+            ];
+            pintarFilaDatos(row);
+
+            const estatusCell = row.getCell(8);
+            if (estatus.includes('REALIZ')) {
+                estatusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeClaro } };
+            } else if (estatus.includes('CANCEL')) {
+                estatusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.riesgo } };
+            } else {
+                estatusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.doradoClaro } };
+            }
+
+            const diferimientoCell = row.getCell(21);
+            diferimientoCell.numFmt = '#,##0';
+            if (Number.isFinite(diasDiferimiento) && diasDiferimiento >= 20) {
+                diferimientoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.alerta } };
+            }
+        });
+
+        const lastDetalleRow = 4 + datosCirugias.length;
+        detalle.autoFilter = {
+            from: { row: 4, column: 1 },
+            to: { row: Math.max(4, lastDetalleRow), column: 27 }
+        };
+        detalle.views = [{ state: 'frozen', ySplit: 4, showGridLines: false }];
+        detalle.getColumn(4).numFmt = '#,##0';
+        detalle.getColumn(21).numFmt = '#,##0';
+
+        crearHojaAgrupada('Estatus', 'Cirugias por estatus', resumenEstatusDetalle, 'Estatus');
+        crearHojaAgrupada('Divisiones', 'Cirugias por division', resumenDivisiones, 'Division');
+        crearHojaAgrupada('Especialidades', 'Cirugias por especialidad', resumenEspecialidades, 'Especialidad');
+        crearHojaAgrupada('Cirujanos', 'Top cirujanos', resumenCirujanos, 'Cirujano', 50);
+        crearHojaAgrupada('Salas', 'Utilizacion de salas', resumenSalas, 'Sala');
+        crearHojaAgrupada('CIE10', 'Top diagnosticos CIE10', resumenCie10, 'CIE10', 50);
+
+        if (resumenMotivosCancelacion.length) {
+            crearHojaAgrupada('Motivos cancelacion', 'Motivos de cancelacion', resumenMotivosCancelacion, 'Motivo');
+        }
+
+        if (resumenMotivosSuspension.length) {
+            crearHojaAgrupada('Motivos suspension', 'Ultimos motivos de suspension', resumenMotivosSuspension, 'Motivo');
+        }
+
+        workbook.eachSheet((sheet) => {
+            sheet.eachRow((row) => {
+                row.eachCell((cell) => {
+                    cell.font = cell.font || {};
+                    cell.alignment = cell.alignment || { vertical: 'middle' };
+                });
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        saveAs(blob, `reporte_cirugias_${fechaArchivo()}.xlsx`);
+    };
+
+    const exportarReporteHospitalizacion = async () => {
+        if (datosHospitalizacion.length === 0) {
+            alert("El modulo de Hospitalizacion no tiene datos para exportar con los filtros actuales.");
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            verdeOscuro: '064E3B',
+            verde: '047857',
+            verdeClaro: 'D1FAE5',
+            azul: '0369A1',
+            azulClaro: 'E0F2FE',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF',
+            alerta: 'FEF3C7',
+            riesgo: 'FEE2E2'
+        };
+
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const normalizar = (valor, fallback = 'SIN DATO') => {
+            if (valor === null || valor === undefined || String(valor).trim() === '') return fallback;
+            return String(valor).trim();
+        };
+        const numero = (valor) => {
+            const n = Number(valor);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const fechaArchivo = () => new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+        const etiquetaMes = () => {
+            if (mesSeleccionado === 'todos') return 'Todos';
+            if (mesSeleccionado === 'rango') {
+                return `${meses[Number(mesInicio)] || ''} a ${meses[Number(mesFin)] || ''}`.trim();
+            }
+            return meses[Number(mesSeleccionado)] || String(mesSeleccionado);
+        };
+        const etiquetaFiltro = (valor) => valor === 'todas' || valor === 'todos' ? 'Todos' : normalizar(valor);
+
+        const totalEgresos = datosHospitalizacion.length;
+        const totalDias = datosHospitalizacion.reduce((sum, item) => sum + numero(item.dias_estancia), 0);
+        const promedioEstancia = totalEgresos > 0 ? totalDias / totalEgresos : 0;
+
+        const resumenPor = (obtenerClave) => {
+            const resumen = datosHospitalizacion.reduce((acc, item) => {
+                const clave = normalizar(obtenerClave(item), 'SIN ESPECIFICAR').toUpperCase();
+
+                if (!acc[clave]) {
+                    acc[clave] = { categoria: clave, egresos: 0, dias: 0 };
+                }
+
+                acc[clave].egresos += 1;
+                acc[clave].dias += numero(item.dias_estancia);
+                return acc;
+            }, {});
+
+            return Object.values(resumen)
+                .map((item) => ({
+                    ...item,
+                    promedio: item.egresos > 0 ? item.dias / item.egresos : 0
+                }))
+                .sort((a, b) => b.egresos - a.egresos);
+        };
+
+        const resumenMotivos = resumenPor((item) => item.motivo_egreso);
+        const resumenDivisiones = resumenPor((item) => item.division);
+        const resumenEspecialidades = resumenPor((item) => item.especialidad);
+        const resumenDiagnosticos = resumenPor((item) => item.diagnostico_egreso);
+
+        const aplicarTitulo = (sheet, titulo, subtitulo, ultimaColumna) => {
+            sheet.views = [{ showGridLines: false }];
+            sheet.mergeCells(1, 1, 1, ultimaColumna);
+
+            const tituloCell = sheet.getCell(1, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+            tituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeOscuro } };
+            sheet.getRow(1).height = 28;
+
+            sheet.mergeCells(2, 1, 2, ultimaColumna);
+
+            const subtituloCell = sheet.getCell(2, 1);
+            subtituloCell.value = subtitulo;
+            subtituloCell.font = { size: 10, color: { argb: colores.slate } };
+            subtituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            subtituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        const pintarEncabezado = (row, color = colores.verdeOscuro) => {
+            row.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: colores.blanco } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } },
+                    left: { style: 'thin', color: { argb: colores.borde } },
+                    right: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+        };
+
+        const pintarFilaDatos = (row) => {
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = {
+                    bottom: { style: 'thin', color: { argb: 'E2E8F0' } }
+                };
+            });
+        };
+
+        const agregarTablaResumen = (sheet, titulo, startRow, headers, rows, color = colores.verdeOscuro) => {
+            sheet.mergeCells(startRow, 1, startRow, headers.length);
+            const tituloCell = sheet.getCell(startRow, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 12, color: { argb: colores.texto } };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+            const headerRow = sheet.getRow(startRow + 1);
+            headerRow.values = headers;
+            pintarEncabezado(headerRow, color);
+
+            rows.forEach((item, index) => {
+                const row = sheet.getRow(startRow + 2 + index);
+                row.values = item;
+                pintarFilaDatos(row);
+            });
+
+            return startRow + rows.length + 3;
+        };
+
+        const crearHojaAgrupada = (nombreHoja, titulo, datos, primeraColumna, top = null) => {
+            const sheet = workbook.addWorksheet(nombreHoja);
+            aplicarTitulo(
+                sheet,
+                titulo,
+                `Generado el ${new Date().toLocaleString('es-MX')} | Registros filtrados: ${totalEgresos.toLocaleString('es-MX')}`,
+                4
+            );
+
+            sheet.columns = [
+                { width: 46 },
+                { width: 14 },
+                { width: 18 },
+                { width: 18 }
+            ];
+
+            const filas = (top ? datos.slice(0, top) : datos).map((item) => [
+                item.categoria,
+                item.egresos,
+                item.dias,
+                Number(item.promedio.toFixed(1))
+            ]);
+
+            const nextRow = agregarTablaResumen(
+                sheet,
+                titulo,
+                4,
+                [primeraColumna, 'Egresos', 'Dias estancia', 'Prom. estancia'],
+                filas,
+                colores.verde
+            );
+
+            const totalRow = sheet.getRow(nextRow);
+            totalRow.values = ['TOTAL GENERAL', totalEgresos, totalDias, Number(promedioEstancia.toFixed(1))];
+            totalRow.font = { bold: true, color: { argb: colores.texto } };
+            totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeClaro } };
+            totalRow.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+
+            sheet.autoFilter = {
+                from: { row: 5, column: 1 },
+                to: { row: Math.max(5, nextRow - 1), column: 4 }
+            };
+            sheet.views = [{ state: 'frozen', ySplit: 5, showGridLines: false }];
+
+            sheet.getColumn(2).numFmt = '#,##0';
+            sheet.getColumn(3).numFmt = '#,##0';
+            sheet.getColumn(4).numFmt = '0.0';
+
+            return sheet;
+        };
+
+        const resumen = workbook.addWorksheet('Resumen');
+        aplicarTitulo(
+            resumen,
+            'Reporte de Hospitalizacion',
+            `Generado el ${new Date().toLocaleString('es-MX')}`,
+            8
+        );
+
+        resumen.columns = [
+            { width: 22 },
+            { width: 18 },
+            { width: 22 },
+            { width: 18 },
+            { width: 24 },
+            { width: 18 },
+            { width: 26 },
+            { width: 22 }
+        ];
+
+        const pintarCard = (colInicio, colFin, titulo, valor, fillColor) => {
+            resumen.mergeCells(4, colInicio, 4, colFin);
+            resumen.mergeCells(5, colInicio, 5, colFin);
+
+            const labelCell = resumen.getCell(4, colInicio);
+            labelCell.value = titulo;
+            labelCell.font = { bold: true, size: 10, color: { argb: colores.blanco } };
+            labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+
+            const valueCell = resumen.getCell(5, colInicio);
+            valueCell.value = valor;
+            valueCell.font = { bold: true, size: 16, color: { argb: colores.texto } };
+            valueCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        pintarCard(1, 2, 'Total egresos', totalEgresos, colores.verde);
+        pintarCard(3, 4, 'Dias estancia', totalDias, colores.azul);
+        pintarCard(5, 6, 'Promedio estancia', Number(promedioEstancia.toFixed(1)), colores.slate);
+        pintarCard(7, 8, 'Motivo principal', resumenMotivos[0]?.categoria || 'SIN DATO', colores.verdeOscuro);
+
+        resumen.getRow(8).values = ['Filtro', 'Valor', '', '', 'Filtro', 'Valor'];
+        pintarEncabezado(resumen.getRow(8), colores.slate);
+        const filtros = [
+            ['Anio', anioSeleccionado === 'todos' ? 'Todos' : String(anioSeleccionado)],
+            ['Mes', etiquetaMes()],
+            ['Division', etiquetaFiltro(divisionSeleccionada)],
+            ['Especialidad', etiquetaFiltro(especialidadSeleccionada)]
+        ];
+
+        filtros.forEach((item, index) => {
+            const row = resumen.getRow(9 + Math.floor(index / 2));
+            const offset = index % 2 === 0 ? 0 : 4;
+            row.getCell(1 + offset).value = item[0];
+            row.getCell(2 + offset).value = item[1];
+            row.getCell(1 + offset).font = { bold: true, color: { argb: colores.slate } };
+            row.getCell(2 + offset).alignment = { wrapText: true };
+        });
+
+        agregarTablaResumen(
+            resumen,
+            'Top divisiones por egresos',
+            13,
+            ['Division', 'Egresos', 'Dias estancia', 'Prom. estancia'],
+            resumenDivisiones.slice(0, 8).map((item) => [
+                item.categoria,
+                item.egresos,
+                item.dias,
+                Number(item.promedio.toFixed(1))
+            ]),
+            colores.verde
+        );
+
+        resumen.mergeCells(13, 6, 13, 8);
+        const tituloMotivos = resumen.getCell(13, 6);
+        tituloMotivos.value = 'Motivos de egreso';
+        tituloMotivos.font = { bold: true, size: 12, color: { argb: colores.texto } };
+        tituloMotivos.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        const headerMotivos = resumen.getRow(14);
+        headerMotivos.getCell(6).value = 'Motivo';
+        headerMotivos.getCell(7).value = 'Egresos';
+        headerMotivos.getCell(8).value = '%';
+        [6, 7, 8].forEach((col) => {
+            const cell = headerMotivos.getCell(col);
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.azul } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        resumenMotivos.slice(0, 8).forEach((item, index) => {
+            const row = resumen.getRow(15 + index);
+            row.getCell(6).value = item.categoria;
+            row.getCell(7).value = item.egresos;
+            row.getCell(8).value = totalEgresos > 0 ? item.egresos / totalEgresos : 0;
+            row.getCell(8).numFmt = '0.0%';
+            [6, 7, 8].forEach((col) => {
+                row.getCell(col).border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+                row.getCell(col).alignment = { vertical: 'top', wrapText: true };
+            });
+        });
+
+        resumen.views = [{ showGridLines: false }];
+
+        const detalle = workbook.addWorksheet('Detalle');
+        aplicarTitulo(
+            detalle,
+            'Detalle de egresos hospitalarios',
+            `Registros filtrados: ${totalEgresos.toLocaleString('es-MX')}`,
+            8
+        );
+        detalle.columns = [
+            { width: 8 },
+            { width: 12 },
+            { width: 14 },
+            { width: 32 },
+            { width: 34 },
+            { width: 16 },
+            { width: 48 },
+            { width: 34 }
+        ];
+
+        const headerDetalle = detalle.getRow(4);
+        headerDetalle.values = ['#', 'Anio', 'Mes', 'Division', 'Especialidad', 'Dias estancia', 'Diagnostico de egreso', 'Motivo de egreso'];
+        pintarEncabezado(headerDetalle, colores.verdeOscuro);
+
+        datosHospitalizacion.forEach((item, index) => {
+            const row = detalle.getRow(5 + index);
+            row.values = [
+                index + 1,
+                normalizar(item.anio, ''),
+                meses[Number(item.mes) - 1] || normalizar(item.mes, ''),
+                normalizar(item.division, 'SIN DIVISION').toUpperCase(),
+                normalizar(item.especialidad, 'SIN ESPECIALIDAD').toUpperCase(),
+                numero(item.dias_estancia),
+                normalizar(item.diagnostico_egreso, 'SIN DIAGNOSTICO').toUpperCase(),
+                normalizar(item.motivo_egreso, 'SIN MOTIVO').toUpperCase()
+            ];
+            pintarFilaDatos(row);
+
+            const diasCell = row.getCell(6);
+            diasCell.numFmt = '#,##0';
+
+            if (numero(item.dias_estancia) >= 15) {
+                diasCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.riesgo } };
+            } else if (numero(item.dias_estancia) >= 8) {
+                diasCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.alerta } };
+            }
+        });
+
+        const lastDetalleRow = 4 + datosHospitalizacion.length;
+        detalle.autoFilter = {
+            from: { row: 4, column: 1 },
+            to: { row: Math.max(4, lastDetalleRow), column: 8 }
+        };
+        detalle.views = [{ state: 'frozen', ySplit: 4, showGridLines: false }];
+
+        crearHojaAgrupada('Divisiones', 'Egresos por division medica', resumenDivisiones, 'Division');
+        crearHojaAgrupada('Especialidades', 'Egresos por especialidad', resumenEspecialidades, 'Especialidad');
+        crearHojaAgrupada('Diagnosticos', 'Top diagnosticos de egreso', resumenDiagnosticos, 'Diagnostico', 50);
+        crearHojaAgrupada('Motivos', 'Motivos de egreso', resumenMotivos, 'Motivo');
+
+        workbook.eachSheet((sheet) => {
+            sheet.eachRow((row) => {
+                row.eachCell((cell) => {
+                    cell.font = cell.font || {};
+                    cell.alignment = cell.alignment || { vertical: 'middle' };
+                });
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        saveAs(blob, `reporte_hospitalizacion_${fechaArchivo()}.xlsx`);
+    };
     const handleDescargarExcel = async () => {
         try {
+            if (areaSidebar === 'cirugias') {
+                await exportarReporteCirugias();
+                return;
+            }
+
+            if (areaSidebar === 'hospitalizacion') {
+                await exportarReporteHospitalizacion();
+                return;
+            }
+
             const totalRegistros =
                 datosFiltrados.length +
                 datosParamedicos.length +
                 datosUrgencias.length +
                 datosCirugias.length +
                 datosHospitalizacion.length;
-
-            if (areaSidebar === 'cirugias' && datosCirugias.length === 0) {
-                alert("El módulo de Cirugías todavía no tiene datos cargados para exportar con los filtros actuales.");
-                return;
-            }
 
             if (totalRegistros === 0) {
                 alert("No hay datos cargados para generar el reporte.");
@@ -1264,7 +2235,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                 datosHospitalizacion
             );
         } catch (error) {
-            console.error("Error en la exportación:", error);
+            console.error("Error en la exportacion:", error);
             alert("Hubo un error al generar el Excel.");
         }
     };
