@@ -111,6 +111,17 @@ const cargarProductividadIndicadores = async () => {
 // ==========================================
 // FUNCIONES UTILITARIAS INDEPENDIENTES
 // ==========================================
+const obtenerDiasMesCalendario = (mesSeleccionado, anioSeleccionado) => {
+  const dias = [];
+  const ultimoDia = new Date(anioSeleccionado, mesSeleccionado + 1, 0).getDate();
+
+  for (let dia = 1; dia <= ultimoDia; dia += 1) {
+    dias.push(new Date(anioSeleccionado, mesSeleccionado, dia, 12, 0, 0));
+  }
+
+  return dias;
+};
+
 const obtenerDiasOperativos = (mesSeleccionado, anioSeleccionado) => {
   const anioAnterior =
     mesSeleccionado === 0 ? anioSeleccionado - 1 : anioSeleccionado;
@@ -491,7 +502,7 @@ const ModuloIndicadores = ({
     )
       return null;
 
-    const dias = obtenerDiasOperativos(mesGraficoMeta, anioGraficoMeta);
+    const dias = obtenerDiasMesCalendario(mesGraficoMeta, anioGraficoMeta);
 
     // Formato estricto YYYY-MM-DD
     const diasISO = dias.map((d) => {
@@ -582,7 +593,7 @@ const ModuloIndicadores = ({
     }
 
     const diasISO = new Set(
-      obtenerDiasOperativos(mesGraficoMeta, anioGraficoMeta).map((dia) => {
+      obtenerDiasMesCalendario(mesGraficoMeta, anioGraficoMeta).map((dia) => {
         const anio = dia.getFullYear();
         const mes = String(dia.getMonth() + 1).padStart(2, "0");
         const numeroDia = String(dia.getDate()).padStart(2, "0");
@@ -846,7 +857,7 @@ const ModuloIndicadores = ({
 
       hoja.mergeCells("A2:H2");
       const subtitulo = hoja.getCell("A2");
-      subtitulo.value = `Periodo operativo: ${periodo}`;
+      subtitulo.value = `Mes calendario: ${periodo}`;
       subtitulo.font = {
         bold: true,
         size: 12,
@@ -1097,7 +1108,7 @@ const ModuloIndicadores = ({
 
       hoja.mergeCells("A2:G2");
       hoja.getCell("A2").value =
-        `Periodo operativo: ${periodo} · ${filtrosAplicados}`;
+        `Mes calendario: ${periodo} · ${filtrosAplicados}`;
       hoja.getCell("A2").font = {
         bold: true,
         size: 11,
