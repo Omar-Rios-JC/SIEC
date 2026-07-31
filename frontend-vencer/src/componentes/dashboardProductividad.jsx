@@ -262,6 +262,8 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
     const [datosCirugias, setDatosCirugias] = useState([]);
     const [datosHospitalizacion, setDatosHospitalizacion] = useState([]);
     const [divisionTablaEspecialidad, setDivisionTablaEspecialidad] = useState('todas');
+    const [divisionTopMedicos, setDivisionTopMedicos] = useState('todas');
+    const [divisionTopDiagnosticos, setDivisionTopDiagnosticos] = useState('todas');
 
     // Opciones dinámicas que envía TableroCirugias para mostrar filtros en la barra superior
     const [opcionesFiltrosCirugias, setOpcionesFiltrosCirugias] = useState({
@@ -416,6 +418,8 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         setMesSeleccionado('todos');
         setDivisionSeleccionada('todas');
         setEspecialidadSeleccionada('todas');
+        setDivisionTopMedicos('todas');
+        setDivisionTopDiagnosticos('todas');
         setOrdenInverso(false);
     }, [areaSidebar]);
 
@@ -1178,6 +1182,70 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
 
         return { periodos, filas, totalesPorPeriodo, totalGeneral, resumenOrigenes };
     }, [datos, diccionarioEspecialidades, divisionTablaEspecialidad]);
+
+    const divisionesTopConsulta = useMemo(() => {
+        const divisionesMap = new Map();
+
+        datosConsultaExterna.forEach(item => {
+            const division = normalizarDivisionTablaEspecialidad(item);
+            const clave = nivelarTexto(division);
+            if (clave && !divisionesMap.has(clave)) {
+                divisionesMap.set(clave, division);
+            }
+        });
+
+        return [...divisionesMap.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    }, [datosConsultaExterna]);
+
+    useEffect(() => {
+        if (areaSidebar !== 'consulta_externa') return;
+        setDivisionTopMedicos(divisionSeleccionada);
+        setDivisionTopDiagnosticos(divisionSeleccionada);
+    }, [areaSidebar, divisionSeleccionada]);
+
+    useEffect(() => {
+        const existeDivision = (division) =>
+            division === 'todas' ||
+            divisionesTopConsulta.some(item => nivelarTexto(item) === nivelarTexto(division));
+
+        if (!existeDivision(divisionTopMedicos)) setDivisionTopMedicos('todas');
+        if (!existeDivision(divisionTopDiagnosticos)) setDivisionTopDiagnosticos('todas');
+    }, [divisionTopMedicos, divisionTopDiagnosticos, divisionesTopConsulta]);
+
+    const datosTopBase = useMemo(() => {
+        return datosFiltradosFecha.filter(item => {
+            if (especialidadSeleccionada === 'todas') return true;
+            const espTraducida = traducirEspecialidad(item.especialidad || item.ESPECIALIDAD);
+            return nivelarTexto(espTraducida) === nivelarTexto(especialidadSeleccionada);
+        });
+    }, [datosFiltradosFecha, especialidadSeleccionada]);
+
+    const filtrarDatosTopPorDivision = (listaDatos, divisionFiltro) => {
+        if (divisionFiltro === 'todas') return listaDatos;
+        return listaDatos.filter(item =>
+            nivelarTexto(normalizarDivisionTablaEspecialidad(item)) === nivelarTexto(divisionFiltro)
+        );
+    };
+
+    const esPrimeraVezRegistro = (item) =>
+        nivelarTexto(item?.primera_vez || item?.PRIMERA_VEZ) === 'PRIMERA VEZ';
+
+    const unirValoresAgrupados = (valores) =>
+        [...valores]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+            .join(', ') || 'Sin dato';
+
+    const datosTopMedicosFiltrados = useMemo(
+        () => filtrarDatosTopPorDivision(datosTopBase, divisionTopMedicos),
+        [datosTopBase, divisionTopMedicos]
+    );
+
+    const datosTopDiagnosticosFiltrados = useMemo(
+        () => filtrarDatosTopPorDivision(datosTopBase, divisionTopDiagnosticos),
+        [datosTopBase, divisionTopDiagnosticos]
+    );
+
     const chartDivisiones = useMemo(() => {
         // Bandera para saber en qué nivel estamos
         const mostrandoEspecialidades = divisionSeleccionada !== 'todas';
@@ -1255,53 +1323,106 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         };
     }, [datosFiltrados, ordenInverso]);
 
+    const rankingMedicosCompleto = useMemo(() => {
+        const conteo = new Map();
+
+        datosTopMedicosFiltrados.forEach(curr => {
+            const matriculaBase = String(curr.matricula_medico || curr.MATRICULA_MEDICO || curr.matricula || curr.MATRICULA || '').trim();
+            const matriculaLimpia = matriculaBase.replace('.0', '').replace(/\s/g, '');
+            const nombreMedico = diccionarioMedicos[matriculaLimpia] || (matriculaLimpia ? `Matr. ${matriculaLimpia}` : 'Sin Matricula');
+            const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD) || 'Sin Especialidad';
+            const division = normalizarDivisionTablaEspecialidad(curr);
+            const clave = matriculaLimpia || 'SIN_MATRICULA';
+
+            if (!conteo.has(clave)) {
+                conteo.set(clave, {
+                    nombre: nombreMedico,
+                    matricula: matriculaLimpia,
+                    total: 0,
+                    pv: 0,
+                    sub: 0,
+                    divisiones: new Set(),
+                    especialidades: new Set()
+                });
+            }
+
+            const registro = conteo.get(clave);
+            registro.total++;
+            if (esPrimeraVezRegistro(curr)) registro.pv++; else registro.sub++;
+            registro.divisiones.add(division);
+            registro.especialidades.add(nombreEspecialidad);
+        });
+
+        return [...conteo.values()]
+            .map(item => ({
+                ...item,
+                divisionesTexto: unirValoresAgrupados(item.divisiones),
+                especialidadesTexto: unirValoresAgrupados(item.especialidades)
+            }))
+            .sort((a, b) => ordenInverso ? a.total - b.total : b.total - a.total);
+    }, [datosTopMedicosFiltrados, diccionarioMedicos, ordenInverso]);
+
     const chartMedicos = useMemo(() => {
-        const conteo = datosFiltrados.reduce((acc, curr) => {
-            const matriculaLimpia = String(curr.matricula_medico || 'Sin Matrícula').trim().replace('.0', '').replace(/\s/g, '');
-            const nombreMedico = diccionarioMedicos[matriculaLimpia] || `Matr. ${curr.matricula_medico}`;
-            const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD);
-
-            if (!acc[nombreMedico]) acc[nombreMedico] = { total: 0, pv: 0, sub: 0, especialidad: nombreEspecialidad };
-
-            acc[nombreMedico].total++;
-            if (curr.primera_vez === 'Primera Vez') acc[nombreMedico].pv++; else acc[nombreMedico].sub++;
-            return acc;
-        }, {});
-
-        const ordenados = Object.entries(conteo).sort((a, b) =>
-            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
-        );
-        const top = ordenados.slice(0, 20);
+        const top = rankingMedicosCompleto.slice(0, 20);
 
         return {
-            labels: top.map(item => item[0]),
-            datasets: [{ label: 'Consultas', data: top.map(item => item[1].total), backgroundColor: '#822626', borderRadius: 4 }],
-            dataPV: top.map(item => item[1].pv),
-            dataSub: top.map(item => item[1].sub),
-            dataExtra: top.map(item => item[1].especialidad)
+            labels: top.map(item => item.nombre),
+            datasets: [{ label: 'Consultas', data: top.map(item => item.total), backgroundColor: '#822626', borderRadius: 4 }],
+            dataPV: top.map(item => item.pv),
+            dataSub: top.map(item => item.sub),
+            dataExtra: top.map(item => item.especialidadesTexto)
         };
-    }, [datosFiltrados, diccionarioMedicos, ordenInverso]);
+    }, [rankingMedicosCompleto]);
+
+    const rankingDiagnosticosCompleto = useMemo(() => {
+        const conteo = new Map();
+
+        datosTopDiagnosticosFiltrados.forEach(curr => {
+            const codigoRaw = String(curr.diagnostico_principal || curr.DIAGNOSTICO_PRINCIPAL || curr.diagnostico || curr.DIAGNOSTICO || '').trim().toUpperCase();
+            const codigo = codigoRaw || 'NO ESPECIFICADO';
+            const nombreEnfermedad = diccionarioCIE[codigo] || codigo;
+            const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD) || 'Sin Especialidad';
+            const division = normalizarDivisionTablaEspecialidad(curr);
+
+            if (!conteo.has(codigo)) {
+                conteo.set(codigo, {
+                    codigo,
+                    diagnostico: nombreEnfermedad,
+                    total: 0,
+                    pv: 0,
+                    sub: 0,
+                    divisiones: new Set(),
+                    especialidades: new Set()
+                });
+            }
+
+            const registro = conteo.get(codigo);
+            registro.total++;
+            if (esPrimeraVezRegistro(curr)) registro.pv++; else registro.sub++;
+            registro.divisiones.add(division);
+            registro.especialidades.add(nombreEspecialidad);
+        });
+
+        return [...conteo.values()]
+            .map(item => ({
+                ...item,
+                divisionesTexto: unirValoresAgrupados(item.divisiones),
+                especialidadesTexto: unirValoresAgrupados(item.especialidades)
+            }))
+            .sort((a, b) => ordenInverso ? a.total - b.total : b.total - a.total);
+    }, [datosTopDiagnosticosFiltrados, diccionarioCIE, ordenInverso]);
 
     const chartDiagnosticos = useMemo(() => {
-        const conteo = datosFiltrados.reduce((acc, curr) => {
-            const codigoRaw = String(curr.diagnostico_principal || 'No Especificado').trim().toUpperCase();
-            const nombreEnfermedad = diccionarioCIE[codigoRaw] || codigoRaw;
+        const top = rankingDiagnosticosCompleto.slice(0, 20);
 
-            if (!acc[nombreEnfermedad]) acc[nombreEnfermedad] = { total: 0, pv: 0, sub: 0 };
-
-            acc[nombreEnfermedad].total++;
-            if (curr.primera_vez === 'Primera Vez') acc[nombreEnfermedad].pv++; else acc[nombreEnfermedad].sub++;
-            return acc;
-        }, {});
-
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total).slice(0, 20);
         return {
-            labels: ordenados.map(item => item[0]),
-            datasets: [{ label: 'Frecuencia', data: ordenados.map(item => item[1].total), backgroundColor: '#1e293b', borderRadius: 4 }],
-            dataPV: ordenados.map(item => item[1].pv),
-            dataSub: ordenados.map(item => item[1].sub)
+            labels: top.map(item => item.diagnostico),
+            datasets: [{ label: 'Frecuencia', data: top.map(item => item.total), backgroundColor: '#1e293b', borderRadius: 4 }],
+            dataPV: top.map(item => item.pv),
+            dataSub: top.map(item => item.sub),
+            dataExtra: top.map(item => item.codigo)
         };
-    }, [datosFiltrados, diccionarioCIE]);
+    }, [rankingDiagnosticosCompleto]);
 
     const chartConsultorios = useMemo(() => {
         if (!datosFiltrados || datosFiltrados.length === 0) {
@@ -1347,6 +1468,175 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         }
     };
 
+    const calcularIndiceConsulta = (pv, sub) => {
+        if (pv > 0) return Number((sub / pv).toFixed(2));
+        return sub > 0 ? 'N/A' : 0;
+    };
+
+    const exportarRankingConsulta = async ({ titulo, nombreHoja, nombreArchivo, division, filas, columnas }) => {
+        if (!filas.length) {
+            alert(`No hay datos para descargar en ${titulo}.`);
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            rojoOscuro: '6B1F1F',
+            rojoClaro: 'FEE2E2',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF'
+        };
+
+        const totalPV = filas.reduce((total, fila) => total + fila.pv, 0);
+        const totalSub = filas.reduce((total, fila) => total + fila.sub, 0);
+        const totalGeneral = filas.reduce((total, fila) => total + fila.total, 0);
+        const ultimaColumna = columnas.length;
+        const sheet = workbook.addWorksheet(nombreHoja);
+
+        sheet.columns = columnas.map(columna => ({ width: columna.width || 16 }));
+        sheet.views = [{ state: 'frozen', ySplit: 6, showGridLines: false }];
+
+        sheet.mergeCells(1, 1, 1, ultimaColumna);
+        const tituloCell = sheet.getCell(1, 1);
+        tituloCell.value = titulo;
+        tituloCell.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+        tituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+        sheet.getRow(1).height = 28;
+
+        sheet.mergeCells(2, 1, 2, ultimaColumna);
+        const subtitulo = sheet.getCell(2, 1);
+        subtitulo.value = `Division: ${division === 'todas' ? 'Todas' : division} | Registros agrupados: ${filas.length.toLocaleString('es-MX')} | Total consultas: ${totalGeneral.toLocaleString('es-MX')} | Generado el ${new Date().toLocaleString('es-MX')}`;
+        subtitulo.font = { size: 10, color: { argb: colores.slate } };
+        subtitulo.alignment = { horizontal: 'center', vertical: 'middle' };
+        subtitulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        sheet.mergeCells(4, 1, 4, ultimaColumna);
+        const resumen = sheet.getCell(4, 1);
+        resumen.value = `1ra vez: ${totalPV.toLocaleString('es-MX')} | Subsecuentes: ${totalSub.toLocaleString('es-MX')} | Indice: ${calcularIndiceConsulta(totalPV, totalSub)} | El grafico muestra Top 20, este archivo incluye todos los grupos.`;
+        resumen.font = { bold: true, color: { argb: colores.texto } };
+        resumen.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        resumen.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoClaro } };
+
+        const headerRow = sheet.getRow(6);
+        headerRow.values = columnas.map(columna => columna.header);
+        headerRow.height = 24;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slate } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = {
+                top: { style: 'thin', color: { argb: colores.borde } },
+                bottom: { style: 'thin', color: { argb: colores.borde } },
+                left: { style: 'thin', color: { argb: colores.borde } },
+                right: { style: 'thin', color: { argb: colores.borde } }
+            };
+        });
+        headerRow.getCell(ultimaColumna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+
+        filas.forEach((fila, index) => {
+            const row = sheet.getRow(7 + index);
+            row.values = columnas.map(columna => columna.value(fila, index));
+
+            row.eachCell((cell, colNumber) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+                if (columnas[colNumber - 1]?.numeric) cell.numFmt = '#,##0';
+            });
+
+            row.getCell(1).font = { bold: true, color: { argb: colores.slate } };
+            row.getCell(ultimaColumna).font = { bold: true, color: { argb: colores.texto } };
+            row.getCell(ultimaColumna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        });
+
+        const totalRowIndex = 7 + filas.length;
+        const totalRow = sheet.getRow(totalRowIndex);
+        totalRow.values = columnas.map((columna, index) => {
+            if (index === 0) return 'Total';
+            if (index === 1) return 'Total general';
+            if (columna.total === 'pv') return totalPV;
+            if (columna.total === 'sub') return totalSub;
+            if (columna.total === 'indice') return calcularIndiceConsulta(totalPV, totalSub);
+            if (columna.total === 'total') return totalGeneral;
+            return '';
+        });
+
+        totalRow.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: colores.texto } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoClaro } };
+            cell.border = {
+                top: { style: 'thin', color: { argb: colores.borde } },
+                bottom: { style: 'thin', color: { argb: colores.borde } }
+            };
+            cell.alignment = { vertical: 'middle', wrapText: true };
+            if (columnas[colNumber - 1]?.numeric) cell.numFmt = '#,##0';
+        });
+
+        sheet.autoFilter = {
+            from: { row: 6, column: 1 },
+            to: { row: totalRowIndex, column: ultimaColumna }
+        };
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const fechaArchivo = new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+        saveAs(blob, `${nombreArchivo}_${fechaArchivo}.xlsx`);
+    };
+
+    const exportarTopMedicos = async () => {
+        await exportarRankingConsulta({
+            titulo: 'Productividad por Medico',
+            nombreHoja: 'Medicos',
+            nombreArchivo: 'top_medicos_productividad',
+            division: divisionTopMedicos,
+            filas: rankingMedicosCompleto,
+            columnas: [
+                { header: '#', width: 8, value: (_fila, index) => index + 1 },
+                { header: 'Medico', width: 36, value: fila => fila.nombre },
+                { header: 'Matricula', width: 16, value: fila => fila.matricula || 'Sin matricula' },
+                { header: 'Division', width: 28, value: fila => fila.divisionesTexto },
+                { header: 'Especialidad', width: 38, value: fila => fila.especialidadesTexto },
+                { header: '1ra Vez', width: 12, value: fila => fila.pv, total: 'pv', numeric: true },
+                { header: 'Subsec.', width: 12, value: fila => fila.sub, total: 'sub', numeric: true },
+                { header: 'Indice', width: 12, value: fila => calcularIndiceConsulta(fila.pv, fila.sub), total: 'indice' },
+                { header: 'Total', width: 12, value: fila => fila.total, total: 'total', numeric: true }
+            ]
+        });
+    };
+
+    const exportarTopDiagnosticos = async () => {
+        await exportarRankingConsulta({
+            titulo: 'Diagnosticos Principales',
+            nombreHoja: 'Diagnosticos',
+            nombreArchivo: 'top_diagnosticos_principales',
+            division: divisionTopDiagnosticos,
+            filas: rankingDiagnosticosCompleto,
+            columnas: [
+                { header: '#', width: 8, value: (_fila, index) => index + 1 },
+                { header: 'Codigo CIE-10', width: 16, value: fila => fila.codigo },
+                { header: 'Diagnostico', width: 48, value: fila => fila.diagnostico },
+                { header: 'Division', width: 28, value: fila => fila.divisionesTexto },
+                { header: 'Especialidad', width: 38, value: fila => fila.especialidadesTexto },
+                { header: '1ra Vez', width: 12, value: fila => fila.pv, total: 'pv', numeric: true },
+                { header: 'Subsec.', width: 12, value: fila => fila.sub, total: 'sub', numeric: true },
+                { header: 'Indice', width: 12, value: fila => calcularIndiceConsulta(fila.pv, fila.sub), total: 'indice' },
+                { header: 'Total', width: 12, value: fila => fila.total, total: 'total', numeric: true }
+            ]
+        });
+    };
     const exportarTablaConsultasEspecialidadPeriodo = async () => {
         if (!tablaConsultasEspecialidadPeriodo.filas.length) {
             alert("No hay datos en la tabla de consultas por especialidad para descargar.");
@@ -3124,17 +3414,78 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                 </div>
 
                                 <div id="graficoE_4" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col mb-6">
-                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Top 20 Productividad por Médico</h3>
+                                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+                                        <div>
+                                            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Top 20 Productividad por Médico</h3>
+                                            <p className="text-xs text-slate-500 mt-1">El Excel incluye todos los médicos agrupados del filtro.</p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                <Filter size={15} className="text-[#822626]" />
+                                                <select
+                                                    className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[220px]"
+                                                    value={divisionTopMedicos}
+                                                    onChange={e => setDivisionTopMedicos(e.target.value)}
+                                                >
+                                                    <option value="todas">Todas las divisiones</option>
+                                                    {divisionesTopConsulta.map(division => (
+                                                        <option key={division} value={division}>{division}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={exportarTopMedicos}
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#822626] text-white text-xs font-black shadow-sm hover:bg-[#6b1f1f] transition-colors"
+                                            >
+                                                <Download size={15} />
+                                                Descargar tabla
+                                            </button>
+                                            <span className="text-xs font-black text-[#822626] bg-slate-100 px-3 py-2 rounded-full">
+                                                {rankingMedicosCompleto.length.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartMedicos.labels.length), height: '100%' }}><Bar data={chartMedicos} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Médico" titulo2="Consultas" labels={chartMedicos.labels} data={chartMedicos.datasets[0]?.data || []} dataPV={chartMedicos.dataPV} dataSub={chartMedicos.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Médico" tituloExtra="Especialidad" titulo2="Consultas" labels={chartMedicos.labels} dataExtra={chartMedicos.dataExtra} data={chartMedicos.datasets[0]?.data || []} dataPV={chartMedicos.dataPV} dataSub={chartMedicos.dataSub} />}
                                 </div>
 
                                 <div id="graficoE_5" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col mb-6">
-                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Top 20 Diagnósticos Principales</h3>
+                                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+                                        <div>
+                                            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Top 20 Diagnósticos Principales</h3>
+                                            <p className="text-xs text-slate-500 mt-1">El Excel incluye todos los diagnósticos agrupados del filtro.</p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                <Filter size={15} className="text-[#822626]" />
+                                                <select
+                                                    className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[220px]"
+                                                    value={divisionTopDiagnosticos}
+                                                    onChange={e => setDivisionTopDiagnosticos(e.target.value)}
+                                                >
+                                                    <option value="todas">Todas las divisiones</option>
+                                                    {divisionesTopConsulta.map(division => (
+                                                        <option key={division} value={division}>{division}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={exportarTopDiagnosticos}
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#822626] text-white text-xs font-black shadow-sm hover:bg-[#6b1f1f] transition-colors"
+                                            >
+                                                <Download size={15} />
+                                                Descargar tabla
+                                            </button>
+                                            <span className="text-xs font-black text-[#822626] bg-slate-100 px-3 py-2 rounded-full">
+                                                {rankingDiagnosticosCompleto.length.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartDiagnosticos.labels.length), height: '100%' }}><Bar data={chartDiagnosticos} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Diagnóstico" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0]?.data || []} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Diagnóstico" tituloExtra="CIE-10" titulo2="Frecuencia" labels={chartDiagnosticos.labels} dataExtra={chartDiagnosticos.dataExtra} data={chartDiagnosticos.datasets[0]?.data || []} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} />}
                                 </div>
-
                                 <div id="graficoE_6" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col">
                                     <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Distribución por Consultorio</h3>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartConsultorios.labels.length), height: '100%' }}><Bar data={chartConsultorios} options={chartOptionsVertical} /></div></div>
