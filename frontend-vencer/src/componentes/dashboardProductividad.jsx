@@ -600,7 +600,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
     }, [datosFiltradosFecha, divisionSeleccionada]);
 
     // ==========================================
-    // MOTOR DE FILTRO PRINCIPAL (CONSULTA EXTERNA)
+    // MOTOR DE FILTRO PRINCIPAL
     // ==========================================
     const datosFiltrados = useMemo(() => {
         return datosFiltradosDivision.filter(item => {

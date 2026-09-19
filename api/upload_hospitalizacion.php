@@ -6,6 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 ini_set('max_execution_time', 300);
 ini_set('memory_limit', '256M');
 
+// Configuración de conexión a la base de datos
 $host = 'sql112.infinityfree.com';
 $dbname = 'if0_41994851_siec'; 
 $username = 'if0_41994851';

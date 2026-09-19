@@ -4,9 +4,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 // 1. Configuración de Base de Datos
 $host = 'sql112.infinityfree.com';
-$dbname = 'if0_41125231_vencer'; 
-$username = 'if0_41125231';
-$password = 'DEtK59bqZzA';
+$dbname = 'if0_41994851_siec'; 
+$username = 'if0_41994851';
+$password = 'BIguNSKaR7Wnk';
 
 try {
     // Usamos utf8mb4 y forzamos el set names para Ñ y acentos
