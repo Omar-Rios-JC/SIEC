@@ -25,21 +25,19 @@ const TablaDatos = ({
   total = true,
 }) => {
   if (!labels || !data) return null;
-  const mostrarDesglose = dataPV && dataSub;
-  const totalPV = mostrarDesglose ? dataPV.reduce((a, b) => a + b, 0) : 0;
-  const totalSub = mostrarDesglose ? dataSub.reduce((a, b) => a + b, 0) : 0;
-  const totalGeneral = data.reduce((a, b) => a + b, 0);
-
-  const chartOptionsVertical = {
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true },
-      x: { grid: { display: false } },
-    },
+  const labelsSeguros = Array.isArray(labels) ? labels : [];
+  const dataSegura = Array.isArray(data) ? data : [];
+  const dataPVSegura = Array.isArray(dataPV) ? dataPV : [];
+  const dataSubSegura = Array.isArray(dataSub) ? dataSub : [];
+  const mostrarDesglose = Array.isArray(dataPV) && Array.isArray(dataSub);
+  const numeroSeguro = (valor) => {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : 0;
   };
-
-  console.log(datos?.[0]);
+  const formatearNumero = (valor) => numeroSeguro(valor).toLocaleString();
+  const totalPV = mostrarDesglose ? dataPVSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+  const totalSub = mostrarDesglose ? dataSubSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+  const totalGeneral = dataSegura.reduce((a, b) => a + numeroSeguro(b), 0);
 
   return (
     <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-300 h-full">
@@ -72,10 +70,13 @@ const TablaDatos = ({
             </tr>
           </thead>
           <tbody>
-            {labels.map((label, index) => {
+            {labelsSeguros.map((label, index) => {
+              const valor = numeroSeguro(dataSegura[index]);
+              const pv = numeroSeguro(dataPVSegura[index]);
+              const sub = numeroSeguro(dataSubSegura[index]);
               let indice = "0.00";
-              if (dataPV && dataPV[index] > 0)
-                indice = (dataSub[index] / dataPV[index]).toFixed(2);
+              if (pv > 0)
+                indice = (sub / pv).toFixed(2);
               else if (dataSub && dataSub[index] > 0) indice = "∞";
 
               return (
@@ -91,12 +92,12 @@ const TablaDatos = ({
                   )}
                   {mostrarDesglose && (
                     <td className="py-2 px-3 text-center text-[#c2410c] font-medium">
-                      {dataPV[index].toLocaleString()}
+                      {formatearNumero(pv)}
                     </td>
                   )}
                   {mostrarDesglose && (
                     <td className="py-2 px-3 text-center text-[#822626] font-medium">
-                      {dataSub[index].toLocaleString()}
+                      {formatearNumero(sub)}
                     </td>
                   )}
                   {mostrarDesglose && (
@@ -105,7 +106,7 @@ const TablaDatos = ({
                     </td>
                   )}
                   <td className="py-2 px-3 text-right font-black text-slate-700">
-                    {data[index].toLocaleString()}
+                    {formatearNumero(valor)}
                   </td>
                 </tr>
               );
@@ -534,7 +535,7 @@ export default function TableroUrgencias({
               titulo1="Turno"
               titulo2="Atenciones"
               labels={chartTurnos.labels}
-              data={chartTurnos.datasets[0].data}
+              data={chartTurnos.datasets[0]?.data || []}
               dataPV={chartTurnos.dataPV}
               dataSub={chartTurnos.dataSub}
             />
@@ -558,7 +559,7 @@ export default function TableroUrgencias({
               titulo1="Área"
               titulo2="Atenciones"
               labels={chartEspecialidades.labels}
-              data={chartEspecialidades.datasets[0].data}
+              data={chartEspecialidades.datasets[0]?.data || []}
               dataPV={chartEspecialidades.dataPV}
               dataSub={chartEspecialidades.dataSub}
             />
@@ -599,7 +600,7 @@ export default function TableroUrgencias({
                   dataExtra={chartMedicos.dataExtra}
                   titulo2="Atenciones"
                   labels={chartMedicos.labels}
-                  data={chartMedicos.datasets[0].data}
+                  data={chartMedicos.datasets[0]?.data || []}
                   dataPV={chartMedicos.dataPV}
                   dataSub={chartMedicos.dataSub}
                   total={true}
@@ -639,7 +640,7 @@ export default function TableroUrgencias({
                   titulo1="Diagnóstico"
                   titulo2="Frecuencia"
                   labels={chartDiagnosticos.labels}
-                  data={chartDiagnosticos.datasets[0].data}
+                  data={chartDiagnosticos.datasets[0]?.data || []}
                   dataPV={chartDiagnosticos.dataPV}
                   dataSub={chartDiagnosticos.dataSub}
                   total={true}
@@ -684,7 +685,7 @@ export default function TableroUrgencias({
                   titulo1="Consultorio"
                   titulo2="Atenciones"
                   labels={chartConsultorios.labels}
-                  data={chartConsultorios.datasets[0].data}
+                  data={chartConsultorios.datasets[0]?.data || []}
                   dataPV={chartConsultorios.dataPV}
                   dataSub={chartConsultorios.dataSub}
                 />

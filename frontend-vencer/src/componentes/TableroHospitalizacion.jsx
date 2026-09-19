@@ -9,8 +9,16 @@ import { Users, Clock, ClipboardList, TrendingUp, Activity } from 'lucide-react'
 const TablaDatos = ({ titulo1, titulo2, labels, data, dataDias, dataPromedios, total = true }) => {
     if (!labels || !data) return null;
 
-    const totalEgresos = data.reduce((a, b) => a + b, 0);
-    const totalDias = dataDias ? dataDias.reduce((a, b) => a + b, 0) : 0;
+    const labelsSeguros = Array.isArray(labels) ? labels : [];
+    const dataSegura = Array.isArray(data) ? data : [];
+    const dataDiasSegura = Array.isArray(dataDias) ? dataDias : [];
+    const dataPromediosSegura = Array.isArray(dataPromedios) ? dataPromedios : [];
+    const numeroSeguro = (valor) => {
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : 0;
+    };
+    const totalEgresos = dataSegura.reduce((a, b) => a + numeroSeguro(b), 0);
+    const totalDias = dataDias ? dataDiasSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
     const promedioGeneral = totalEgresos > 0 ? (totalDias / totalEgresos).toFixed(1) : '0.0';
 
     return (
@@ -26,16 +34,16 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataDias, dataPromedios, t
                         </tr>
                     </thead>
                     <tbody>
-                        {labels.map((label, index) => (
+                        {labelsSeguros.map((label, index) => (
                             <tr key={index} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                                 <td className="py-2 px-3 font-medium text-slate-700">{label || "No Especificado"}</td>
-                                {dataDias && dataDias[index] !== undefined && (
-                                    <td className="py-2 px-3 text-center text-slate-500 font-semibold">{dataDias[index].toLocaleString()}</td>
+                                {dataDias && (
+                                    <td className="py-2 px-3 text-center text-slate-500 font-semibold">{numeroSeguro(dataDiasSegura[index]).toLocaleString()}</td>
                                 )}
-                                {dataPromedios && dataPromedios[index] !== undefined && (
-                                    <td className="py-2 px-3 text-center text-emerald-600 font-bold bg-slate-50/50">{dataPromedios[index]} d</td>
+                                {dataPromedios && (
+                                    <td className="py-2 px-3 text-center text-emerald-600 font-bold bg-slate-50/50">{numeroSeguro(dataPromediosSegura[index]).toFixed(1)} d</td>
                                 )}
-                                <td className="py-2 px-3 text-right font-black text-slate-700">{data[index]?.toLocaleString() || 0}</td>
+                                <td className="py-2 px-3 text-right font-black text-slate-700">{numeroSeguro(dataSegura[index]).toLocaleString()}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -214,13 +222,13 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col h-full min-h-[300px]">
                     <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4 border-b border-slate-100 pb-2">Egresos por División Médica</h3>
                     <div className="relative flex-1 min-h-[220px]"><Bar data={chartDivisiones} options={chartOptionsVertical} /></div>
-                    {mostrarTablas && <TablaDatos titulo1="División" titulo2="Egresos" labels={chartDivisiones.labels} data={chartDivisiones.datasets[0].data} dataDias={chartDivisiones.dataDias} dataPromedios={chartDivisiones.promedios} />}
+                    {mostrarTablas && <TablaDatos titulo1="División" titulo2="Egresos" labels={chartDivisiones.labels} data={chartDivisiones.datasets[0]?.data || []} dataDias={chartDivisiones.dataDias} dataPromedios={chartDivisiones.promedios} />}
                 </div>
 
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col h-full min-h-[300px]">
                     <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4 border-b border-slate-100 pb-2">Distribución por Motivo de Egreso</h3>
                     <div className="relative flex-1 min-h-[220px]"><Doughnut data={chartMotivos} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} /></div>
-                    {mostrarTablas && <TablaDatos titulo1="Motivo Egreso" titulo2="Egresos" labels={chartMotivos.labels} data={chartMotivos.datasets[0].data} total={false} />}
+                    {mostrarTablas && <TablaDatos titulo1="Motivo Egreso" titulo2="Egresos" labels={chartMotivos.labels} data={chartMotivos.datasets[0]?.data || []} total={false} />}
                 </div>
             </div>
 
@@ -236,7 +244,7 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
                             <div className={`relative overflow-x-auto custom-scrollbar pb-4 ${mostrarTablas ? 'lg:col-span-3' : 'lg:col-span-1'}`} style={{ height: '400px' }}>
                                 <div style={{ minWidth: anchoDinamico(chartEspecialidades.labels.length), height: '100%' }}><Bar data={chartEspecialidades} options={chartOptionsVertical} /></div>
                             </div>
-                            {mostrarTablas && <div className="lg:col-span-2 h-[400px] overflow-hidden"><TablaDatos titulo1="Especialidad" titulo2="Egresos" labels={chartEspecialidades.labels} data={chartEspecialidades.datasets[0].data} dataDias={chartEspecialidades.dataDias} dataPromedios={chartEspecialidades.promedios} /></div>}
+                            {mostrarTablas && <div className="lg:col-span-2 h-[400px] overflow-hidden"><TablaDatos titulo1="Especialidad" titulo2="Egresos" labels={chartEspecialidades.labels} data={chartEspecialidades.datasets[0]?.data || []} dataDias={chartEspecialidades.dataDias} dataPromedios={chartEspecialidades.promedios} /></div>}
                         </>
                     ) : (
                         <div className="text-center py-12 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 w-full col-span-5">No se detectaron egresos con los filtros activos.</div>
@@ -256,7 +264,7 @@ export default function TableroHospitalizacion({ datos = [], mostrarTablas = fal
                             <div className={`relative overflow-x-auto custom-scrollbar pb-4 ${mostrarTablas ? 'lg:col-span-3' : 'lg:col-span-1'}`} style={{ height: '400px' }}>
                                 <div style={{ minWidth: anchoDinamico(chartDiagnosticos.labels.length), height: '100%' }}><Bar data={chartDiagnosticos} options={chartOptionsVertical} /></div>
                             </div>
-                            {mostrarTablas && <div className="lg:col-span-2 h-[400px] overflow-hidden"><TablaDatos titulo1="Diagnóstico de Egreso" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0].data} dataDias={chartDiagnosticos.dataDias} dataPromedios={chartDiagnosticos.promedios} total={false} /></div>}
+                            {mostrarTablas && <div className="lg:col-span-2 h-[400px] overflow-hidden"><TablaDatos titulo1="Diagnóstico de Egreso" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0]?.data || []} dataDias={chartDiagnosticos.dataDias} dataPromedios={chartDiagnosticos.promedios} total={false} /></div>}
                         </>
                     ) : (
                         <div className="text-center py-12 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 w-full col-span-5">No se detectaron diagnósticos con los filtros activos.</div>

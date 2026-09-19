@@ -2855,7 +2855,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={chartEstatus.labels}
-              data={chartEstatus.datasets[0].data}
+              data={chartEstatus.datasets[0]?.data || []}
               titulo="Estatus"
             />
           )}
@@ -2873,7 +2873,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={chartSexo.labels}
-              data={chartSexo.datasets[0].data}
+              data={chartSexo.datasets[0]?.data || []}
               titulo="Sexo"
             />
           )}
@@ -2891,7 +2891,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={chartConcertada.labels}
-              data={chartConcertada.datasets[0].data}
+              data={chartConcertada.datasets[0]?.data || []}
               titulo="Concertada"
             />
           )}
@@ -2911,7 +2911,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={topTipoSolicitud.labels}
-              data={topTipoSolicitud.datasets[0].data}
+              data={topTipoSolicitud.datasets[0]?.data || []}
               titulo="Tipo"
             />
           )}
@@ -2929,7 +2929,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={chartTiempos.labels}
-              data={chartTiempos.datasets[0].data}
+              data={chartTiempos.datasets[0]?.data || []}
               titulo="Tiempo"
               valor="Minutos"
             />
@@ -2950,7 +2950,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={topCirujanos.labels}
-              data={topCirujanos.datasets[0].data}
+              data={topCirujanos.datasets[0]?.data || []}
               titulo="Cirujano"
             />
           )}
@@ -2968,7 +2968,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={topEspecialidades.labels}
-              data={topEspecialidades.datasets[0].data}
+              data={topEspecialidades.datasets[0]?.data || []}
               titulo="Especialidad"
             />
           )}
@@ -2990,7 +2990,7 @@ export default function TableroCirugias({
               labels={chartEdad.labels}
               data={chartEdad.labels.map(
                 (_, index) =>
-                  Math.abs(chartEdad.datasets[0].data[index] || 0) +
+                  Math.abs(chartEdad.datasets[0]?.data?.[index] || 0) +
                   Math.abs(chartEdad.datasets[1].data[index] || 0),
               )}
               titulo="Grupo de edad"
@@ -3010,7 +3010,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={chartDiferimiento.labels}
-              data={chartDiferimiento.datasets[0].data}
+              data={chartDiferimiento.datasets[0]?.data || []}
               titulo="Diferimiento"
             />
           )}
@@ -3280,7 +3280,7 @@ export default function TableroCirugias({
             {mostrarTablas && (
               <TablaResumenCirugias
                 labels={chartMotivosCancelacion.labels}
-                data={chartMotivosCancelacion.datasets[0].data}
+                data={chartMotivosCancelacion.datasets[0]?.data || []}
                 titulo="Motivo"
               />
             )}
@@ -3297,7 +3297,7 @@ export default function TableroCirugias({
             {mostrarTablas && (
               <TablaResumenCirugias
                 labels={chartMotivosSuspension.labels}
-                data={chartMotivosSuspension.datasets[0].data}
+                data={chartMotivosSuspension.datasets[0]?.data || []}
                 titulo="Motivo"
               />
             )}
@@ -3323,7 +3323,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={topCIE10.labels}
-              data={topCIE10.datasets[0].data}
+              data={topCIE10.datasets[0]?.data || []}
               titulo="CIE10"
             />
           )}
@@ -3341,7 +3341,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={topCIE9.labels}
-              data={topCIE9.datasets[0].data}
+              data={topCIE9.datasets[0]?.data || []}
               titulo="CIE9"
             />
           )}
@@ -3361,7 +3361,7 @@ export default function TableroCirugias({
           {mostrarTablas && (
             <TablaResumenCirugias
               labels={topSalas.labels}
-              data={topSalas.datasets[0].data}
+              data={topSalas.datasets[0]?.data || []}
               titulo="Sala"
             />
           )}

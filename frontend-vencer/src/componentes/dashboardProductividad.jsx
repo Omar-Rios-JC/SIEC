@@ -100,10 +100,19 @@ let cacheDiccionarioCIE = {};
 const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExtra, dataExtra, total = true }) => {
     if (!labels || !data) return null;
 
-    const mostrarDesglose = dataPV && dataSub;
-    const totalPV = mostrarDesglose ? dataPV.reduce((a, b) => a + b, 0) : 0;
-    const totalSub = mostrarDesglose ? dataSub.reduce((a, b) => a + b, 0) : 0;
-    const totalGeneral = data.reduce((a, b) => a + b, 0);
+    const labelsSeguros = Array.isArray(labels) ? labels : [];
+    const dataSegura = Array.isArray(data) ? data : [];
+    const dataPVSegura = Array.isArray(dataPV) ? dataPV : [];
+    const dataSubSegura = Array.isArray(dataSub) ? dataSub : [];
+    const mostrarDesglose = Array.isArray(dataPV) && Array.isArray(dataSub);
+    const numeroSeguro = (valor) => {
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : 0;
+    };
+    const formatearNumero = (valor) => numeroSeguro(valor).toLocaleString();
+    const totalPV = mostrarDesglose ? dataPVSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+    const totalSub = mostrarDesglose ? dataSubSegura.reduce((a, b) => a + numeroSeguro(b), 0) : 0;
+    const totalGeneral = dataSegura.reduce((a, b) => a + numeroSeguro(b), 0);
 
     return (
         <div className="mt-4 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-300 h-full">
@@ -120,11 +129,14 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                         </tr>
                     </thead>
                     <tbody>
-                        {labels.map((label, index) => {
+                        {labelsSeguros.map((label, index) => {
+                            const valor = numeroSeguro(dataSegura[index]);
+                            const pv = numeroSeguro(dataPVSegura[index]);
+                            const sub = numeroSeguro(dataSubSegura[index]);
                             let indice = '0.00';
-                            if (dataPV && dataPV[index] > 0) {
-                                indice = (dataSub[index] / dataPV[index]).toFixed(2);
-                            } else if (dataSub && dataSub[index] > 0) {
+                            if (pv > 0) {
+                                indice = (sub / pv).toFixed(2);
+                            } else if (sub > 0) {
                                 indice = '∞';
                             }
 
@@ -132,10 +144,10 @@ const TablaDatos = ({ titulo1, titulo2, labels, data, dataPV, dataSub, tituloExt
                                 <tr key={index} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                                     <td className="py-2 px-3">{String(label).replace('Dr. ', 'Lic. ')}</td>
                                     {dataExtra && <td className="py-2 px-3 text-xs font-bold text-slate-400">{dataExtra[index]}</td>}
-                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#c2410c] font-medium">{dataPV[index].toLocaleString()}</td>}
-                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#822626] font-medium">{dataSub[index].toLocaleString()}</td>}
+                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#c2410c] font-medium">{formatearNumero(pv)}</td>}
+                                    {mostrarDesglose && <td className="py-2 px-3 text-center text-[#822626] font-medium">{formatearNumero(sub)}</td>}
                                     {mostrarDesglose && <td className="py-2 px-3 text-center text-slate-500 font-bold bg-slate-50/50">{indice}</td>}
-                                    <td className="py-2 px-3 text-right font-black text-slate-700">{data[index].toLocaleString()}</td>
+                                    <td className="py-2 px-3 text-right font-black text-slate-700">{formatearNumero(valor)}</td>
                                 </tr>
                             );
                         })}
@@ -167,6 +179,40 @@ const DIVISIONES_CIRUGIAS_PERMITIDAS = [
     'HOSPITAL',
     'URGENCIAS'
 ];
+
+const valorReporteCirugias = (valor, fallback = 'SIN DATO') => {
+    if (valor === null || valor === undefined || valor === '') return fallback;
+    return String(valor);
+};
+
+const formatearFechaReporteCirugias = (valor) => {
+    if (!valor) return 'SIN FECHA';
+
+    const fecha = valor instanceof Date ? valor : new Date(valor);
+
+    if (Number.isNaN(fecha.getTime())) {
+        return String(valor);
+    }
+
+    return fecha.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+};
+
+const fechaArchivoReporteCirugias = () =>
+    new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+
+const contarRegistrosCirugiasPor = (registros, obtenerClave) => {
+    const conteo = registros.reduce((acc, registro) => {
+        const clave = valorReporteCirugias(obtenerClave(registro), 'SIN DATO');
+        acc[clave] = (acc[clave] || 0) + 1;
+        return acc;
+    }, {});
+
+    return Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+};
 
 export default function DashboardProductividad({ isAdmin }) {
 // Fecha REAL de actualización de la base de datos
@@ -215,6 +261,11 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
     const [datosUrgencias, setDatosUrgencias] = useState([]);
     const [datosCirugias, setDatosCirugias] = useState([]);
     const [datosHospitalizacion, setDatosHospitalizacion] = useState([]);
+    const [divisionTablaEspecialidad, setDivisionTablaEspecialidad] = useState('todas');
+    const [divisionTopMedicos, setDivisionTopMedicos] = useState('todas');
+    const [divisionTopDiagnosticos, setDivisionTopDiagnosticos] = useState('todas');
+    const [especialidadTopMedicos, setEspecialidadTopMedicos] = useState('todas');
+    const [especialidadTopDiagnosticos, setEspecialidadTopDiagnosticos] = useState('todas');
 
     // Opciones dinámicas que envía TableroCirugias para mostrar filtros en la barra superior
     const [opcionesFiltrosCirugias, setOpcionesFiltrosCirugias] = useState({
@@ -369,6 +420,10 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         setMesSeleccionado('todos');
         setDivisionSeleccionada('todas');
         setEspecialidadSeleccionada('todas');
+        setDivisionTopMedicos('todas');
+        setDivisionTopDiagnosticos('todas');
+        setEspecialidadTopMedicos('todas');
+        setEspecialidadTopDiagnosticos('todas');
         setOrdenInverso(false);
     }, [areaSidebar]);
 
@@ -461,7 +516,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
             const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
 
             // Si el nombre o el código pertenece a otra área, lo ignoramos de Consulta Externa
-            const ignorar = ['TOCO', 'PRIMER CONTACTO', '5001', '6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'TRABAJO SOCIAL', 'PSICOLOGIA', 'REHABILITACION', 'URGENCIAS', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
+            const ignorar = ['TOCO', 'PRIMER CONTACTO', '5001', '6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'TRABAJO SOCIAL', 'PSICOLOGIA', 'URGENCIAS', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
 
             return !ignorar.some(ignorada => espNivelada.includes(ignorada) || espTraducida.includes(ignorada));
         });
@@ -520,26 +575,47 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
 
     const datosParamedicosFiltrados = useMemo(() => {
         const soloParamedicos = datos.filter(d => {
-            const esp = String(d.especialidad || d.ESPECIALIDAD || '').toUpperCase();
-            const criterios = ['6300', '6600', '6900', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA', 'REHABILITACION'];
-            return criterios.some(c => esp.includes(c));
+            const espCruda = String(d.especialidad || d.ESPECIALIDAD || '');
+            const espNivelada = nivelarTexto(espCruda);
+            const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
+            const criterios = [
+                '6300',
+                '6600',
+                '6900',
+                'TRABAJO SOCIAL',
+                'PSICOLOGIA',
+                'NUTRICION',
+                'INHALOTERAPIA',
+                'FONIATRIA'
+            ];
+            return criterios.some(c => espNivelada.includes(c) || espTraducida.includes(c));
         });
         return aplicarFiltroFecha(soloParamedicos);
-    }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+    }, [datos, diccionarioEspecialidades, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
 
     const datosUrgenciasFiltrados = useMemo(() => {
         if (!datos || datos.length === 0) return [];
 
         const soloUrgencias = datos.filter(d => {
-            const espCruda = String(d.especialidad || d.ESPECIALIDAD || d.servicio || '').toUpperCase();
-            const espTraducida = traducirEspecialidad(espCruda);
+            const espCruda = String(d.especialidad || d.ESPECIALIDAD || d.servicio || '');
+            const espNivelada = nivelarTexto(espCruda);
+            const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
 
-            const criterios = ['5001', 'A600', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
-            return criterios.some(c => espTraducida.includes(c) || espCruda.includes(c));
+            const criterios = [
+                '5001',
+                'A600',
+                'URGENCIAS',
+                'TOCO',
+                'PRIMER CONTACTO',
+                'ADMISION CONTINUA',
+                'OBSERVACION',
+                'CHOQUE'
+            ];
+            return criterios.some(c => espTraducida.includes(c) || espNivelada.includes(c));
         });
 
         return aplicarFiltroFecha(soloUrgencias);
-    }, [datos, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
+    }, [datos, diccionarioEspecialidades, anioSeleccionado, mesSeleccionado, mesInicio, mesFin]);
 
     // Segmentación analítica limpia para periodos IMSS, Divisiones y Especialidades de Hospitalización
     const datosHospitalizacionFiltrados = useMemo(() => {
@@ -628,7 +704,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
 
         if (Object.keys(diccionarioEspecialidades).length === 0) {
             if (areaSidebar === 'paramedicos') {
-                ['TRABAJO SOCIAL', 'PSICOLOGIA', 'NUTRICION', 'REHABILITACION'].forEach(e => setEsp.add(e));
+                ['TRABAJO SOCIAL', 'PSICOLOGIA', 'NUTRICION'].forEach(e => setEsp.add(e));
             } else if (areaSidebar === 'urgencias') {
                 ['CONSULTAS EN PRIMER CONTACTO', 'URGENCIAS TOCOCIRUGIA'].forEach(e => setEsp.add(e));
             }
@@ -642,11 +718,11 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         }
 
         if (areaSidebar === 'urgencias') {
-            const criterios = ['URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
+            const criterios = ['URGENCIAS', 'TOCO', 'PRIMER CONTACTO', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
             return listaCompleta.filter(esp => criterios.some(c => esp.includes(c)));
         }
 
-        const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS TOCOCIRUGIA', 'CONSULTAS EN PRIMER CONTACTO'];
+        const ignorar = ['TRABAJO SOCIAL', 'NUTRICION', 'PSICOLOGIA', 'URGENCIAS', 'TOCO', 'PRIMER CONTACTO', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
         return listaCompleta.filter(esp => !ignorar.some(ignorada => esp.includes(ignorada)));
 
     }, [diccionarioEspecialidades, areaSidebar, divisionSeleccionada]);
@@ -852,6 +928,387 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         };
     }, [datosFiltrados]);
 
+    const criteriosParamedicosTabla = ['6300', '6600', '6900', 'TRABAJO SOCIAL', 'PSICOLOGIA', 'NUTRICION', 'INHALOTERAPIA', 'FONIATRIA'];
+    const criteriosUrgenciasTabla = ['5001', 'A600', 'URGENCIAS', 'TOCO', 'PRIMER CONTACTO', 'ADMISION CONTINUA', 'OBSERVACION', 'CHOQUE'];
+
+    const normalizarDivisionTablaEspecialidad = (item) => {
+        const division = item?.division || item?.Division || item?.DIVISION || item?.area || item?.Area || item?.AREA || 'Sin Asignar';
+        return String(division || 'Sin Asignar').trim() || 'Sin Asignar';
+    };
+
+    const obtenerTextoEspecialidadTabla = (item) => {
+        const espCruda = String(item?.especialidad || item?.ESPECIALIDAD || item?.servicio || '');
+        const espNivelada = nivelarTexto(espCruda);
+        const espTraducida = nivelarTexto(traducirEspecialidad(espCruda));
+        return { espCruda, espNivelada, espTraducida };
+    };
+
+    const obtenerOrigenTablaEspecialidad = (item) => {
+        const { espNivelada, espTraducida } = obtenerTextoEspecialidadTabla(item);
+
+        if (criteriosParamedicosTabla.some(criterio => espNivelada.includes(criterio) || espTraducida.includes(criterio))) {
+            return 'paramedicos';
+        }
+
+        if (criteriosUrgenciasTabla.some(criterio => espNivelada.includes(criterio) || espTraducida.includes(criterio))) {
+            return 'urgencias';
+        }
+
+        return 'consulta_externa';
+    };
+
+    const obtenerPeriodoTablaEspecialidad = (item) => {
+        const claveAnio = Object.keys(item || {}).find(key => nivelarTexto(key) === 'ANIO');
+        let anio = item.anio || item.Anio || item.ANIO || item.ano || item.Ano || item.ANO || (claveAnio ? item[claveAnio] : undefined);
+        let mes = item.mes || item.Mes || item.MES;
+
+        const fecha = encontrarFecha(item);
+        if ((!anio || !mes) && fecha) {
+            const partes = String(fecha).includes('-') ? String(fecha).split('-') : String(fecha).split('/');
+            if (partes.length >= 2) {
+                if (partes[0].length === 4) {
+                    anio = anio || partes[0];
+                    mes = mes || partes[1];
+                } else {
+                    anio = anio || partes[2];
+                    mes = mes || partes[1];
+                }
+            }
+        }
+
+        if (!anio || !mes) return null;
+
+        const mesIndex = Number(mes) - 1;
+        if (!Number.isFinite(mesIndex) || mesIndex < 0 || mesIndex > 11) return null;
+
+        const anioTexto = String(anio);
+        return {
+            key: `${anioTexto}-${String(mesIndex + 1).padStart(2, '0')}`,
+            anio: anioTexto,
+            mesIndex,
+            etiqueta: `${MESES[mesIndex]}-${anioTexto.slice(-2)}`
+        };
+    };
+
+    const divisionesTablaEspecialidadPeriodo = useMemo(() => {
+        const divisionesMap = new Map();
+
+        datos.forEach(item => {
+            const division = normalizarDivisionTablaEspecialidad(item);
+            const clave = nivelarTexto(division);
+            if (clave && !divisionesMap.has(clave)) {
+                divisionesMap.set(clave, division);
+            }
+        });
+
+        return [...divisionesMap.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    }, [datos]);
+
+    useEffect(() => {
+        if (
+            divisionTablaEspecialidad !== 'todas' &&
+            !divisionesTablaEspecialidadPeriodo.some(division => nivelarTexto(division) === nivelarTexto(divisionTablaEspecialidad))
+        ) {
+            setDivisionTablaEspecialidad('todas');
+        }
+    }, [divisionTablaEspecialidad, divisionesTablaEspecialidadPeriodo]);
+
+    const tablaConsultasEspecialidadPeriodo = useMemo(() => {
+        const filasMap = {};
+        const periodosMap = new Map();
+        const especialidadesReferencia = {
+            '1000': 'Alergia e Inmunologia',
+            '1400': 'Cardiologia',
+            '1500': 'Cirugia Cardiotoracica',
+            '2100': 'Ginecologia',
+            '2101': 'Biologia de la Reproduccion Humana',
+            '2103': 'Urologia Ginecologica',
+            '2104': 'Ginecologia endocrina',
+            '2105': 'Clinica de Displasia',
+            '2106': 'Clinica de Mama',
+            '2400': 'Obstetricia',
+            '2401': 'Medicina Materno Fetal',
+            '2500': 'Medicina Interna',
+            '3000': 'Oftalmologia',
+            '3200': 'Pediatria',
+            '3201': 'Cardiologia Pediatrica',
+            '3202': 'Endocrinologia Pediatrica',
+            '3203': 'Gastroenterologia Pediatrica',
+            '3204': 'Hematologia Pediatrica',
+            '3205': 'Infectologia Pediatrica',
+            '3206': 'Neumologia Pediatrica',
+            '3207': 'Neurologia Pediatrica',
+            '3208': 'Oncologia Pediatrica',
+            '3209': 'Reumatologia Pediatrica',
+            '3500': 'Psiquiatria',
+            '3800': 'Traumatologia y ortopedia',
+            '3801': 'Traumatologia',
+            '4100': 'Urologia',
+            '4400': 'Cirugia Pediatrica',
+            '4401': 'Nefrologia Pediatrica',
+            '4402': 'Neurocirugia Pediatrica',
+            '4600': 'Cirugia Plastica y Reconstructiva',
+            '5001': 'Consultas en Primer Contacto',
+            '6300': 'Trabajo Social',
+            '6600': 'Psicologia',
+            '6900': 'Nutricion y Dietetica',
+            '5100': 'Cirugia oncologica',
+            '5103': 'Ginecologia Oncologica',
+            '6500': 'Genetica Medica',
+            '6800': 'Medicina Fisica y Rehabilitacion',
+            '8800': 'Anestesiologia',
+            '8802': 'Clinica del Dolor',
+            'A600': 'Urgencias Tococirugia',
+            'MT01': 'SPPSTIMSS - Medico Especialista (Medico General)'
+        };
+        const clavesPorDescripcion = Object.entries(diccionarioEspecialidades).reduce((acc, [clave, info]) => {
+            const descripcion = nivelarTexto(info?.nombre || '');
+            if (descripcion && !acc[descripcion]) acc[descripcion] = clave;
+            return acc;
+        }, {});
+
+        Object.entries(especialidadesReferencia).forEach(([clave, descripcion]) => {
+            const descripcionNivelada = nivelarTexto(descripcion);
+            if (descripcionNivelada && !clavesPorDescripcion[descripcionNivelada]) clavesPorDescripcion[descripcionNivelada] = clave;
+        });
+
+        const aliasEspecialidadesReferencia = {
+            [nivelarTexto('Trabajo Social')]: '6300',
+            [nivelarTexto('Psicologia')]: '6600',
+            [nivelarTexto('Nutricion')]: '6900',
+            [nivelarTexto('Nutricion y Dietetica')]: '6900',
+            [nivelarTexto('Consultas en Primer Contacto')]: '5001',
+            [nivelarTexto('Primer Contacto')]: '5001',
+            [nivelarTexto('Urgencias')]: 'A600',
+            [nivelarTexto('Urgencias Tococirugia')]: 'A600',
+            [nivelarTexto('Urgencias Toco Cirugia')]: 'A600',
+            [nivelarTexto('Admision Continua')]: 'A600',
+            [nivelarTexto('Observacion')]: 'A600',
+            [nivelarTexto('Choque')]: 'A600'
+        };
+
+        Object.entries(aliasEspecialidadesReferencia).forEach(([descripcion, clave]) => {
+            if (descripcion && !clavesPorDescripcion[descripcion]) clavesPorDescripcion[descripcion] = clave;
+        });
+
+        const obtenerDescripcionCatalogo = (clave) => diccionarioEspecialidades[clave]?.nombre || especialidadesReferencia[clave] || '';
+        const limpiarClaveEspecialidad = (valorCrudo) => {
+            const texto = String(valorCrudo || '')
+                .trim()
+                .toUpperCase()
+                .replace('COD:', '')
+                .replace('COD: ', '')
+                .replace('.0', '')
+                .trim();
+            const compacta = texto.replace(/[^0-9A-Z]/g, '');
+            return /^(\d{3,5}|[A-Z]{1,3}\d{2,4})$/.test(compacta) ? compacta : '';
+        };
+
+        const obtenerEspecialidad = (valorCrudo) => {
+            const valorTexto = String(valorCrudo || '').trim();
+            const claveDirecta = limpiarClaveEspecialidad(valorTexto);
+
+            if (claveDirecta) {
+                const descripcionCatalogo = obtenerDescripcionCatalogo(claveDirecta);
+                if (!descripcionCatalogo) return null;
+                return { cve: claveDirecta, descripcion: descripcionCatalogo };
+            }
+
+            const descripcionNivelada = nivelarTexto(valorTexto);
+            const claveCatalogo = clavesPorDescripcion[descripcionNivelada] || '';
+            if (!claveCatalogo) return null;
+
+            return {
+                cve: claveCatalogo,
+                descripcion: obtenerDescripcionCatalogo(claveCatalogo) || valorTexto
+            };
+        };
+
+        datos.forEach(item => {
+            const divisionRegistro = normalizarDivisionTablaEspecialidad(item);
+            if (
+                divisionTablaEspecialidad !== 'todas' &&
+                nivelarTexto(divisionRegistro) !== nivelarTexto(divisionTablaEspecialidad)
+            ) {
+                return;
+            }
+
+            const periodo = obtenerPeriodoTablaEspecialidad(item);
+            if (!periodo) return;
+
+            if (!periodosMap.has(periodo.key)) {
+                periodosMap.set(periodo.key, periodo);
+            }
+
+            const especialidad = obtenerEspecialidad(item.especialidad || item.ESPECIALIDAD || item.servicio || 'Sin Descripcion');
+            if (!especialidad) return;
+            const cve = especialidad.cve || '';
+            const descripcion = especialidad.descripcion || 'Sin Descripcion';
+            const filaKey = `${cve || 'SIN-CVE'}-${nivelarTexto(descripcion)}`;
+            const origen = obtenerOrigenTablaEspecialidad(item);
+
+            if (!filasMap[filaKey]) {
+                filasMap[filaKey] = {
+                    cve,
+                    descripcion,
+                    conteos: {},
+                    total: 0,
+                    origenes: { consulta_externa: 0, paramedicos: 0, urgencias: 0 }
+                };
+            }
+
+            filasMap[filaKey].conteos[periodo.key] = (filasMap[filaKey].conteos[periodo.key] || 0) + 1;
+            filasMap[filaKey].total++;
+            filasMap[filaKey].origenes[origen] = (filasMap[filaKey].origenes[origen] || 0) + 1;
+        });
+
+        const periodos = [...periodosMap.values()].sort((a, b) => Number(a.anio) - Number(b.anio) || a.mesIndex - b.mesIndex);
+        const filas = Object.values(filasMap).sort((a, b) => {
+            const claveA = a.cve || a.descripcion;
+            const claveB = b.cve || b.descripcion;
+            return claveA.localeCompare(claveB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        const totalesPorPeriodo = {};
+        const resumenOrigenes = { consulta_externa: 0, paramedicos: 0, urgencias: 0 };
+        let totalGeneral = 0;
+
+        periodos.forEach(periodo => {
+            const totalPeriodo = filas.reduce((total, fila) => total + (fila.conteos[periodo.key] || 0), 0);
+            totalesPorPeriodo[periodo.key] = totalPeriodo;
+            totalGeneral += totalPeriodo;
+        });
+
+        filas.forEach(fila => {
+            resumenOrigenes.consulta_externa += fila.origenes.consulta_externa || 0;
+            resumenOrigenes.paramedicos += fila.origenes.paramedicos || 0;
+            resumenOrigenes.urgencias += fila.origenes.urgencias || 0;
+        });
+
+        return { periodos, filas, totalesPorPeriodo, totalGeneral, resumenOrigenes };
+    }, [datos, diccionarioEspecialidades, divisionTablaEspecialidad]);
+
+    const divisionesTopConsulta = useMemo(() => {
+        const divisionesMap = new Map();
+
+        datosConsultaExterna.forEach(item => {
+            const division = normalizarDivisionTablaEspecialidad(item);
+            const clave = nivelarTexto(division);
+            if (clave && !divisionesMap.has(clave)) {
+                divisionesMap.set(clave, division);
+            }
+        });
+
+        return [...divisionesMap.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    }, [datosConsultaExterna]);
+
+    useEffect(() => {
+        if (areaSidebar !== 'consulta_externa') return;
+        setDivisionTopMedicos(divisionSeleccionada);
+        setDivisionTopDiagnosticos(divisionSeleccionada);
+        setEspecialidadTopMedicos(especialidadSeleccionada);
+        setEspecialidadTopDiagnosticos(especialidadSeleccionada);
+    }, [areaSidebar, divisionSeleccionada, especialidadSeleccionada]);
+
+    const datosTopBase = useMemo(() => datosFiltradosFecha, [datosFiltradosFecha]);
+
+    const obtenerEspecialidadTop = (item) =>
+        traducirEspecialidad(item?.especialidad || item?.ESPECIALIDAD) || 'Sin Especialidad';
+
+    const filtrarDatosTopPorDivisionYEspecialidad = (listaDatos, divisionFiltro, especialidadFiltro) => {
+        return listaDatos.filter(item => {
+            const pasaDivision = divisionFiltro === 'todas' ||
+                nivelarTexto(normalizarDivisionTablaEspecialidad(item)) === nivelarTexto(divisionFiltro);
+            const pasaEspecialidad = especialidadFiltro === 'todas' ||
+                nivelarTexto(obtenerEspecialidadTop(item)) === nivelarTexto(especialidadFiltro);
+
+            return pasaDivision && pasaEspecialidad;
+        });
+    };
+
+    const obtenerEspecialidadesTop = (divisionFiltro) => {
+        const especialidadesMap = new Map();
+
+        filtrarDatosTopPorDivisionYEspecialidad(datosTopBase, divisionFiltro, 'todas').forEach(item => {
+            const especialidad = obtenerEspecialidadTop(item);
+            const clave = nivelarTexto(especialidad);
+            if (clave && !especialidadesMap.has(clave)) {
+                especialidadesMap.set(clave, especialidad);
+            }
+        });
+
+        return [...especialidadesMap.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    };
+
+    const especialidadesTopMedicos = useMemo(
+        () => obtenerEspecialidadesTop(divisionTopMedicos),
+        [datosTopBase, divisionTopMedicos]
+    );
+
+    const especialidadesTopDiagnosticos = useMemo(
+        () => obtenerEspecialidadesTop(divisionTopDiagnosticos),
+        [datosTopBase, divisionTopDiagnosticos]
+    );
+
+    useEffect(() => {
+        const existeDivision = (division) =>
+            division === 'todas' ||
+            divisionesTopConsulta.some(item => nivelarTexto(item) === nivelarTexto(division));
+
+        if (!existeDivision(divisionTopMedicos)) setDivisionTopMedicos('todas');
+        if (!existeDivision(divisionTopDiagnosticos)) setDivisionTopDiagnosticos('todas');
+    }, [divisionTopMedicos, divisionTopDiagnosticos, divisionesTopConsulta]);
+
+    useEffect(() => {
+        const existeEspecialidad = (especialidad, opciones) =>
+            especialidad === 'todas' ||
+            opciones.some(item => nivelarTexto(item) === nivelarTexto(especialidad));
+
+        if (!existeEspecialidad(especialidadTopMedicos, especialidadesTopMedicos)) setEspecialidadTopMedicos('todas');
+        if (!existeEspecialidad(especialidadTopDiagnosticos, especialidadesTopDiagnosticos)) setEspecialidadTopDiagnosticos('todas');
+    }, [especialidadTopMedicos, especialidadTopDiagnosticos, especialidadesTopMedicos, especialidadesTopDiagnosticos]);
+
+    const esPrimeraVezRegistro = (item) =>
+        nivelarTexto(item?.primera_vez || item?.PRIMERA_VEZ) === 'PRIMERA VEZ';
+
+    const unirValoresAgrupados = (valores) =>
+        [...valores]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+            .join(', ') || 'Sin dato';
+
+    const datosTopMedicosFiltrados = useMemo(
+        () => filtrarDatosTopPorDivisionYEspecialidad(datosTopBase, divisionTopMedicos, especialidadTopMedicos),
+        [datosTopBase, divisionTopMedicos, especialidadTopMedicos]
+    );
+
+    const datosTopDiagnosticosFiltrados = useMemo(
+        () => filtrarDatosTopPorDivisionYEspecialidad(datosTopBase, divisionTopDiagnosticos, especialidadTopDiagnosticos),
+        [datosTopBase, divisionTopDiagnosticos, especialidadTopDiagnosticos]
+    );
+
+    const obtenerPeriodosTop = (listaDatos) => {
+        const periodosMap = new Map();
+
+        listaDatos.forEach(item => {
+            const periodo = obtenerPeriodoTablaEspecialidad(item);
+            if (periodo && !periodosMap.has(periodo.key)) {
+                periodosMap.set(periodo.key, periodo);
+            }
+        });
+
+        return [...periodosMap.values()].sort((a, b) => Number(a.anio) - Number(b.anio) || a.mesIndex - b.mesIndex);
+    };
+
+    const periodosTopMedicos = useMemo(
+        () => obtenerPeriodosTop(datosTopMedicosFiltrados),
+        [datosTopMedicosFiltrados]
+    );
+
+    const periodosTopDiagnosticos = useMemo(
+        () => obtenerPeriodosTop(datosTopDiagnosticosFiltrados),
+        [datosTopDiagnosticosFiltrados]
+    );
+
     const chartDivisiones = useMemo(() => {
         // Bandera para saber en qué nivel estamos
         const mostrandoEspecialidades = divisionSeleccionada !== 'todas';
@@ -929,53 +1386,112 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         };
     }, [datosFiltrados, ordenInverso]);
 
+    const rankingMedicosCompleto = useMemo(() => {
+        const conteo = new Map();
+
+        datosTopMedicosFiltrados.forEach(curr => {
+            const matriculaBase = String(curr.matricula_medico || curr.MATRICULA_MEDICO || curr.matricula || curr.MATRICULA || '').trim();
+            const matriculaLimpia = matriculaBase.replace('.0', '').replace(/\s/g, '');
+            const nombreMedico = diccionarioMedicos[matriculaLimpia] || (matriculaLimpia ? `Matr. ${matriculaLimpia}` : 'Sin Matricula');
+            const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD) || 'Sin Especialidad';
+            const division = normalizarDivisionTablaEspecialidad(curr);
+            const clave = matriculaLimpia || 'SIN_MATRICULA';
+
+            if (!conteo.has(clave)) {
+                conteo.set(clave, {
+                    nombre: nombreMedico,
+                    matricula: matriculaLimpia,
+                    total: 0,
+                    pv: 0,
+                    sub: 0,
+                    conteos: {},
+                    divisiones: new Set(),
+                    especialidades: new Set()
+                });
+            }
+
+            const registro = conteo.get(clave);
+            const periodo = obtenerPeriodoTablaEspecialidad(curr);
+            registro.total++;
+            if (periodo) registro.conteos[periodo.key] = (registro.conteos[periodo.key] || 0) + 1;
+            if (esPrimeraVezRegistro(curr)) registro.pv++; else registro.sub++;
+            registro.divisiones.add(division);
+            registro.especialidades.add(nombreEspecialidad);
+        });
+
+        return [...conteo.values()]
+            .map(item => ({
+                ...item,
+                divisionesTexto: unirValoresAgrupados(item.divisiones),
+                especialidadesTexto: unirValoresAgrupados(item.especialidades)
+            }))
+            .sort((a, b) => ordenInverso ? a.total - b.total : b.total - a.total);
+    }, [datosTopMedicosFiltrados, diccionarioMedicos, ordenInverso]);
+
     const chartMedicos = useMemo(() => {
-        const conteo = datosFiltrados.reduce((acc, curr) => {
-            const matriculaLimpia = String(curr.matricula_medico || 'Sin Matrícula').trim().replace('.0', '').replace(/\s/g, '');
-            const nombreMedico = diccionarioMedicos[matriculaLimpia] || `Matr. ${curr.matricula_medico}`;
-            const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD);
-
-            if (!acc[nombreMedico]) acc[nombreMedico] = { total: 0, pv: 0, sub: 0, especialidad: nombreEspecialidad };
-
-            acc[nombreMedico].total++;
-            if (curr.primera_vez === 'Primera Vez') acc[nombreMedico].pv++; else acc[nombreMedico].sub++;
-            return acc;
-        }, {});
-
-        const ordenados = Object.entries(conteo).sort((a, b) =>
-            ordenInverso ? a[1].total - b[1].total : b[1].total - a[1].total
-        );
-        const top = ordenados.slice(0, 20);
+        const top = rankingMedicosCompleto.slice(0, 20);
 
         return {
-            labels: top.map(item => item[0]),
-            datasets: [{ label: 'Consultas', data: top.map(item => item[1].total), backgroundColor: '#822626', borderRadius: 4 }],
-            dataPV: top.map(item => item[1].pv),
-            dataSub: top.map(item => item[1].sub),
-            dataExtra: top.map(item => item[1].especialidad)
+            labels: top.map(item => item.nombre),
+            datasets: [{ label: 'Consultas', data: top.map(item => item.total), backgroundColor: '#822626', borderRadius: 4 }],
+            dataPV: top.map(item => item.pv),
+            dataSub: top.map(item => item.sub),
+            dataExtra: top.map(item => item.especialidadesTexto)
         };
-    }, [datosFiltrados, diccionarioMedicos, ordenInverso]);
+    }, [rankingMedicosCompleto]);
+
+    const rankingDiagnosticosCompleto = useMemo(() => {
+        const conteo = new Map();
+
+        datosTopDiagnosticosFiltrados.forEach(curr => {
+            const codigoRaw = String(curr.diagnostico_principal || curr.DIAGNOSTICO_PRINCIPAL || curr.diagnostico || curr.DIAGNOSTICO || '').trim().toUpperCase();
+            const codigo = codigoRaw || 'NO ESPECIFICADO';
+            const nombreEnfermedad = diccionarioCIE[codigo] || codigo;
+            const nombreEspecialidad = traducirEspecialidad(curr.especialidad || curr.ESPECIALIDAD) || 'Sin Especialidad';
+            const division = normalizarDivisionTablaEspecialidad(curr);
+
+            if (!conteo.has(codigo)) {
+                conteo.set(codigo, {
+                    codigo,
+                    diagnostico: nombreEnfermedad,
+                    total: 0,
+                    pv: 0,
+                    sub: 0,
+                    conteos: {},
+                    divisiones: new Set(),
+                    especialidades: new Set()
+                });
+            }
+
+            const registro = conteo.get(codigo);
+            const periodo = obtenerPeriodoTablaEspecialidad(curr);
+            registro.total++;
+            if (periodo) registro.conteos[periodo.key] = (registro.conteos[periodo.key] || 0) + 1;
+            if (esPrimeraVezRegistro(curr)) registro.pv++; else registro.sub++;
+            registro.divisiones.add(division);
+            registro.especialidades.add(nombreEspecialidad);
+        });
+
+        return [...conteo.values()]
+            .map(item => ({
+                ...item,
+                divisionesTexto: unirValoresAgrupados(item.divisiones),
+                especialidadesTexto: unirValoresAgrupados(item.especialidades)
+            }))
+            .sort((a, b) => ordenInverso ? a.total - b.total : b.total - a.total);
+    }, [datosTopDiagnosticosFiltrados, diccionarioCIE, ordenInverso]);
 
     const chartDiagnosticos = useMemo(() => {
-        const conteo = datosFiltrados.reduce((acc, curr) => {
-            const codigoRaw = String(curr.diagnostico_principal || 'No Especificado').trim().toUpperCase();
-            const nombreEnfermedad = diccionarioCIE[codigoRaw] || codigoRaw;
+        const top = rankingDiagnosticosCompleto.slice(0, 20);
 
-            if (!acc[nombreEnfermedad]) acc[nombreEnfermedad] = { total: 0, pv: 0, sub: 0 };
-
-            acc[nombreEnfermedad].total++;
-            if (curr.primera_vez === 'Primera Vez') acc[nombreEnfermedad].pv++; else acc[nombreEnfermedad].sub++;
-            return acc;
-        }, {});
-
-        const ordenados = Object.entries(conteo).sort((a, b) => b[1].total - a[1].total).slice(0, 20);
         return {
-            labels: ordenados.map(item => item[0]),
-            datasets: [{ label: 'Frecuencia', data: ordenados.map(item => item[1].total), backgroundColor: '#1e293b', borderRadius: 4 }],
-            dataPV: ordenados.map(item => item[1].pv),
-            dataSub: ordenados.map(item => item[1].sub)
+            labels: top.map(item => item.diagnostico),
+            datasets: [{ label: 'Frecuencia', data: top.map(item => item.total), backgroundColor: '#1e293b', borderRadius: 4 }],
+            dataPV: top.map(item => item.pv),
+            dataSub: top.map(item => item.sub),
+            dataExtra: top.map(item => item.codigo)
         };
-    }, [datosFiltrados, diccionarioCIE]);
+    }, [rankingDiagnosticosCompleto]);
 
     const chartConsultorios = useMemo(() => {
         if (!datosFiltrados || datosFiltrados.length === 0) {
@@ -1021,19 +1537,1330 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
         }
     };
 
+    const calcularIndiceConsulta = (pv, sub) => {
+        if (pv > 0) return Number((sub / pv).toFixed(2));
+        return sub > 0 ? 'N/A' : 0;
+    };
+
+    const etiquetaMesExportacion = () => {
+        if (mesSeleccionado === 'todos') return 'Todos los meses';
+        if (mesSeleccionado === 'rango') return `${MESES[mesInicio]} a ${MESES[mesFin]}`;
+        return MESES[Number(mesSeleccionado)] || 'Mes seleccionado';
+    };
+
+    const exportarRankingConsulta = async ({ titulo, nombreHoja, nombreArchivo, division, especialidad, filas, columnas, periodos }) => {
+        if (!filas.length) {
+            alert(`No hay datos para descargar en ${titulo}.`);
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            rojoOscuro: '6B1F1F',
+            rojoClaro: 'FEE2E2',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF'
+        };
+
+        const totalPV = filas.reduce((total, fila) => total + fila.pv, 0);
+        const totalSub = filas.reduce((total, fila) => total + fila.sub, 0);
+        const totalGeneral = filas.reduce((total, fila) => total + fila.total, 0);
+        const columnasPeriodo = periodos.map(periodo => ({
+            header: periodo.etiqueta,
+            width: 14,
+            value: fila => fila.conteos?.[periodo.key] || '',
+            total: `periodo:${periodo.key}`,
+            numeric: true
+        }));
+        const columnasExcel = [
+            ...columnas,
+            ...columnasPeriodo,
+            { header: 'Total', width: 12, value: fila => fila.total, total: 'total', numeric: true }
+        ];
+        const totalesPorPeriodo = periodos.reduce((acc, periodo) => {
+            acc[periodo.key] = filas.reduce((total, fila) => total + (fila.conteos?.[periodo.key] || 0), 0);
+            return acc;
+        }, {});
+        const ultimaColumna = columnasExcel.length;
+        const sheet = workbook.addWorksheet(nombreHoja);
+
+        sheet.columns = columnasExcel.map(columna => ({ width: columna.width || 16 }));
+        sheet.views = [{ state: 'frozen', ySplit: 6, showGridLines: false }];
+
+        sheet.mergeCells(1, 1, 1, ultimaColumna);
+        const tituloCell = sheet.getCell(1, 1);
+        tituloCell.value = titulo;
+        tituloCell.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+        tituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+        sheet.getRow(1).height = 28;
+
+        sheet.mergeCells(2, 1, 2, ultimaColumna);
+        const subtitulo = sheet.getCell(2, 1);
+        subtitulo.value = `Division: ${division === 'todas' ? 'Todas' : division} | Especialidad: ${especialidad === 'todas' ? 'Todas' : especialidad} | Mes: ${etiquetaMesExportacion()} | Registros agrupados: ${filas.length.toLocaleString('es-MX')} | Total consultas: ${totalGeneral.toLocaleString('es-MX')} | Generado el ${new Date().toLocaleString('es-MX')}`;
+        subtitulo.font = { size: 10, color: { argb: colores.slate } };
+        subtitulo.alignment = { horizontal: 'center', vertical: 'middle' };
+        subtitulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        sheet.mergeCells(4, 1, 4, ultimaColumna);
+        const resumen = sheet.getCell(4, 1);
+        resumen.value = `Anio: ${anioSeleccionado === 'todos' ? 'Todos' : anioSeleccionado} | 1ra vez: ${totalPV.toLocaleString('es-MX')} | Subsecuentes: ${totalSub.toLocaleString('es-MX')} | Indice: ${calcularIndiceConsulta(totalPV, totalSub)} | El grafico muestra Top 20, este archivo incluye todos los grupos por mes y total.`;
+        resumen.font = { bold: true, color: { argb: colores.texto } };
+        resumen.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        resumen.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoClaro } };
+
+        const headerRow = sheet.getRow(6);
+        headerRow.values = columnasExcel.map(columna => columna.header);
+        headerRow.height = 24;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slate } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = {
+                top: { style: 'thin', color: { argb: colores.borde } },
+                bottom: { style: 'thin', color: { argb: colores.borde } },
+                left: { style: 'thin', color: { argb: colores.borde } },
+                right: { style: 'thin', color: { argb: colores.borde } }
+            };
+        });
+        headerRow.getCell(ultimaColumna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+
+        filas.forEach((fila, index) => {
+            const row = sheet.getRow(7 + index);
+            row.values = columnasExcel.map(columna => columna.value(fila, index));
+
+            row.eachCell((cell, colNumber) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+                if (columnasExcel[colNumber - 1]?.numeric) cell.numFmt = '#,##0';
+            });
+
+            row.getCell(1).font = { bold: true, color: { argb: colores.slate } };
+            row.getCell(ultimaColumna).font = { bold: true, color: { argb: colores.texto } };
+            row.getCell(ultimaColumna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        });
+
+        const totalRowIndex = 7 + filas.length;
+        const totalRow = sheet.getRow(totalRowIndex);
+        totalRow.values = columnasExcel.map((columna, index) => {
+            if (index === 0) return 'Total';
+            if (index === 1) return 'Total general';
+            if (columna.total === 'pv') return totalPV;
+            if (columna.total === 'sub') return totalSub;
+            if (columna.total === 'indice') return calcularIndiceConsulta(totalPV, totalSub);
+            if (String(columna.total || '').startsWith('periodo:')) return totalesPorPeriodo[String(columna.total).replace('periodo:', '')] || 0;
+            if (columna.total === 'total') return totalGeneral;
+            return '';
+        });
+
+        totalRow.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: colores.texto } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoClaro } };
+            cell.border = {
+                top: { style: 'thin', color: { argb: colores.borde } },
+                bottom: { style: 'thin', color: { argb: colores.borde } }
+            };
+            cell.alignment = { vertical: 'middle', wrapText: true };
+            if (columnasExcel[colNumber - 1]?.numeric) cell.numFmt = '#,##0';
+        });
+
+        sheet.autoFilter = {
+            from: { row: 6, column: 1 },
+            to: { row: totalRowIndex, column: ultimaColumna }
+        };
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const fechaArchivo = new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+        saveAs(blob, `${nombreArchivo}_${fechaArchivo}.xlsx`);
+    };
+
+    const exportarTopMedicos = async () => {
+        await exportarRankingConsulta({
+            titulo: 'Productividad por Medico',
+            nombreHoja: 'Medicos',
+            nombreArchivo: 'top_medicos_productividad',
+            division: divisionTopMedicos,
+            especialidad: especialidadTopMedicos,
+            filas: rankingMedicosCompleto,
+            periodos: periodosTopMedicos,
+            columnas: [
+                { header: '#', width: 8, value: (_fila, index) => index + 1 },
+                { header: 'Medico', width: 36, value: fila => fila.nombre },
+                { header: 'Matricula', width: 16, value: fila => fila.matricula || 'Sin matricula' },
+                { header: 'Division', width: 28, value: fila => fila.divisionesTexto },
+                { header: 'Especialidad', width: 38, value: fila => fila.especialidadesTexto },
+                { header: '1ra Vez', width: 12, value: fila => fila.pv, total: 'pv', numeric: true },
+                { header: 'Subsec.', width: 12, value: fila => fila.sub, total: 'sub', numeric: true },
+                { header: 'Indice', width: 12, value: fila => calcularIndiceConsulta(fila.pv, fila.sub), total: 'indice' }
+            ]
+        });
+    };
+
+    const exportarTopDiagnosticos = async () => {
+        await exportarRankingConsulta({
+            titulo: 'Diagnosticos Principales',
+            nombreHoja: 'Diagnosticos',
+            nombreArchivo: 'top_diagnosticos_principales',
+            division: divisionTopDiagnosticos,
+            especialidad: especialidadTopDiagnosticos,
+            filas: rankingDiagnosticosCompleto,
+            periodos: periodosTopDiagnosticos,
+            columnas: [
+                { header: '#', width: 8, value: (_fila, index) => index + 1 },
+                { header: 'Codigo CIE-10', width: 16, value: fila => fila.codigo },
+                { header: 'Diagnostico', width: 48, value: fila => fila.diagnostico },
+                { header: 'Division', width: 28, value: fila => fila.divisionesTexto },
+                { header: 'Especialidad', width: 38, value: fila => fila.especialidadesTexto },
+                { header: '1ra Vez', width: 12, value: fila => fila.pv, total: 'pv', numeric: true },
+                { header: 'Subsec.', width: 12, value: fila => fila.sub, total: 'sub', numeric: true },
+                { header: 'Indice', width: 12, value: fila => calcularIndiceConsulta(fila.pv, fila.sub), total: 'indice' }
+            ]
+        });
+    };
+    const exportarTablaConsultasEspecialidadPeriodo = async () => {
+        if (!tablaConsultasEspecialidadPeriodo.filas.length) {
+            alert("No hay datos en la tabla de consultas por especialidad para descargar.");
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            rojoOscuro: '6B1F1F',
+            rojo: '991B1B',
+            rojoClaro: 'FEE2E2',
+            verde: '047857',
+            verdeClaro: 'D1FAE5',
+            naranja: 'EA580C',
+            naranjaClaro: 'FFEDD5',
+            azulClaro: 'E0F2FE',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF'
+        };
+
+        const origenesTexto = (fila) => {
+            const origenes = [];
+            if ((fila.origenes?.consulta_externa || 0) > 0) origenes.push('Consulta externa');
+            if ((fila.origenes?.paramedicos || 0) > 0) origenes.push('Paramedicos');
+            if ((fila.origenes?.urgencias || 0) > 0) origenes.push('Urgencias');
+            return origenes.join(', ') || 'Sin origen';
+        };
+
+        const sheet = workbook.addWorksheet('Consultas especialidad');
+        const periodos = tablaConsultasEspecialidadPeriodo.periodos;
+        const ultimaColumna = periodos.length + 4;
+
+        sheet.columns = [
+            { width: 18 },
+            { width: 44 },
+            { width: 28 },
+            ...periodos.map(() => ({ width: 14 })),
+            { width: 14 }
+        ];
+
+        sheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 8, showGridLines: false }];
+        sheet.mergeCells(1, 1, 1, ultimaColumna);
+        const titulo = sheet.getCell(1, 1);
+        titulo.value = 'Consultas por Especialidad';
+        titulo.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+        titulo.alignment = { horizontal: 'center', vertical: 'middle' };
+        titulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+        sheet.getRow(1).height = 28;
+
+        sheet.mergeCells(2, 1, 2, ultimaColumna);
+        const subtitulo = sheet.getCell(2, 1);
+        subtitulo.value = `Incluye Consulta Externa, Paramedicos y Urgencias | Division: ${divisionTablaEspecialidad === 'todas' ? 'Todas' : divisionTablaEspecialidad} | Generado el ${new Date().toLocaleString('es-MX')}`;
+        subtitulo.font = { size: 10, color: { argb: colores.slate } };
+        subtitulo.alignment = { horizontal: 'center', vertical: 'middle' };
+        subtitulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        sheet.getCell(4, 1).value = 'Leyenda';
+        sheet.getCell(4, 1).font = { bold: true, color: { argb: colores.texto } };
+        sheet.getCell(4, 2).value = 'Sin punto en pantalla: Consulta externa';
+        sheet.getCell(4, 3).value = 'Paramedicos';
+        sheet.getCell(4, 3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeClaro } };
+        sheet.getCell(4, 4).value = 'Urgencias';
+        sheet.getCell(4, 4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.naranjaClaro } };
+        [1, 2, 3, 4].forEach(col => {
+            const cell = sheet.getCell(4, col);
+            cell.alignment = { vertical: 'middle', wrapText: true };
+            cell.border = { bottom: { style: 'thin', color: { argb: colores.borde } } };
+        });
+
+        const pintarHeader = (cell, fill = colores.rojoOscuro) => {
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = {
+                top: { style: 'thin', color: { argb: colores.borde } },
+                bottom: { style: 'thin', color: { argb: colores.borde } },
+                left: { style: 'thin', color: { argb: colores.borde } },
+                right: { style: 'thin', color: { argb: colores.borde } }
+            };
+        };
+
+        sheet.mergeCells(6, 1, 8, 1);
+        sheet.mergeCells(6, 2, 8, 2);
+        sheet.mergeCells(6, 3, 8, 3);
+        sheet.mergeCells(6, ultimaColumna, 8, ultimaColumna);
+        sheet.getCell(6, 1).value = 'Cve Especialidad';
+        sheet.getCell(6, 2).value = 'Descripcion';
+        sheet.getCell(6, 3).value = 'Origen';
+        sheet.getCell(6, ultimaColumna).value = 'Total';
+        [1, 2, 3].forEach(col => pintarHeader(sheet.getCell(6, col), colores.slate));
+        pintarHeader(sheet.getCell(6, ultimaColumna), colores.rojoOscuro);
+
+        periodos.forEach((periodo, index) => {
+            const col = 4 + index;
+            sheet.getCell(6, col).value = 'Anio / Periodo';
+            sheet.getCell(7, col).value = periodo.anio;
+            sheet.getCell(8, col).value = periodo.etiqueta;
+            pintarHeader(sheet.getCell(6, col), colores.slate);
+            pintarHeader(sheet.getCell(7, col), colores.slate);
+            pintarHeader(sheet.getCell(8, col), colores.rojo);
+        });
+
+        tablaConsultasEspecialidadPeriodo.filas.forEach((fila, index) => {
+            const row = sheet.getRow(9 + index);
+            row.getCell(1).value = fila.cve || '';
+            row.getCell(2).value = fila.descripcion;
+            row.getCell(3).value = origenesTexto(fila);
+
+            periodos.forEach((periodo, periodoIndex) => {
+                const valor = fila.conteos[periodo.key] || 0;
+                row.getCell(4 + periodoIndex).value = valor || '';
+                row.getCell(4 + periodoIndex).numFmt = '#,##0';
+            });
+
+            row.getCell(ultimaColumna).value = fila.total;
+            row.getCell(ultimaColumna).numFmt = '#,##0';
+
+            const tieneParamedicos = (fila.origenes?.paramedicos || 0) > 0;
+            const tieneUrgencias = (fila.origenes?.urgencias || 0) > 0;
+            if (tieneParamedicos && tieneUrgencias) {
+                row.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.azulClaro } };
+            } else if (tieneParamedicos) {
+                row.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeClaro } };
+            } else if (tieneUrgencias) {
+                row.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.naranjaClaro } };
+            }
+
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+            });
+            row.getCell(1).font = { bold: true, color: { argb: colores.texto } };
+            row.getCell(ultimaColumna).font = { bold: true, color: { argb: colores.texto } };
+            row.getCell(ultimaColumna).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        });
+
+        const totalRowIndex = 9 + tablaConsultasEspecialidadPeriodo.filas.length;
+        const totalRow = sheet.getRow(totalRowIndex);
+        totalRow.getCell(1).value = 'Total';
+        totalRow.getCell(2).value = 'Total';
+        totalRow.getCell(3).value = `CE: ${tablaConsultasEspecialidadPeriodo.resumenOrigenes.consulta_externa.toLocaleString('es-MX')} | Paramedicos: ${tablaConsultasEspecialidadPeriodo.resumenOrigenes.paramedicos.toLocaleString('es-MX')} | Urgencias: ${tablaConsultasEspecialidadPeriodo.resumenOrigenes.urgencias.toLocaleString('es-MX')}`;
+        periodos.forEach((periodo, index) => {
+            totalRow.getCell(4 + index).value = tablaConsultasEspecialidadPeriodo.totalesPorPeriodo[periodo.key] || 0;
+            totalRow.getCell(4 + index).numFmt = '#,##0';
+        });
+        totalRow.getCell(ultimaColumna).value = tablaConsultasEspecialidadPeriodo.totalGeneral;
+        totalRow.getCell(ultimaColumna).numFmt = '#,##0';
+        totalRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: colores.texto } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoClaro } };
+            cell.border = {
+                top: { style: 'thin', color: { argb: colores.borde } },
+                bottom: { style: 'thin', color: { argb: colores.borde } }
+            };
+            cell.alignment = { vertical: 'middle', wrapText: true };
+        });
+
+        sheet.autoFilter = {
+            from: { row: 8, column: 1 },
+            to: { row: totalRowIndex, column: ultimaColumna }
+        };
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const fechaArchivo = new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+        saveAs(blob, `tabla_consultas_especialidad_${fechaArchivo}.xlsx`);
+    };
+    const exportarReporteCirugias = async () => {
+        if (datosCirugias.length === 0) {
+            alert("El modulo de Cirugias todavia no tiene datos cargados para exportar con los filtros actuales.");
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            rojoOscuro: '6B1F1F',
+            rojo: '991B1B',
+            rojoClaro: 'FEE2E2',
+            vinoClaro: 'FCE7E7',
+            dorado: 'B45309',
+            doradoClaro: 'FEF3C7',
+            azul: '0369A1',
+            azulClaro: 'E0F2FE',
+            verde: '047857',
+            verdeClaro: 'D1FAE5',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF',
+            alerta: 'FEF3C7',
+            riesgo: 'FEE2E2'
+        };
+
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const normalizar = (valor, fallback = 'SIN DATO') => {
+            if (valor === null || valor === undefined || String(valor).trim() === '') return fallback;
+            return String(valor).trim();
+        };
+        const normalizarMayus = (valor, fallback = 'SIN DATO') => normalizar(valor, fallback).toUpperCase();
+        const numero = (valor) => {
+            const n = Number(valor);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const obtenerEstatus = (registro) => normalizarMayus(registro.estatus || registro.estatusOriginal, 'SIN ESTATUS');
+        const fechaArchivo = () => fechaArchivoReporteCirugias();
+        const etiquetaMes = () => {
+            if (mesSeleccionado === 'todos') return 'Todos';
+            if (mesSeleccionado === 'rango') {
+                return `${meses[Number(mesInicio)] || ''} a ${meses[Number(mesFin)] || ''}`.trim();
+            }
+            return meses[Number(mesSeleccionado)] || String(mesSeleccionado);
+        };
+        const etiquetaFiltro = (valor) => valor === 'todas' || valor === 'todos' ? 'Todos' : normalizar(valor);
+
+        const totalCirugias = datosCirugias.length;
+        const resumenEstatus = datosCirugias.reduce(
+            (acc, registro) => {
+                const estatus = obtenerEstatus(registro);
+
+                if (estatus.includes('REALIZ')) {
+                    acc.realizadas += 1;
+                } else if (estatus.includes('CANCEL')) {
+                    acc.canceladas += 1;
+                } else {
+                    acc.otras += 1;
+                }
+
+                return acc;
+            },
+            { realizadas: 0, canceladas: 0, otras: 0 }
+        );
+
+        const diferimientosValidos = datosCirugias
+            .map((registro) => Number(registro.diferimiento))
+            .filter((dias) => Number.isFinite(dias) && dias >= 0);
+        const totalDiferimiento = diferimientosValidos.reduce((sum, dias) => sum + dias, 0);
+        const promedioDiferimiento = diferimientosValidos.length > 0 ? totalDiferimiento / diferimientosValidos.length : 0;
+        const mayorDiferimiento = diferimientosValidos.length > 0 ? Math.max(...diferimientosValidos) : 0;
+
+        const resumenPor = (obtenerClave, registros = datosCirugias, fallback = 'SIN ESPECIFICAR') => {
+            const resumen = registros.reduce((acc, registro) => {
+                const clave = normalizarMayus(obtenerClave(registro), fallback);
+
+                if (!acc[clave]) {
+                    acc[clave] = {
+                        categoria: clave,
+                        total: 0,
+                        realizadas: 0,
+                        canceladas: 0,
+                        otras: 0,
+                        diferimiento: 0,
+                        diferimientoRegistros: 0
+                    };
+                }
+
+                const item = acc[clave];
+                const estatus = obtenerEstatus(registro);
+                const dias = Number(registro.diferimiento);
+
+                item.total += 1;
+
+                if (estatus.includes('REALIZ')) {
+                    item.realizadas += 1;
+                } else if (estatus.includes('CANCEL')) {
+                    item.canceladas += 1;
+                } else {
+                    item.otras += 1;
+                }
+
+                if (Number.isFinite(dias) && dias >= 0) {
+                    item.diferimiento += dias;
+                    item.diferimientoRegistros += 1;
+                }
+
+                return acc;
+            }, {});
+
+            return Object.values(resumen)
+                .map((item) => ({
+                    ...item,
+                    promedioDiferimiento: item.diferimientoRegistros > 0 ? item.diferimiento / item.diferimientoRegistros : 0,
+                    porcentajeRealizadas: item.total > 0 ? item.realizadas / item.total : 0
+                }))
+                .sort((a, b) => b.total - a.total);
+        };
+
+        const datosCancelados = datosCirugias.filter((registro) => obtenerEstatus(registro).includes('CANCEL'));
+        const datosConSuspension = datosCirugias.filter((registro) => {
+            const motivo = normalizarMayus(registro.ultimoMotivoSuspension, '');
+            return motivo && !motivo.includes('SIN SUSPENSION') && motivo !== 'NO REGISTRADO';
+        });
+
+        const resumenDivisiones = resumenPor((registro) => registro.division, datosCirugias, 'SIN DIVISION');
+        const resumenEspecialidades = resumenPor((registro) => registro.especialidad, datosCirugias, 'SIN ESPECIALIDAD');
+        const resumenCirujanos = resumenPor((registro) => registro.nombreCirujano, datosCirugias, 'SIN CIRUJANO');
+        const resumenSalas = resumenPor((registro) => registro.sala, datosCirugias, 'SIN SALA');
+        const resumenCie10 = resumenPor((registro) => registro.cie10, datosCirugias, 'SIN CIE10');
+        const resumenEstatusDetalle = resumenPor((registro) => registro.estatusOriginal || registro.estatus, datosCirugias, 'SIN ESTATUS');
+        const resumenMotivosCancelacion = resumenPor((registro) => registro.motivoCancelacion, datosCancelados, 'SIN MOTIVO');
+        const resumenMotivosSuspension = resumenPor((registro) => registro.ultimoMotivoSuspension, datosConSuspension, 'SIN MOTIVO');
+
+        const aplicarTitulo = (sheet, titulo, subtitulo, ultimaColumna) => {
+            sheet.views = [{ showGridLines: false }];
+            sheet.mergeCells(1, 1, 1, ultimaColumna);
+
+            const tituloCell = sheet.getCell(1, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+            tituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.rojoOscuro } };
+            sheet.getRow(1).height = 28;
+
+            sheet.mergeCells(2, 1, 2, ultimaColumna);
+
+            const subtituloCell = sheet.getCell(2, 1);
+            subtituloCell.value = subtitulo;
+            subtituloCell.font = { size: 10, color: { argb: colores.slate } };
+            subtituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            subtituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        const pintarEncabezado = (row, color = colores.rojoOscuro) => {
+            row.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: colores.blanco } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } },
+                    left: { style: 'thin', color: { argb: colores.borde } },
+                    right: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+        };
+
+        const pintarFilaDatos = (row) => {
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = {
+                    bottom: { style: 'thin', color: { argb: 'E2E8F0' } }
+                };
+            });
+        };
+
+        const agregarTablaResumen = (sheet, titulo, startRow, headers, rows, color = colores.rojoOscuro) => {
+            sheet.mergeCells(startRow, 1, startRow, headers.length);
+            const tituloCell = sheet.getCell(startRow, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 12, color: { argb: colores.texto } };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+            const headerRow = sheet.getRow(startRow + 1);
+            headerRow.values = headers;
+            pintarEncabezado(headerRow, color);
+
+            rows.forEach((item, index) => {
+                const row = sheet.getRow(startRow + 2 + index);
+                row.values = item;
+                pintarFilaDatos(row);
+            });
+
+            return startRow + rows.length + 3;
+        };
+
+        const crearHojaAgrupada = (nombreHoja, titulo, datos, primeraColumna, top = null) => {
+            const sheet = workbook.addWorksheet(nombreHoja);
+            aplicarTitulo(
+                sheet,
+                titulo,
+                `Generado el ${new Date().toLocaleString('es-MX')} | Registros filtrados: ${totalCirugias.toLocaleString('es-MX')}`,
+                6
+            );
+
+            sheet.columns = [
+                { width: 46 },
+                { width: 14 },
+                { width: 14 },
+                { width: 14 },
+                { width: 14 },
+                { width: 18 }
+            ];
+
+            const filas = (top ? datos.slice(0, top) : datos).map((item) => [
+                item.categoria,
+                item.total,
+                item.realizadas,
+                item.canceladas,
+                item.otras,
+                Number(item.promedioDiferimiento.toFixed(1))
+            ]);
+
+            const nextRow = agregarTablaResumen(
+                sheet,
+                titulo,
+                4,
+                [primeraColumna, 'Total', 'Realizadas', 'Canceladas', 'Otras', 'Prom. diferimiento'],
+                filas,
+                colores.rojo
+            );
+
+            const totalRow = sheet.getRow(nextRow);
+            totalRow.values = ['TOTAL GENERAL', totalCirugias, resumenEstatus.realizadas, resumenEstatus.canceladas, resumenEstatus.otras, Number(promedioDiferimiento.toFixed(1))];
+            totalRow.font = { bold: true, color: { argb: colores.texto } };
+            totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.vinoClaro } };
+            totalRow.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+
+            sheet.autoFilter = {
+                from: { row: 5, column: 1 },
+                to: { row: Math.max(5, nextRow - 1), column: 6 }
+            };
+            sheet.views = [{ state: 'frozen', ySplit: 5, showGridLines: false }];
+            sheet.getColumn(2).numFmt = '#,##0';
+            sheet.getColumn(3).numFmt = '#,##0';
+            sheet.getColumn(4).numFmt = '#,##0';
+            sheet.getColumn(5).numFmt = '#,##0';
+            sheet.getColumn(6).numFmt = '0.0';
+
+            return sheet;
+        };
+
+        const resumen = workbook.addWorksheet('Resumen');
+        aplicarTitulo(
+            resumen,
+            'Reporte de Cirugias',
+            `Generado el ${new Date().toLocaleString('es-MX')}`,
+            8
+        );
+
+        resumen.columns = [
+            { width: 22 },
+            { width: 18 },
+            { width: 22 },
+            { width: 18 },
+            { width: 24 },
+            { width: 18 },
+            { width: 26 },
+            { width: 22 }
+        ];
+
+        const pintarCard = (colInicio, colFin, titulo, valor, fillColor) => {
+            resumen.mergeCells(4, colInicio, 4, colFin);
+            resumen.mergeCells(5, colInicio, 5, colFin);
+
+            const labelCell = resumen.getCell(4, colInicio);
+            labelCell.value = titulo;
+            labelCell.font = { bold: true, size: 10, color: { argb: colores.blanco } };
+            labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+
+            const valueCell = resumen.getCell(5, colInicio);
+            valueCell.value = valor;
+            valueCell.font = { bold: true, size: 16, color: { argb: colores.texto } };
+            valueCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        pintarCard(1, 2, 'Total cirugias', totalCirugias, colores.rojo);
+        pintarCard(3, 4, 'Realizadas', resumenEstatus.realizadas, colores.verde);
+        pintarCard(5, 6, 'Canceladas', resumenEstatus.canceladas, colores.dorado);
+        pintarCard(7, 8, 'Prom. diferimiento', Number(promedioDiferimiento.toFixed(1)), colores.slate);
+
+        resumen.getRow(8).values = ['Filtro', 'Valor', '', '', 'Filtro', 'Valor'];
+        pintarEncabezado(resumen.getRow(8), colores.slate);
+        const filtros = [
+            ['Anio', anioSeleccionado === 'todos' ? 'Todos' : String(anioSeleccionado)],
+            ['Mes', etiquetaMes()],
+            ['Division', etiquetaFiltro(divisionSeleccionada)],
+            ['Especialidad', etiquetaFiltro(especialidadSeleccionada)]
+        ];
+
+        filtros.forEach((item, index) => {
+            const row = resumen.getRow(9 + Math.floor(index / 2));
+            const offset = index % 2 === 0 ? 0 : 4;
+            row.getCell(1 + offset).value = item[0];
+            row.getCell(2 + offset).value = item[1];
+            row.getCell(1 + offset).font = { bold: true, color: { argb: colores.slate } };
+            row.getCell(2 + offset).alignment = { wrapText: true };
+        });
+
+        agregarTablaResumen(
+            resumen,
+            'Top especialidades',
+            13,
+            ['Especialidad', 'Total', 'Realizadas', 'Canceladas', 'Otras', 'Prom. diferimiento'],
+            resumenEspecialidades.slice(0, 8).map((item) => [
+                item.categoria,
+                item.total,
+                item.realizadas,
+                item.canceladas,
+                item.otras,
+                Number(item.promedioDiferimiento.toFixed(1))
+            ]),
+            colores.rojo
+        );
+
+        resumen.mergeCells(13, 7, 13, 8);
+        const tituloEstatus = resumen.getCell(13, 7);
+        tituloEstatus.value = 'Estatus quirurgico';
+        tituloEstatus.font = { bold: true, size: 12, color: { argb: colores.texto } };
+        tituloEstatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        const headerEstatus = resumen.getRow(14);
+        headerEstatus.getCell(7).value = 'Estatus';
+        headerEstatus.getCell(8).value = 'Total';
+        [7, 8].forEach((col) => {
+            const cell = headerEstatus.getCell(col);
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.dorado } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        resumenEstatusDetalle.slice(0, 8).forEach((item, index) => {
+            const row = resumen.getRow(15 + index);
+            row.getCell(7).value = item.categoria;
+            row.getCell(8).value = item.total;
+            [7, 8].forEach((col) => {
+                row.getCell(col).border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+                row.getCell(col).alignment = { vertical: 'top', wrapText: true };
+            });
+        });
+
+        const filaIndicadores = 25;
+        resumen.mergeCells(filaIndicadores, 1, filaIndicadores, 8);
+        const indicadorCell = resumen.getCell(filaIndicadores, 1);
+        indicadorCell.value = 'Indicadores de diferimiento';
+        indicadorCell.font = { bold: true, size: 12, color: { argb: colores.texto } };
+        indicadorCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        const headerDiferimiento = resumen.getRow(filaIndicadores + 1);
+        headerDiferimiento.values = ['Registros con diferimiento', 'Promedio', 'Mayor diferimiento', 'Menor a 20 dias', '20 dias o mas'];
+        pintarEncabezado(headerDiferimiento, colores.slate);
+
+        const diferimientoRow = resumen.getRow(filaIndicadores + 2);
+        const menores20 = diferimientosValidos.filter((dias) => dias < 20).length;
+        const mayores20 = diferimientosValidos.filter((dias) => dias >= 20).length;
+        diferimientoRow.values = [
+            diferimientosValidos.length,
+            Number(promedioDiferimiento.toFixed(1)),
+            mayorDiferimiento,
+            menores20,
+            mayores20
+        ];
+        pintarFilaDatos(diferimientoRow);
+
+        resumen.views = [{ showGridLines: false }];
+
+        const detalle = workbook.addWorksheet('Detalle');
+        aplicarTitulo(
+            detalle,
+            'Detalle de cirugias',
+            `Registros filtrados: ${totalCirugias.toLocaleString('es-MX')}`,
+            27
+        );
+
+        detalle.columns = [
+            { width: 8 },
+            { width: 36 },
+            { width: 20 },
+            { width: 8 },
+            { width: 12 },
+            { width: 24 },
+            { width: 30 },
+            { width: 24 },
+            { width: 24 },
+            { width: 18 },
+            { width: 34 },
+            { width: 18 },
+            { width: 30 },
+            { width: 30 },
+            { width: 18 },
+            { width: 18 },
+            { width: 20 },
+            { width: 24 },
+            { width: 42 },
+            { width: 42 },
+            { width: 18 },
+            { width: 16 },
+            { width: 18 },
+            { width: 16 },
+            { width: 16 },
+            { width: 18 },
+            { width: 16 }
+        ];
+
+        const headerDetalle = detalle.getRow(4);
+        headerDetalle.values = [
+            '#',
+            'Nombre completo',
+            'Identificador',
+            'Edad',
+            'Sexo',
+            'Division',
+            'Especialidad',
+            'Estatus',
+            'Tipo de solicitud',
+            'Cirugia concertada',
+            'Cirujano',
+            'Sala',
+            'CIE10',
+            'CIE9',
+            'Fecha solicitud',
+            'Fecha cancelacion',
+            'Fecha programacion',
+            'Reprogramacion',
+            'Motivo de cancelacion',
+            'Ultimo motivo de suspension',
+            'Dias de diferimiento',
+            'Entrada a sala',
+            'Inicio anestesia',
+            'Inicio Qx',
+            'Fin Qx',
+            'Fin anestesia',
+            'Salida sala'
+        ];
+        pintarEncabezado(headerDetalle, colores.rojoOscuro);
+
+        datosCirugias.forEach((registro, index) => {
+            const row = detalle.getRow(5 + index);
+            const diasDiferimiento = Number(registro.diferimiento);
+            const estatus = obtenerEstatus(registro);
+
+            row.values = [
+                index + 1,
+                normalizar(registro.nombrePaciente || registro.paciente, 'SIN NOMBRE'),
+                normalizar(registro.identificadorPaciente || registro.identificador, 'SIN IDENTIFICADOR'),
+                registro.edad ?? '',
+                normalizar(registro.sexo, ''),
+                normalizarMayus(registro.division, 'SIN DIVISION'),
+                normalizarMayus(registro.especialidad, 'SIN ESPECIALIDAD'),
+                normalizar(registro.estatusOriginal || registro.estatus, 'SIN ESTATUS'),
+                normalizar(registro.tipoSolicitud, 'NO REGISTRADO'),
+                normalizar(registro.concertada, 'SIN DATO'),
+                normalizar(registro.nombreCirujano, 'SIN NOMBRE'),
+                normalizar(registro.sala, 'SIN SALA'),
+                normalizar(registro.cie10, 'SIN CIE10'),
+                normalizar(registro.cie9, 'SIN CIE9'),
+                formatearFechaReporteCirugias(registro.fechaSolicitud || registro.fechaSolicitudRaw),
+                formatearFechaReporteCirugias(registro.fechaCancelacion || registro.fechaCancelacionRaw),
+                formatearFechaReporteCirugias(registro.fechaProgramacion || registro.fechaProgramacionRaw),
+                normalizar(registro.reprogramacionRaw, 'SIN DATO'),
+                normalizar(registro.motivoCancelacion, 'NO REGISTRADO'),
+                normalizar(registro.ultimoMotivoSuspension, 'SIN SUSPENSION'),
+                Number.isFinite(diasDiferimiento) ? diasDiferimiento : '',
+                normalizar(registro.entradaSala, ''),
+                normalizar(registro.inicioAnestesia, ''),
+                normalizar(registro.inicioQx, ''),
+                normalizar(registro.finQx, ''),
+                normalizar(registro.finAnestesia, ''),
+                normalizar(registro.salidaSala, '')
+            ];
+            pintarFilaDatos(row);
+
+            const estatusCell = row.getCell(8);
+            if (estatus.includes('REALIZ')) {
+                estatusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeClaro } };
+            } else if (estatus.includes('CANCEL')) {
+                estatusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.riesgo } };
+            } else {
+                estatusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.doradoClaro } };
+            }
+
+            const diferimientoCell = row.getCell(21);
+            diferimientoCell.numFmt = '#,##0';
+            if (Number.isFinite(diasDiferimiento) && diasDiferimiento >= 20) {
+                diferimientoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.alerta } };
+            }
+        });
+
+        const lastDetalleRow = 4 + datosCirugias.length;
+        detalle.autoFilter = {
+            from: { row: 4, column: 1 },
+            to: { row: Math.max(4, lastDetalleRow), column: 27 }
+        };
+        detalle.views = [{ state: 'frozen', ySplit: 4, showGridLines: false }];
+        detalle.getColumn(4).numFmt = '#,##0';
+        detalle.getColumn(21).numFmt = '#,##0';
+
+        crearHojaAgrupada('Estatus', 'Cirugias por estatus', resumenEstatusDetalle, 'Estatus');
+        crearHojaAgrupada('Divisiones', 'Cirugias por division', resumenDivisiones, 'Division');
+        crearHojaAgrupada('Especialidades', 'Cirugias por especialidad', resumenEspecialidades, 'Especialidad');
+        crearHojaAgrupada('Cirujanos', 'Top cirujanos', resumenCirujanos, 'Cirujano', 50);
+        crearHojaAgrupada('Salas', 'Utilizacion de salas', resumenSalas, 'Sala');
+        crearHojaAgrupada('CIE10', 'Top diagnosticos CIE10', resumenCie10, 'CIE10', 50);
+
+        if (resumenMotivosCancelacion.length) {
+            crearHojaAgrupada('Motivos cancelacion', 'Motivos de cancelacion', resumenMotivosCancelacion, 'Motivo');
+        }
+
+        if (resumenMotivosSuspension.length) {
+            crearHojaAgrupada('Motivos suspension', 'Ultimos motivos de suspension', resumenMotivosSuspension, 'Motivo');
+        }
+
+        workbook.eachSheet((sheet) => {
+            sheet.eachRow((row) => {
+                row.eachCell((cell) => {
+                    cell.font = cell.font || {};
+                    cell.alignment = cell.alignment || { vertical: 'middle' };
+                });
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        saveAs(blob, `reporte_cirugias_${fechaArchivo()}.xlsx`);
+    };
+
+    const exportarReporteHospitalizacion = async () => {
+        if (datosHospitalizacion.length === 0) {
+            alert("El modulo de Hospitalizacion no tiene datos para exportar con los filtros actuales.");
+            return;
+        }
+
+        const excelModule = await import('exceljs');
+        const saverModule = await import('file-saver');
+        const ExcelJS = excelModule.default || excelModule;
+        const saveAs = saverModule.saveAs || saverModule.default;
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'SIEC';
+        workbook.created = new Date();
+
+        const colores = {
+            verdeOscuro: '064E3B',
+            verde: '047857',
+            verdeClaro: 'D1FAE5',
+            azul: '0369A1',
+            azulClaro: 'E0F2FE',
+            slate: '334155',
+            slateClaro: 'F1F5F9',
+            borde: 'CBD5E1',
+            texto: '0F172A',
+            blanco: 'FFFFFF',
+            alerta: 'FEF3C7',
+            riesgo: 'FEE2E2'
+        };
+
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const normalizar = (valor, fallback = 'SIN DATO') => {
+            if (valor === null || valor === undefined || String(valor).trim() === '') return fallback;
+            return String(valor).trim();
+        };
+        const numero = (valor) => {
+            const n = Number(valor);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const fechaArchivo = () => new Date().toLocaleDateString('es-MX').replaceAll('/', '-');
+        const etiquetaMes = () => {
+            if (mesSeleccionado === 'todos') return 'Todos';
+            if (mesSeleccionado === 'rango') {
+                return `${meses[Number(mesInicio)] || ''} a ${meses[Number(mesFin)] || ''}`.trim();
+            }
+            return meses[Number(mesSeleccionado)] || String(mesSeleccionado);
+        };
+        const etiquetaFiltro = (valor) => valor === 'todas' || valor === 'todos' ? 'Todos' : normalizar(valor);
+
+        const totalEgresos = datosHospitalizacion.length;
+        const totalDias = datosHospitalizacion.reduce((sum, item) => sum + numero(item.dias_estancia), 0);
+        const promedioEstancia = totalEgresos > 0 ? totalDias / totalEgresos : 0;
+
+        const resumenPor = (obtenerClave) => {
+            const resumen = datosHospitalizacion.reduce((acc, item) => {
+                const clave = normalizar(obtenerClave(item), 'SIN ESPECIFICAR').toUpperCase();
+
+                if (!acc[clave]) {
+                    acc[clave] = { categoria: clave, egresos: 0, dias: 0 };
+                }
+
+                acc[clave].egresos += 1;
+                acc[clave].dias += numero(item.dias_estancia);
+                return acc;
+            }, {});
+
+            return Object.values(resumen)
+                .map((item) => ({
+                    ...item,
+                    promedio: item.egresos > 0 ? item.dias / item.egresos : 0
+                }))
+                .sort((a, b) => b.egresos - a.egresos);
+        };
+
+        const resumenMotivos = resumenPor((item) => item.motivo_egreso);
+        const resumenDivisiones = resumenPor((item) => item.division);
+        const resumenEspecialidades = resumenPor((item) => item.especialidad);
+        const resumenDiagnosticos = resumenPor((item) => item.diagnostico_egreso);
+
+        const aplicarTitulo = (sheet, titulo, subtitulo, ultimaColumna) => {
+            sheet.views = [{ showGridLines: false }];
+            sheet.mergeCells(1, 1, 1, ultimaColumna);
+
+            const tituloCell = sheet.getCell(1, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 18, color: { argb: colores.blanco } };
+            tituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeOscuro } };
+            sheet.getRow(1).height = 28;
+
+            sheet.mergeCells(2, 1, 2, ultimaColumna);
+
+            const subtituloCell = sheet.getCell(2, 1);
+            subtituloCell.value = subtitulo;
+            subtituloCell.font = { size: 10, color: { argb: colores.slate } };
+            subtituloCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            subtituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        const pintarEncabezado = (row, color = colores.verdeOscuro) => {
+            row.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: colores.blanco } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } },
+                    left: { style: 'thin', color: { argb: colores.borde } },
+                    right: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+        };
+
+        const pintarFilaDatos = (row) => {
+            row.eachCell((cell) => {
+                cell.alignment = { vertical: 'top', wrapText: true };
+                cell.border = {
+                    bottom: { style: 'thin', color: { argb: 'E2E8F0' } }
+                };
+            });
+        };
+
+        const agregarTablaResumen = (sheet, titulo, startRow, headers, rows, color = colores.verdeOscuro) => {
+            sheet.mergeCells(startRow, 1, startRow, headers.length);
+            const tituloCell = sheet.getCell(startRow, 1);
+            tituloCell.value = titulo;
+            tituloCell.font = { bold: true, size: 12, color: { argb: colores.texto } };
+            tituloCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+            const headerRow = sheet.getRow(startRow + 1);
+            headerRow.values = headers;
+            pintarEncabezado(headerRow, color);
+
+            rows.forEach((item, index) => {
+                const row = sheet.getRow(startRow + 2 + index);
+                row.values = item;
+                pintarFilaDatos(row);
+            });
+
+            return startRow + rows.length + 3;
+        };
+
+        const crearHojaAgrupada = (nombreHoja, titulo, datos, primeraColumna, top = null) => {
+            const sheet = workbook.addWorksheet(nombreHoja);
+            aplicarTitulo(
+                sheet,
+                titulo,
+                `Generado el ${new Date().toLocaleString('es-MX')} | Registros filtrados: ${totalEgresos.toLocaleString('es-MX')}`,
+                4
+            );
+
+            sheet.columns = [
+                { width: 46 },
+                { width: 14 },
+                { width: 18 },
+                { width: 18 }
+            ];
+
+            const filas = (top ? datos.slice(0, top) : datos).map((item) => [
+                item.categoria,
+                item.egresos,
+                item.dias,
+                Number(item.promedio.toFixed(1))
+            ]);
+
+            const nextRow = agregarTablaResumen(
+                sheet,
+                titulo,
+                4,
+                [primeraColumna, 'Egresos', 'Dias estancia', 'Prom. estancia'],
+                filas,
+                colores.verde
+            );
+
+            const totalRow = sheet.getRow(nextRow);
+            totalRow.values = ['TOTAL GENERAL', totalEgresos, totalDias, Number(promedioEstancia.toFixed(1))];
+            totalRow.font = { bold: true, color: { argb: colores.texto } };
+            totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.verdeClaro } };
+            totalRow.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: colores.borde } },
+                    bottom: { style: 'thin', color: { argb: colores.borde } }
+                };
+            });
+
+            sheet.autoFilter = {
+                from: { row: 5, column: 1 },
+                to: { row: Math.max(5, nextRow - 1), column: 4 }
+            };
+            sheet.views = [{ state: 'frozen', ySplit: 5, showGridLines: false }];
+
+            sheet.getColumn(2).numFmt = '#,##0';
+            sheet.getColumn(3).numFmt = '#,##0';
+            sheet.getColumn(4).numFmt = '0.0';
+
+            return sheet;
+        };
+
+        const resumen = workbook.addWorksheet('Resumen');
+        aplicarTitulo(
+            resumen,
+            'Reporte de Hospitalizacion',
+            `Generado el ${new Date().toLocaleString('es-MX')}`,
+            8
+        );
+
+        resumen.columns = [
+            { width: 22 },
+            { width: 18 },
+            { width: 22 },
+            { width: 18 },
+            { width: 24 },
+            { width: 18 },
+            { width: 26 },
+            { width: 22 }
+        ];
+
+        const pintarCard = (colInicio, colFin, titulo, valor, fillColor) => {
+            resumen.mergeCells(4, colInicio, 4, colFin);
+            resumen.mergeCells(5, colInicio, 5, colFin);
+
+            const labelCell = resumen.getCell(4, colInicio);
+            labelCell.value = titulo;
+            labelCell.font = { bold: true, size: 10, color: { argb: colores.blanco } };
+            labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+
+            const valueCell = resumen.getCell(5, colInicio);
+            valueCell.value = valor;
+            valueCell.font = { bold: true, size: 16, color: { argb: colores.texto } };
+            valueCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+        };
+
+        pintarCard(1, 2, 'Total egresos', totalEgresos, colores.verde);
+        pintarCard(3, 4, 'Dias estancia', totalDias, colores.azul);
+        pintarCard(5, 6, 'Promedio estancia', Number(promedioEstancia.toFixed(1)), colores.slate);
+        pintarCard(7, 8, 'Motivo principal', resumenMotivos[0]?.categoria || 'SIN DATO', colores.verdeOscuro);
+
+        resumen.getRow(8).values = ['Filtro', 'Valor', '', '', 'Filtro', 'Valor'];
+        pintarEncabezado(resumen.getRow(8), colores.slate);
+        const filtros = [
+            ['Anio', anioSeleccionado === 'todos' ? 'Todos' : String(anioSeleccionado)],
+            ['Mes', etiquetaMes()],
+            ['Division', etiquetaFiltro(divisionSeleccionada)],
+            ['Especialidad', etiquetaFiltro(especialidadSeleccionada)]
+        ];
+
+        filtros.forEach((item, index) => {
+            const row = resumen.getRow(9 + Math.floor(index / 2));
+            const offset = index % 2 === 0 ? 0 : 4;
+            row.getCell(1 + offset).value = item[0];
+            row.getCell(2 + offset).value = item[1];
+            row.getCell(1 + offset).font = { bold: true, color: { argb: colores.slate } };
+            row.getCell(2 + offset).alignment = { wrapText: true };
+        });
+
+        agregarTablaResumen(
+            resumen,
+            'Top divisiones por egresos',
+            13,
+            ['Division', 'Egresos', 'Dias estancia', 'Prom. estancia'],
+            resumenDivisiones.slice(0, 8).map((item) => [
+                item.categoria,
+                item.egresos,
+                item.dias,
+                Number(item.promedio.toFixed(1))
+            ]),
+            colores.verde
+        );
+
+        resumen.mergeCells(13, 6, 13, 8);
+        const tituloMotivos = resumen.getCell(13, 6);
+        tituloMotivos.value = 'Motivos de egreso';
+        tituloMotivos.font = { bold: true, size: 12, color: { argb: colores.texto } };
+        tituloMotivos.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.slateClaro } };
+
+        const headerMotivos = resumen.getRow(14);
+        headerMotivos.getCell(6).value = 'Motivo';
+        headerMotivos.getCell(7).value = 'Egresos';
+        headerMotivos.getCell(8).value = '%';
+        [6, 7, 8].forEach((col) => {
+            const cell = headerMotivos.getCell(col);
+            cell.font = { bold: true, color: { argb: colores.blanco } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.azul } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        resumenMotivos.slice(0, 8).forEach((item, index) => {
+            const row = resumen.getRow(15 + index);
+            row.getCell(6).value = item.categoria;
+            row.getCell(7).value = item.egresos;
+            row.getCell(8).value = totalEgresos > 0 ? item.egresos / totalEgresos : 0;
+            row.getCell(8).numFmt = '0.0%';
+            [6, 7, 8].forEach((col) => {
+                row.getCell(col).border = { bottom: { style: 'thin', color: { argb: 'E2E8F0' } } };
+                row.getCell(col).alignment = { vertical: 'top', wrapText: true };
+            });
+        });
+
+        resumen.views = [{ showGridLines: false }];
+
+        const detalle = workbook.addWorksheet('Detalle');
+        aplicarTitulo(
+            detalle,
+            'Detalle de egresos hospitalarios',
+            `Registros filtrados: ${totalEgresos.toLocaleString('es-MX')}`,
+            8
+        );
+        detalle.columns = [
+            { width: 8 },
+            { width: 12 },
+            { width: 14 },
+            { width: 32 },
+            { width: 34 },
+            { width: 16 },
+            { width: 48 },
+            { width: 34 }
+        ];
+
+        const headerDetalle = detalle.getRow(4);
+        headerDetalle.values = ['#', 'Anio', 'Mes', 'Division', 'Especialidad', 'Dias estancia', 'Diagnostico de egreso', 'Motivo de egreso'];
+        pintarEncabezado(headerDetalle, colores.verdeOscuro);
+
+        datosHospitalizacion.forEach((item, index) => {
+            const row = detalle.getRow(5 + index);
+            row.values = [
+                index + 1,
+                normalizar(item.anio, ''),
+                meses[Number(item.mes) - 1] || normalizar(item.mes, ''),
+                normalizar(item.division, 'SIN DIVISION').toUpperCase(),
+                normalizar(item.especialidad, 'SIN ESPECIALIDAD').toUpperCase(),
+                numero(item.dias_estancia),
+                normalizar(item.diagnostico_egreso, 'SIN DIAGNOSTICO').toUpperCase(),
+                normalizar(item.motivo_egreso, 'SIN MOTIVO').toUpperCase()
+            ];
+            pintarFilaDatos(row);
+
+            const diasCell = row.getCell(6);
+            diasCell.numFmt = '#,##0';
+
+            if (numero(item.dias_estancia) >= 15) {
+                diasCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.riesgo } };
+            } else if (numero(item.dias_estancia) >= 8) {
+                diasCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colores.alerta } };
+            }
+        });
+
+        const lastDetalleRow = 4 + datosHospitalizacion.length;
+        detalle.autoFilter = {
+            from: { row: 4, column: 1 },
+            to: { row: Math.max(4, lastDetalleRow), column: 8 }
+        };
+        detalle.views = [{ state: 'frozen', ySplit: 4, showGridLines: false }];
+
+        crearHojaAgrupada('Divisiones', 'Egresos por division medica', resumenDivisiones, 'Division');
+        crearHojaAgrupada('Especialidades', 'Egresos por especialidad', resumenEspecialidades, 'Especialidad');
+        crearHojaAgrupada('Diagnosticos', 'Top diagnosticos de egreso', resumenDiagnosticos, 'Diagnostico', 50);
+        crearHojaAgrupada('Motivos', 'Motivos de egreso', resumenMotivos, 'Motivo');
+
+        workbook.eachSheet((sheet) => {
+            sheet.eachRow((row) => {
+                row.eachCell((cell) => {
+                    cell.font = cell.font || {};
+                    cell.alignment = cell.alignment || { vertical: 'middle' };
+                });
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        saveAs(blob, `reporte_hospitalizacion_${fechaArchivo()}.xlsx`);
+    };
     const handleDescargarExcel = async () => {
         try {
+            if (areaSidebar === 'cirugias') {
+                await exportarReporteCirugias();
+                return;
+            }
+
+            if (areaSidebar === 'hospitalizacion') {
+                await exportarReporteHospitalizacion();
+                return;
+            }
+
             const totalRegistros =
                 datosFiltrados.length +
                 datosParamedicos.length +
                 datosUrgencias.length +
                 datosCirugias.length +
                 datosHospitalizacion.length;
-
-            if (areaSidebar === 'cirugias' && datosCirugias.length === 0) {
-                alert("El módulo de Cirugías todavía no tiene datos cargados para exportar con los filtros actuales.");
-                return;
-            }
 
             if (totalRegistros === 0) {
                 alert("No hay datos cargados para generar el reporte.");
@@ -1048,7 +2875,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                 datosHospitalizacion
             );
         } catch (error) {
-            console.error("Error en la exportación:", error);
+            console.error("Error en la exportacion:", error);
             alert("Hubo un error al generar el Excel.");
         }
     };
@@ -1437,7 +3264,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                             <div className="flex justify-center items-center py-20 text-[#822626] font-bold"><Activity className="animate-spin mr-3" /> Calculando estadísticas...</div>
                         ) : error ? (
                             <div className="text-red-600 font-bold text-center py-20">{error}</div>
-                        ) : datosFiltrados.length === 0 ? (
+                        ) : datosFiltrados.length === 0 && tablaConsultasEspecialidadPeriodo.filas.length === 0 ? (
                             <div className="text-center p-16 border-2 border-dashed border-slate-300 rounded-2xl text-slate-400 mt-10">
                                 <Activity size={48} className="mx-auto mb-4 opacity-50" />
                                 <p className="font-bold text-lg">No hay datos para esta selección</p>
@@ -1490,6 +3317,127 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                     </div>
                                 </div>
 
+                                {tablaConsultasEspecialidadPeriodo.filas.length > 0 && (
+                                    <div id="tablaE_especialidades_periodo" className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-6">
+                                        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3 mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-slate-100 p-2 rounded-lg"><TableProperties size={22} className="text-[#822626]" /></div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">Consultas por Especialidad (incluye Paramedicos y Urgencias)</h3>
+                                                    <p className="text-xs text-slate-500">Resumen general por anio / periodo</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center justify-start xl:justify-end gap-2">
+                                                <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                    <Filter size={15} className="text-[#822626]" />
+                                                    <select
+                                                        className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[220px]"
+                                                        value={divisionTablaEspecialidad}
+                                                        onChange={e => setDivisionTablaEspecialidad(e.target.value)}
+                                                    >
+                                                        <option value="todas">Todas las divisiones</option>
+                                                        {divisionesTablaEspecialidadPeriodo.map(division => (
+                                                            <option key={division} value={division}>{division}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={exportarTablaConsultasEspecialidadPeriodo}
+                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#822626] text-white text-xs font-black shadow-sm hover:bg-[#6b1f1f] transition-colors"
+                                                >
+                                                    <Download size={15} />
+                                                    Descargar tabla
+                                                </button>
+
+                                                <span className="text-xs font-black text-[#822626] bg-slate-100 px-3 py-2 rounded-full">
+                                                    {tablaConsultasEspecialidadPeriodo.totalGeneral.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                            <span>Origen:</span>
+                                            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>Consulta externa</span>
+                                            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>Paramedicos</span>
+                                            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500"></span>Urgencias</span>
+                                        </div>
+
+                                        <div className="w-full overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl shadow-sm">
+                                            <table className="min-w-max w-full text-[11px] text-left border-collapse">
+                                                <thead className="text-slate-700">
+                                                    <tr className="bg-slate-100">
+                                                        <th rowSpan={3} className="p-3 border border-slate-300 bg-slate-200 sticky left-0 z-40 uppercase text-xs font-black" style={{ minWidth: '120px', verticalAlign: 'middle' }}>Cve Especialidad</th>
+                                                        <th rowSpan={3} className="p-3 border border-slate-300 bg-slate-200 sticky z-30 uppercase text-xs font-black" style={{ left: '120px', minWidth: '320px', verticalAlign: 'middle' }}>Descripcion</th>
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <th key={periodo.key} className="px-3 py-2 border border-slate-300 text-center text-[10px] uppercase tracking-wide font-black text-slate-500">Anio / Periodo</th>
+                                                        ))}
+                                                        <th rowSpan={3} className="p-3 border border-slate-300 bg-[#822626] text-white sticky right-0 z-30 text-right uppercase text-xs font-black" style={{ minWidth: '90px', verticalAlign: 'middle' }}>Total</th>
+                                                    </tr>
+                                                    <tr className="bg-slate-50">
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <th key={`${periodo.key}-anio`} className="px-3 py-2 border border-slate-300 text-center font-black text-slate-700">{periodo.anio}</th>
+                                                        ))}
+                                                    </tr>
+                                                    <tr className="bg-white">
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <th key={`${periodo.key}-mes`} className="px-3 py-2 border border-slate-300 text-center font-black text-[#822626]" style={{ minWidth: '76px' }}>{periodo.etiqueta}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {tablaConsultasEspecialidadPeriodo.filas.map(fila => (
+                                                        <tr key={`${fila.cve}-${fila.descripcion}`} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="p-3 border border-slate-200 bg-white sticky left-0 z-20 font-bold text-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.03)]">{fila.cve || ''}</td>
+                                                            <td className="p-3 border border-slate-200 bg-white sticky z-10 font-semibold text-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.03)]" style={{ left: '120px' }}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span>{fila.descripcion}</span>
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        {(fila.origenes?.paramedicos || 0) > 0 && (
+                                                                            <span
+                                                                                className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100"
+                                                                                title={`Paramedicos: ${(fila.origenes?.paramedicos || 0).toLocaleString()}`}
+                                                                            ></span>
+                                                                        )}
+                                                                        {(fila.origenes?.urgencias || 0) > 0 && (
+                                                                            <span
+                                                                                className="h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-orange-100"
+                                                                                title={`Urgencias: ${(fila.origenes?.urgencias || 0).toLocaleString()}`}
+                                                                            ></span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => {
+                                                                const valor = fila.conteos[periodo.key] || 0;
+                                                                return (
+                                                                    <td key={`${fila.cve}-${fila.descripcion}-${periodo.key}`} className={`px-3 py-2 border border-slate-200 text-center ${valor > 0 ? 'font-bold text-slate-700' : 'text-slate-300'}`}>
+                                                                        {valor > 0 ? valor.toLocaleString() : ''}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                            <td className="p-3 border border-slate-200 bg-slate-100 sticky right-0 z-10 font-black text-right text-slate-900 shadow-[-4px_0_10px_rgba(0,0,0,0.03)]">{fila.total.toLocaleString()}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot className="sticky bottom-0 z-20">
+                                                    <tr>
+                                                        <td className="p-3 border border-slate-300 bg-slate-200 sticky left-0 z-40 uppercase text-xs font-black text-slate-800">Total</td>
+                                                        <td className="p-3 border border-slate-300 bg-slate-200 sticky z-30 uppercase text-xs font-black text-slate-800" style={{ left: '120px' }}>Total</td>
+                                                        {tablaConsultasEspecialidadPeriodo.periodos.map(periodo => (
+                                                            <td key={`${periodo.key}-total`} className="px-3 py-2 border border-slate-300 bg-slate-100 text-center font-black text-[#822626]">
+                                                                {(tablaConsultasEspecialidadPeriodo.totalesPorPeriodo[periodo.key] || 0).toLocaleString()}
+                                                            </td>
+                                                        ))}
+                                                        <td className="p-3 border border-slate-300 bg-[#822626] text-white sticky right-0 z-30 font-black text-right text-sm">{tablaConsultasEspecialidadPeriodo.totalGeneral.toLocaleString()}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                                 <div id="graficoE_1" className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                                         <div className="flex items-center gap-3">
@@ -1534,7 +3482,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                     <div id="graficoE_2" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px]">
                                         <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">
-                                            {chartDivisiones.mostrandoEspecialidades ? 'Distribución por Especialidad' : 'Distribución por División'}
+                                            {chartDivisiones.mostrandoEspecialidades ? 'Distribución por Especialidad Específica' : 'Distribución por División Específica'}
                                         </h3>
 
                                         <div className="relative flex-1 min-h-[220px]">
@@ -1546,7 +3494,7 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                                 titulo1={chartDivisiones.mostrandoEspecialidades ? 'Especialidad' : 'División'}
                                                 titulo2="Consultas"
                                                 labels={chartDivisiones.labels}
-                                                data={chartDivisiones.datasets[0].data}
+                                                data={chartDivisiones.datasets[0]?.data || []}
                                                 dataPV={chartDivisiones.dataPV}
                                                 dataSub={chartDivisiones.dataSub}
                                             />
@@ -1555,26 +3503,113 @@ const [ultimaFechaBD, setUltimaFechaBD] = useState('Cargando...');
                                     <div id="graficoE_3" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col h-full min-h-[300px]">
                                         <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide mb-4">Consultas por Turno</h3>
                                         <div className="relative flex-1 min-h-[220px]"><Doughnut data={chartTurnos} options={{ maintainAspectRatio: false }} /></div>
-                                        {mostrarTablas && <TablaDatos titulo1="Turno" titulo2="Consultas" labels={chartTurnos.labels} data={chartTurnos.datasets[0].data} dataPV={chartTurnos.dataPV} dataSub={chartTurnos.dataSub} />}
+                                        {mostrarTablas && <TablaDatos titulo1="Turno" titulo2="Consultas" labels={chartTurnos.labels} data={chartTurnos.datasets[0]?.data || []} dataPV={chartTurnos.dataPV} dataSub={chartTurnos.dataSub} />}
                                     </div>
                                 </div>
 
                                 <div id="graficoE_4" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col mb-6">
-                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Top 20 Productividad por Médico</h3>
+                                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+                                        <div>
+                                            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Top 20 Productividad por Médico</h3>
+                                            <p className="text-xs text-slate-500 mt-1">El Excel incluye todos los médicos agrupados por mes y total.</p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                <Filter size={15} className="text-[#822626]" />
+                                                <select
+                                                    className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[220px]"
+                                                    value={divisionTopMedicos}
+                                                    onChange={e => setDivisionTopMedicos(e.target.value)}
+                                                >
+                                                    <option value="todas">Todas las divisiones</option>
+                                                    {divisionesTopConsulta.map(division => (
+                                                        <option key={division} value={division}>{division}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                <BookOpen size={15} className="text-[#822626]" />
+                                                <select
+                                                    className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[240px]"
+                                                    value={especialidadTopMedicos}
+                                                    onChange={e => setEspecialidadTopMedicos(e.target.value)}
+                                                >
+                                                    <option value="todas">Todas las especialidades</option>
+                                                    {especialidadesTopMedicos.map(especialidad => (
+                                                        <option key={especialidad} value={especialidad}>{especialidad}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={exportarTopMedicos}
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#822626] text-white text-xs font-black shadow-sm hover:bg-[#6b1f1f] transition-colors"
+                                            >
+                                                <Download size={15} />
+                                                Descargar tabla
+                                            </button>
+                                            <span className="text-xs font-black text-[#822626] bg-slate-100 px-3 py-2 rounded-full">
+                                                {rankingMedicosCompleto.length.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartMedicos.labels.length), height: '100%' }}><Bar data={chartMedicos} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Médico" titulo2="Consultas" labels={chartMedicos.labels} data={chartMedicos.datasets[0].data} dataPV={chartMedicos.dataPV} dataSub={chartMedicos.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Médico" tituloExtra="Especialidad" titulo2="Consultas" labels={chartMedicos.labels} dataExtra={chartMedicos.dataExtra} data={chartMedicos.datasets[0]?.data || []} dataPV={chartMedicos.dataPV} dataSub={chartMedicos.dataSub} />}
                                 </div>
 
                                 <div id="graficoE_5" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col mb-6">
-                                    <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Top 20 Diagnósticos Principales</h3>
+                                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+                                        <div>
+                                            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wide">Top 20 Diagnósticos Principales</h3>
+                                            <p className="text-xs text-slate-500 mt-1">El Excel incluye todos los diagnósticos agrupados por mes y total.</p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                <Filter size={15} className="text-[#822626]" />
+                                                <select
+                                                    className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[220px]"
+                                                    value={divisionTopDiagnosticos}
+                                                    onChange={e => setDivisionTopDiagnosticos(e.target.value)}
+                                                >
+                                                    <option value="todas">Todas las divisiones</option>
+                                                    {divisionesTopConsulta.map(division => (
+                                                        <option key={division} value={division}>{division}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                                <BookOpen size={15} className="text-[#822626]" />
+                                                <select
+                                                    className="bg-transparent font-bold text-slate-700 text-xs outline-none cursor-pointer max-w-[240px]"
+                                                    value={especialidadTopDiagnosticos}
+                                                    onChange={e => setEspecialidadTopDiagnosticos(e.target.value)}
+                                                >
+                                                    <option value="todas">Todas las especialidades</option>
+                                                    {especialidadesTopDiagnosticos.map(especialidad => (
+                                                        <option key={especialidad} value={especialidad}>{especialidad}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={exportarTopDiagnosticos}
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#822626] text-white text-xs font-black shadow-sm hover:bg-[#6b1f1f] transition-colors"
+                                            >
+                                                <Download size={15} />
+                                                Descargar tabla
+                                            </button>
+                                            <span className="text-xs font-black text-[#822626] bg-slate-100 px-3 py-2 rounded-full">
+                                                {rankingDiagnosticosCompleto.length.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartDiagnosticos.labels.length), height: '100%' }}><Bar data={chartDiagnosticos} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Diagnóstico" titulo2="Frecuencia" labels={chartDiagnosticos.labels} data={chartDiagnosticos.datasets[0].data} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Diagnóstico" tituloExtra="CIE-10" titulo2="Frecuencia" labels={chartDiagnosticos.labels} dataExtra={chartDiagnosticos.dataExtra} data={chartDiagnosticos.datasets[0]?.data || []} dataPV={chartDiagnosticos.dataPV} dataSub={chartDiagnosticos.dataSub} />}
                                 </div>
-
                                 <div id="graficoE_6" className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col">
                                     <h3 className="font-bold text-slate-700 text-sm uppercase mb-4">Distribución por Consultorio</h3>
                                     <div className="h-[400px] overflow-x-auto"><div style={{ minWidth: anchoDinamico(chartConsultorios.labels.length), height: '100%' }}><Bar data={chartConsultorios} options={chartOptionsVertical} /></div></div>
-                                    {mostrarTablas && <TablaDatos titulo1="Consultorio" titulo2="Consultas" labels={chartConsultorios.labels} data={chartConsultorios.datasets[0].data} dataPV={chartConsultorios.dataPV} dataSub={chartConsultorios.dataSub} />}
+                                    {mostrarTablas && <TablaDatos titulo1="Consultorio" titulo2="Consultas" labels={chartConsultorios.labels} data={chartConsultorios.datasets[0]?.data || []} dataPV={chartConsultorios.dataPV} dataSub={chartConsultorios.dataSub} />}
                                 </div>
                             </div>
                         )}
